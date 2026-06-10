@@ -2,23 +2,27 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, addMatch } from '@/lib/firestore';
+import { getStreamers, addMatch, isFirebaseConfigured } from '@/lib/firestore';
+import { validateMatchForm } from '@/lib/match';
 import type { Streamer } from '@/lib/types';
-import { Button } from '@/components/ui/button';
+import { MOCK_STREAMERS } from '@/test/fixtures';
 
 const HOTS_MAPS = [
-  '뒤틀린 식물원',
-  '공포의 정원',
-  '하늘 신전',
-  '용의 둥지',
-  '공허의 파도',
-  '거미 여왕의 무덤',
-  '영원의 전쟁터',
-  '탑승구 만',
-  '불지옥 신단',
-  '볼스카야 공장',
-  '알터랙 고개',
+  '뒤틀린 식물원','공포의 정원','하늘 신전','용의 둥지','공허의 파도',
+  '거미 여왕의 무덤','영원의 전쟁터','탑승구 만','불지옥 신단','볼스카야 공장','알터랙 고개',
 ];
+
+const INPUT_STYLE: React.CSSProperties = {
+  width: '100%', height: 36, padding: '0 10px',
+  borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
+  background: 'var(--surface-input)', color: 'var(--text-high)',
+  fontFamily: 'var(--font-ui)', fontSize: 13, outline: 'none', boxSizing: 'border-box',
+};
+
+const LABEL_STYLE: React.CSSProperties = {
+  fontSize: 11, fontFamily: 'var(--font-numeral)', letterSpacing: '0.08em',
+  color: 'var(--text-faint)', textTransform: 'uppercase', marginBottom: 6, display: 'block',
+};
 
 export default function NewMatchPage() {
   const router = useRouter();
@@ -27,41 +31,47 @@ export default function NewMatchPage() {
   const [redTeam, setRedTeam] = useState<[string, string][]>([]);
   const [winner, setWinner] = useState<'blue' | 'red'>('blue');
   const [map, setMap] = useState('');
+  const [dur, setDur] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!isFirebaseConfigured) { setStreamers(MOCK_STREAMERS); return; }
     getStreamers().then(setStreamers);
   }, []);
 
-  function togglePlayer(id: string, team: 'blue' | 'red') {
-    if (team === 'blue') {
-      setBlueTeam((prev) =>
-        prev.some(([x]) => x === id) ? prev.filter(([x]) => x !== id) : [...prev, [id, '']]
-      );
-      setRedTeam((prev) => prev.filter(([x]) => x !== id));
-    } else {
-      setRedTeam((prev) =>
-        prev.some(([x]) => x === id) ? prev.filter(([x]) => x !== id) : [...prev, [id, '']]
-      );
-      setBlueTeam((prev) => prev.filter(([x]) => x !== id));
-    }
-  }
-
-  function getPlayerTeam(id: string): 'blue' | 'red' | null {
+  function getTeam(id: string): 'blue' | 'red' | null {
     if (blueTeam.some(([x]) => x === id)) return 'blue';
     if (redTeam.some(([x]) => x === id)) return 'red';
     return null;
   }
 
+  function assignPlayer(id: string, side: 'blue' | 'red') {
+    const cur = getTeam(id);
+    if (cur === side) {
+      // 같은 팀 클릭 → 제거
+      if (side === 'blue') setBlueTeam(p => p.filter(([x]) => x !== id));
+      else setRedTeam(p => p.filter(([x]) => x !== id));
+    } else {
+      // 상대팀에서 제거 후 이 팀에 추가
+      setBlueTeam(p => p.filter(([x]) => x !== id));
+      setRedTeam(p => p.filter(([x]) => x !== id));
+      if (side === 'blue') setBlueTeam(p => [...p, [id, '']]);
+      else setRedTeam(p => [...p, [id, '']]);
+    }
+  }
+
+  function setHero(side: 'blue' | 'red', id: string, hero: string) {
+    const setter = side === 'blue' ? setBlueTeam : setRedTeam;
+    setter(p => p.map(([pid, h]) => pid === id ? [pid, hero] : [pid, h]));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (blueTeam.length === 0 || redTeam.length === 0) {
-      setError('블루팀과 레드팀에 최소 1명씩 배정해야 합니다.');
-      return;
-    }
+    const validation = validateMatchForm(blueTeam, redTeam);
+    if (!validation.valid) { setError(validation.error); return; }
     setSubmitting(true);
     setError('');
     try {
@@ -71,178 +81,189 @@ export default function NewMatchPage() {
         redTeam,
         winner,
         map: map || undefined,
+        dur: dur || undefined,
         note: note || undefined,
       });
       router.push('/matches');
-    } catch (err) {
+    } catch {
       setError('저장 중 오류가 발생했습니다.');
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold">경기 결과 입력</h1>
+    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+      <div style={{ padding: 'var(--sp-7) 0 var(--sp-5)' }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22,
+          color: 'var(--text-strong)', margin: 0 }}>경기 결과 입력</h1>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 날짜 & 맵 */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">날짜</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-              className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
-            />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
+
+        {/* 날짜 / 맵 / 경기시간 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 'var(--sp-3)' }}>
+          <div>
+            <label style={LABEL_STYLE}>날짜</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)}
+              required style={INPUT_STYLE} />
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">맵 (선택)</label>
-            <select
-              value={map}
-              onChange={(e) => setMap(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
-            >
+          <div>
+            <label style={LABEL_STYLE}>맵 (선택)</label>
+            <select value={map} onChange={e => setMap(e.target.value)}
+              style={{ ...INPUT_STYLE, cursor: 'pointer' }}>
               <option value="">선택 안 함</option>
-              {HOTS_MAPS.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
+              {HOTS_MAPS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
+          </div>
+          <div>
+            <label style={LABEL_STYLE}>경기시간</label>
+            <input value={dur} onChange={e => setDur(e.target.value)}
+              placeholder="21:04" style={INPUT_STYLE} />
           </div>
         </div>
 
         {/* 팀 배정 */}
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-slate-300">팀 배정</label>
-          <p className="text-xs text-slate-500">각 스트리머를 블루팀 또는 레드팀에 배정하세요. 한 번 더 클릭하면 해제됩니다.</p>
-          {streamers.length === 0 ? (
-            <p className="text-slate-400 text-sm">스트리머가 없습니다. 먼저 스트리머를 추가해 주세요.</p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {streamers.map((s) => {
-                const team = getPlayerTeam(s.id);
-                return (
-                  <div key={s.id} className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => togglePlayer(s.id, 'blue')}
-                      className={`flex-1 py-2 rounded-l-md text-xs font-semibold border transition-colors ${
-                        team === 'blue'
-                          ? 'bg-blue-600 border-blue-500 text-white'
-                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-blue-600'
-                      }`}
-                    >
-                      {team === 'blue' ? '✓ ' : ''}블루
-                    </button>
-                    <div className={`flex-[2] flex items-center justify-center py-2 text-xs border-y text-slate-200 truncate px-1 ${
-                      team === 'blue' ? 'bg-blue-900/30 border-blue-800' :
-                      team === 'red' ? 'bg-red-900/30 border-red-800' :
-                      'bg-slate-900 border-slate-700'
-                    }`}>
-                      {s.name}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => togglePlayer(s.id, 'red')}
-                      className={`flex-1 py-2 rounded-r-md text-xs font-semibold border transition-colors ${
-                        team === 'red'
-                          ? 'bg-red-600 border-red-500 text-white'
-                          : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-red-600'
-                      }`}
-                    >
-                      {team === 'red' ? '✓ ' : ''}레드
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* 팀 현황 */}
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            <div className="bg-blue-950/40 border border-blue-900 rounded-lg p-2">
-              <div className="text-xs font-semibold text-blue-400 mb-1">블루팀 ({blueTeam.length}명)</div>
-              <div className="flex flex-wrap gap-1">
-                {blueTeam.map(([id]) => (
-                  <span key={id} className="text-xs bg-blue-900/50 text-blue-200 px-1.5 py-0.5 rounded">
-                    {streamers.find((s) => s.id === id)?.name}
+        <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+          border: '1px solid var(--border-line)', padding: 'var(--sp-4)' }}>
+          <span style={LABEL_STYLE}>팀 배정 — 스트리머 선택 후 팀 버튼 클릭</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {streamers.map(s => {
+              const team = getTeam(s.id);
+              return (
+                <div key={s.id} style={{ display: 'flex', borderRadius: 'var(--r-sm)', overflow: 'hidden',
+                  border: `1px solid ${team === 'blue' ? 'var(--cheese-blue)' : team === 'red' ? 'var(--loss)' : 'var(--border-line)'}` }}>
+                  <button type="button" onClick={() => assignPlayer(s.id, 'blue')}
+                    style={{ padding: '5px 10px', background: team === 'blue' ? 'var(--cheese-blue)' : 'var(--surface-raise)',
+                      color: team === 'blue' ? 'var(--text-on-blue)' : 'var(--text-faint)',
+                      fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
+                      border: 'none', cursor: 'pointer', transition: 'all var(--dur-fast) var(--ease-out)' }}>
+                    B
+                  </button>
+                  <span style={{ padding: '5px 10px', fontFamily: 'var(--font-ui)', fontWeight: 600,
+                    fontSize: 13, color: 'var(--text-high)', background: 'var(--surface-card)',
+                    borderLeft: '1px solid var(--border-line)', borderRight: '1px solid var(--border-line)' }}>
+                    {s.name}
                   </span>
-                ))}
-              </div>
-            </div>
-            <div className="bg-red-950/40 border border-red-900 rounded-lg p-2">
-              <div className="text-xs font-semibold text-red-400 mb-1">레드팀 ({redTeam.length}명)</div>
-              <div className="flex flex-wrap gap-1">
-                {redTeam.map(([id]) => (
-                  <span key={id} className="text-xs bg-red-900/50 text-red-200 px-1.5 py-0.5 rounded">
-                    {streamers.find((s) => s.id === id)?.name}
-                  </span>
-                ))}
-              </div>
-            </div>
+                  <button type="button" onClick={() => assignPlayer(s.id, 'red')}
+                    style={{ padding: '5px 10px', background: team === 'red' ? 'var(--loss)' : 'var(--surface-raise)',
+                      color: team === 'red' ? '#fff' : 'var(--text-faint)',
+                      fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
+                      border: 'none', cursor: 'pointer', transition: 'all var(--dur-fast) var(--ease-out)' }}>
+                    R
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
 
+        {/* 팀 편성 + 영웅 입력 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)' }}>
+          {(['blue', 'red'] as const).map(side => {
+            const team = side === 'blue' ? blueTeam : redTeam;
+            const accentColor = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
+            const label = side === 'blue' ? '블루팀' : '레드팀';
+            const slots = Array.from({ length: 5 }, (_, i) => team[i] ?? null);
+            return (
+              <div key={side} style={{ background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+                border: `1px solid ${team.length === 5 ? accentColor : 'var(--border-line)'}`,
+                overflow: 'hidden' }}>
+                <div style={{ padding: 'var(--sp-3) var(--sp-4)', borderBottom: '1px solid var(--border-faint)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  background: `color-mix(in srgb, ${accentColor} 8%, transparent)` }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
+                    color: accentColor }}>{label}</span>
+                  <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11,
+                    color: team.length === 5 ? accentColor : 'var(--text-faint)' }}>
+                    {team.length} / 5
+                  </span>
+                </div>
+                <div style={{ padding: 'var(--sp-3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {slots.map((slot, i) => (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6,
+                      alignItems: 'center' }}>
+                      {slot ? (
+                        <>
+                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
+                            color: 'var(--text-high)', padding: '0 4px',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {streamers.find(s => s.id === slot[0])?.name ?? slot[0]}
+                          </span>
+                          <input
+                            value={slot[1]}
+                            onChange={e => setHero(side, slot[0], e.target.value)}
+                            placeholder="영웅명"
+                            style={{ ...INPUT_STYLE, height: 30, fontSize: 12,
+                              borderColor: !slot[1] ? 'var(--loss-soft)' : 'var(--border-line)' }}
+                          />
+                        </>
+                      ) : (
+                        <span style={{ gridColumn: '1/-1', height: 30, borderRadius: 'var(--r-sm)',
+                          border: '1px dashed var(--border-faint)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, color: 'var(--text-faint)' }}>
+                          {i + 1}번 슬롯
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* 승리팀 */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-300">승리팀</label>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setWinner('blue')}
-              className={`flex-1 py-3 rounded-lg font-bold text-sm border-2 transition-all ${
-                winner === 'blue'
-                  ? 'bg-blue-600 border-blue-500 text-white'
-                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-blue-700'
-              }`}
-            >
-              🏆 블루팀 승리
-            </button>
-            <button
-              type="button"
-              onClick={() => setWinner('red')}
-              className={`flex-1 py-3 rounded-lg font-bold text-sm border-2 transition-all ${
-                winner === 'red'
-                  ? 'bg-red-600 border-red-500 text-white'
-                  : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-red-700'
-              }`}
-            >
-              🏆 레드팀 승리
-            </button>
+        <div>
+          <span style={LABEL_STYLE}>승리팀</span>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-3)' }}>
+            {(['blue', 'red'] as const).map(side => {
+              const active = winner === side;
+              const color = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
+              return (
+                <button key={side} type="button" onClick={() => setWinner(side)} style={{
+                  height: 48, borderRadius: 'var(--r-md)', fontFamily: 'var(--font-display)',
+                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                  border: `2px solid ${active ? color : 'var(--border-line)'}`,
+                  background: active ? `color-mix(in srgb, ${color} 15%, var(--surface-card))` : 'var(--surface-card)',
+                  color: active ? color : 'var(--text-muted)',
+                  transition: 'all var(--dur-fast) var(--ease-out)',
+                }}>
+                  {active ? '🏆 ' : ''}{side === 'blue' ? '블루팀' : '레드팀'} 승리
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* 메모 */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-300">메모 (선택)</label>
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="경기에 대한 메모를 입력하세요..."
-            rows={2}
-            className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"
-          />
+        <div>
+          <label style={LABEL_STYLE}>메모 (선택)</label>
+          <textarea value={note} onChange={e => setNote(e.target.value)}
+            placeholder="경기에 대한 메모..." rows={2}
+            style={{ ...INPUT_STYLE, height: 'auto', padding: '8px 10px', resize: 'none' }} />
         </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && (
+          <p style={{ fontSize: 13, color: 'var(--loss)', fontFamily: 'var(--font-ui)' }}>{error}</p>
+        )}
 
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800"
-          >
-            취소
-          </Button>
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="flex-1 bg-amber-500 hover:bg-amber-400 text-black font-bold"
-          >
+        {/* 버튼 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--sp-3)',
+          paddingBottom: 'var(--sp-10)' }}>
+          <button type="button" onClick={() => router.back()} style={{
+            height: 44, borderRadius: 'var(--r-md)', border: '1px solid var(--border-line)',
+            background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-display)',
+            fontWeight: 700, fontSize: 14, cursor: 'pointer',
+          }}>취소</button>
+          <button type="submit" disabled={submitting} style={{
+            height: 44, borderRadius: 'var(--r-md)', border: 'none',
+            background: submitting ? 'var(--ink-600)' : 'var(--cheese-green)',
+            color: 'var(--text-on-green)', fontFamily: 'var(--font-display)',
+            fontWeight: 700, fontSize: 14, cursor: submitting ? 'not-allowed' : 'pointer',
+          }}>
             {submitting ? '저장 중...' : '저장'}
-          </Button>
+          </button>
         </div>
       </form>
     </div>
