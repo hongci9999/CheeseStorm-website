@@ -24,39 +24,57 @@ function pct(p: PlayerStats) {
   return p.totalGames > 0 ? Math.round(p.winRate * 100) : 0;
 }
 
-// ── 헥사곤 아바타 ──────────────────────────────────────────────
-function HexAvatar({ name, tier, size = 54 }: { name: string; tier: Tier; size?: number }) {
-  const color = `var(${TIER_COLOR_VAR[tier]})`;
+// ── Avatar — DS 스펙 그대로: 티어색 링(외부 hex) + 어두운 내부 hex + 이니셜 2자
+function Avatar({ name, tier, size = 54 }: { name: string; tier: Tier; size?: number }) {
+  const ring = `var(${TIER_COLOR_VAR[tier]})`;
+  const pad = tier !== 'unranked' ? 2 : 1.5;
+  const initials = name.trim().slice(0, 2);
   return (
-    <div style={{
-      width: size, height: size,
-      clipPath: HEX_CLIP,
-      background: `color-mix(in srgb, ${color} 22%, var(--surface-raise))`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: 'var(--font-display)', fontWeight: 800,
-      fontSize: Math.round(size * 0.38),
-      color,
-    }}>
-      {name[0]}
-    </div>
+    <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size }}>
+      {/* 외부 링 — 티어 색 헥사곤 */}
+      <span style={{
+        position: 'absolute', inset: 0,
+        background: ring, clipPath: HEX_CLIP, padding: pad,
+        display: 'flex',
+      }}>
+        {/* 내부 — 어두운 배경 헥사곤 + 이니셜 */}
+        <span style={{
+          display: 'flex', width: '100%', height: '100%',
+          alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+          background: 'var(--surface-raise)', clipPath: HEX_CLIP,
+          color: 'var(--text-muted)', fontFamily: 'var(--font-display)',
+          fontWeight: 700, fontSize: Math.round(size * 0.34),
+        }}>
+          {initials}
+        </span>
+      </span>
+    </span>
   );
 }
 
-// ── 티어 뱃지 ─────────────────────────────────────────────────
-function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg' }) {
-  const sz = size === 'lg' ? 52 : size === 'md' ? 36 : 26;
-  const fs = size === 'lg' ? 22 : size === 'md' ? 15 : 11;
+// ── TierBadge — DS 스펙 그대로: 꽉 찬 헥사곤 + glow + 어두운 텍스트
+function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
+  const dims = { sm: 28, md: 40, lg: 56, xl: 84 }[size] ?? 40;
+  const fs   = { sm: 14, md: 20, lg: 28, xl: 44 }[size] ?? 20;
   const color = `var(${TIER_COLOR_VAR[tier]})`;
+  const label = tier === 'unranked' ? '?' : tier;
   return (
-    <div style={{
-      width: sz, height: sz, borderRadius: 'var(--r-sm)', display: 'flex',
-      alignItems: 'center', justifyContent: 'center',
-      background: `color-mix(in srgb, ${color} 18%, transparent)`,
-      border: `1.5px solid ${color}`,
-      color, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: fs,
-    }}>
-      {tier === 'unranked' ? '?' : tier}
-    </div>
+    <span style={{ position: 'relative', display: 'inline-flex', width: dims, height: dims,
+      alignItems: 'center', justifyContent: 'center' }}>
+      {/* 꽉 찬 헥사곤 fill + glow */}
+      <span style={{
+        position: 'absolute', inset: 0,
+        background: color, clipPath: HEX_CLIP,
+        filter: `drop-shadow(0 0 10px ${color})`,
+      }} />
+      {/* 텍스트 — 어두운 색으로 */}
+      <span style={{
+        position: 'relative', fontFamily: 'var(--font-display)', fontWeight: 900,
+        fontSize: fs, lineHeight: 1, color: 'var(--ink-1000)', paddingBottom: 2,
+      }}>
+        {label}
+      </span>
+    </span>
   );
 }
 
@@ -79,7 +97,7 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
     >
       {/* 아바타 + S티어 순위 뱃지 */}
       <div style={{ position: 'relative' }}>
-        <HexAvatar name={p.streamerName} tier={tier} size={54} />
+        <Avatar name={p.streamerName} tier={tier} size={54} />
         {rank <= 3 && tier === 'S' && (
           <span style={{
             position: 'absolute', top: -4, left: -4, width: 18, height: 18,
