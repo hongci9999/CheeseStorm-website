@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getMatches, getStreamers, deleteMatch } from '@/lib/firestore';
+import { getMatches, getStreamers, deleteMatch, isFirebaseConfigured } from '@/lib/firestore';
 import type { Match, Streamer } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { MOCK_MATCHES, MOCK_STREAMERS } from '@/test/fixtures';
 
 export default function MatchesPage() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -12,6 +13,12 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
 
   async function load() {
+    if (!isFirebaseConfigured) {
+      setMatches(MOCK_MATCHES);
+      setStreamers(new Map(MOCK_STREAMERS.map((s) => [s.id, s.name])));
+      setLoading(false);
+      return;
+    }
     const [matchList, streamerList] = await Promise.all([getMatches(), getStreamers()]);
     setMatches(matchList);
     setStreamers(new Map(streamerList.map((s) => [s.id, s.name])));

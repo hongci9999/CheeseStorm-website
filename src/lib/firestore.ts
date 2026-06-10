@@ -10,7 +10,8 @@ import {
   query,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirebaseConfigured } from './firebase';
+export { isFirebaseConfigured };
 import type { Match, Streamer } from './types';
 
 // --- Streamers ---

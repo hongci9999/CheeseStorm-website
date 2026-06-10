@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getStreamers, getMatches } from '@/lib/firestore';
+import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
 import type { PlayerStats, Role, Tier } from '@/lib/types';
 import { MOCK_STATS } from '@/test/fixtures';
@@ -239,6 +239,11 @@ export default function HomePage() {
 
   useEffect(() => {
     async function load() {
+      if (!isFirebaseConfigured) {
+        setStats(MOCK_STATS);
+        setLoading(false);
+        return;
+      }
       try {
         const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
         const computed = calcPlayerStats(streamers, matches);

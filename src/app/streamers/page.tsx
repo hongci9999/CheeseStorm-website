@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getStreamers, addStreamer, deleteStreamer } from '@/lib/firestore';
+import { getStreamers, addStreamer, deleteStreamer, isFirebaseConfigured } from '@/lib/firestore';
 import type { Streamer } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { MOCK_STREAMERS } from '@/test/fixtures';
 
 export default function StreamersPage() {
   const [streamers, setStreamers] = useState<Streamer[]>([]);
@@ -14,6 +15,11 @@ export default function StreamersPage() {
   const [error, setError] = useState('');
 
   async function load() {
+    if (!isFirebaseConfigured) {
+      setStreamers(MOCK_STREAMERS);
+      setLoading(false);
+      return;
+    }
     const list = await getStreamers();
     setStreamers(list);
     setLoading(false);
