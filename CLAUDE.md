@@ -18,29 +18,40 @@
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # 글로벌 레이아웃 + 네비게이션
-│   ├── page.tsx            # 메인 (티어리스트)
+│   ├── layout.tsx              # 글로벌 레이아웃 (SiteHeader 포함)
+│   ├── page.tsx                # 메인 (티어리스트)
+│   ├── api/
+│   │   └── parse-screenshot/
+│   │       └── route.ts        # Gemini API 스크린샷 파싱 엔드포인트
 │   ├── matches/
-│   │   ├── page.tsx        # 경기 결과 목록
-│   │   └── new/page.tsx    # 경기 결과 입력
+│   │   ├── page.tsx            # 경기 결과 목록 (타임라인)
+│   │   └── new/page.tsx        # 경기 결과 입력 (슬롯 기반 + OCR)
 │   └── streamers/
-│       └── page.tsx        # 스트리머 추가/삭제
-└── lib/
-    ├── firebase.ts         # Firebase 초기화
-    ├── firestore.ts        # Firestore CRUD
-    ├── tier.ts             # 티어 계산 로직 (승률 기반)
-    └── types.ts            # TypeScript 타입
+│       ├── page.tsx            # 스트리머 추가/삭제 (포지션 선택 포함)
+│       └── [id]/page.tsx       # 개인 전적 프로필
+├── components/
+│   └── site-header.tsx         # 클라이언트 헤더 (네비 + 테마 토글)
+├── lib/
+│   ├── firebase.ts             # Firebase 초기화
+│   ├── firestore.ts            # Firestore CRUD
+│   ├── tier.ts                 # 티어 계산 로직 (승률 기반)
+│   ├── profile.ts              # getStreamerProfile, getRecentMatches
+│   ├── streamer.ts             # validateStreamerForm
+│   ├── theme.ts                # resolveTheme (다크/라이트)
+│   └── types.ts                # TypeScript 타입
+├── styles/tokens/              # DS 토큰 CSS 파일 모음
+└── test/fixtures/              # Vitest용 목 데이터
 ```
 
 ## Firestore 컬렉션 구조
 
-- `streamers`: `{ name, chzzkId?, createdAt }`
-- `matches`: `{ date, blueTeam: string[], redTeam: string[], winner: 'blue'|'red', map?, note?, createdAt }`
+- `streamers`: `{ name, chzzkId?, role?, createdAt }`
+- `matches`: `{ date, blueTeam: [string,string][], redTeam: [string,string][], winner: 'blue'|'red', blueStats?: PlayerMatchStat[], redStats?: PlayerMatchStat[], map?, dur?, note?, createdAt }`
 
 ## 개발 환경 설정
 
 ```bash
-# .env.local.example 복사 후 Firebase 값 채우기
+# .env.local.example 복사 후 Firebase + Gemini 값 채우기
 cp .env.local.example .env.local
 
 # 의존성 설치

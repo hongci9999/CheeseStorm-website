@@ -30,8 +30,8 @@
 | **목적** | 치지직 스트리머들의 HotS 내전 결과 기록 + 티어리스트 |
 | **주요 사용자** | 내전 참가 스트리머, 시청자 |
 | **운영 주기** | 연 2~3주 (행사 기간에만 활성) |
-| **현재 상태** | MVP 구현 완료, Firebase 연결 후 배포 가능 |
-| **스택 요약** | Next.js 15 · Firebase Firestore · Tailwind CSS v4 · Vercel |
+| **현재 상태** | 전 기능 구현 완료 (#1~#7), Firebase 연결 후 즉시 배포 가능 |
+| **스택 요약** | Next.js 15 · Firebase Firestore · Tailwind CSS v4 · Gemini API · Vercel |
 
 ---
 
@@ -82,37 +82,54 @@
 ```
 cheesestorm/
 ├── src/
-│   ├── app/                        # Next.js App Router
-│   │   ├── layout.tsx              # 전역 레이아웃 (헤더 + 네비게이션)
-│   │   ├── page.tsx                # / — 티어리스트
+│   ├── app/                              # Next.js App Router
+│   │   ├── layout.tsx                    # 전역 레이아웃 (SiteHeader 포함)
+│   │   ├── page.tsx                      # / — 티어리스트
+│   │   ├── api/
+│   │   │   └── parse-screenshot/
+│   │   │       └── route.ts              # POST /api/parse-screenshot (Gemini OCR)
 │   │   ├── matches/
-│   │   │   ├── page.tsx            # /matches — 경기 결과 목록
+│   │   │   ├── page.tsx                  # /matches — 경기 결과 타임라인
 │   │   │   └── new/
-│   │   │       └── page.tsx        # /matches/new — 경기 결과 입력
+│   │   │       └── page.tsx              # /matches/new — 경기 입력 (슬롯 + OCR)
 │   │   └── streamers/
-│   │       ├── page.tsx            # /streamers — 스트리머 추가/삭제
+│   │       ├── page.tsx                  # /streamers — 스트리머 관리 (포지션 포함)
 │   │       └── [id]/
-│   │           └── page.tsx        # /streamers/[id] — 개인 전적 (구현 예정)
+│   │           └── page.tsx              # /streamers/[id] — 개인 전적 프로필
 │   ├── components/
-│   │   └── ui/                     # shadcn/ui 컴포넌트
-│   └── lib/
-│       ├── firebase.ts             # Firebase 앱 초기화
-│       ├── firestore.ts            # Firestore CRUD 함수 모음
-│       ├── tier.ts                 # 티어 계산 로직 + 상수
-│       ├── types.ts                # 공통 TypeScript 타입
-│       └── utils.ts                # shadcn 유틸 (cn 함수)
-├── claudecode-design/              # Claude Design 핸드오프 번들 (디자인 레퍼런스)
+│   │   ├── site-header.tsx               # 클라이언트 헤더 (네비 + ☾/☀ 토글)
+│   │   └── ui/                           # shadcn/ui 컴포넌트
+│   ├── lib/
+│   │   ├── firebase.ts                   # Firebase 앱 초기화
+│   │   ├── firestore.ts                  # Firestore CRUD 함수 모음
+│   │   ├── tier.ts                       # 티어 계산 로직 + 그룹화
+│   │   ├── profile.ts                    # getStreamerProfile, getRecentMatches
+│   │   ├── streamer.ts                   # validateStreamerForm
+│   │   ├── theme.ts                      # resolveTheme (dark/light)
+│   │   ├── types.ts                      # 공통 TypeScript 타입
+│   │   ├── utils.ts                      # shadcn 유틸 (cn 함수)
+│   │   └── __tests__/                    # Vitest 단위 테스트 (22개)
+│   ├── styles/tokens/                    # DS CSS 변수 파일
+│   │   ├── colors.css                    # 브랜드·중립·티어·의미 색상
+│   │   ├── typography.css                # 폰트 변수
+│   │   ├── spacing.css                   # sp-0 ~ sp-20
+│   │   ├── effects.css                   # 반경·그림자·글로우·모션
+│   │   ├── base.css                      # 리셋 + cheese-static-bg
+│   │   └── light.css                     # 라이트모드 [data-theme="light"] 오버라이드
+│   └── test/fixtures/                    # 목 데이터 (streamers, matches, stats)
+├── claudecode-design/                    # Claude Design 핸드오프 번들 (레퍼런스)
 │   └── project/
-│       ├── _ds/                    # 디자인 시스템 토큰 + 컴포넌트 번들
-│       ├── dash-*.jsx              # 하이파이 페이지 목업
-│       └── wf-*.jsx                # 와이어프레임 목업
+│       ├── _ds/                          # 디자인 시스템 토큰 + 컴포넌트 번들
+│       ├── dash-*.jsx                    # 하이파이 페이지 목업
+│       └── wf-*.jsx                      # 와이어프레임 시안
 ├── docs/
-│   └── adr/
-│       └── 0001-mmr-deferred.md   # ADR: MMR 시스템 구현 유보
-├── CONTEXT.md                      # 도메인 용어 사전 (에이전트 스킬 참조)
-├── CLAUDE.md                       # Claude Code 작업 지침 + 에이전트 스킬 구성
-├── .env.local.example              # 환경변수 템플릿
-└── PROJECT.md                      # 이 문서
+│   ├── adr/
+│   │   └── 0001-mmr-deferred.md          # ADR: MMR 시스템 구현 유보
+│   └── agents/                           # 에이전트 스킬 설정
+├── CONTEXT.md                            # 도메인 용어 사전
+├── CLAUDE.md                             # Claude Code 작업 지침
+├── .env.local.example                    # 환경변수 템플릿
+└── PROJECT.md                            # 이 문서
 ```
 
 ---
@@ -130,7 +147,7 @@ Firebase Firestore 컬렉션 구조.
   id: string;                                                    // Firestore 자동 생성 ID
   name: string;                                                  // 닉네임 (필수)
   chzzkId?: string;                                              // 치지직 채널 ID (선택)
-  role?: '탱커' | '투사' | '암살자' | '지원가' | '전문가';        // 주 포지션 (이슈 #2)
+  role?: '탱커' | '투사' | '암살자' | '지원가' | '전문가';        // 주 포지션 (선택)
   createdAt: Timestamp;
 }
 ```
@@ -141,15 +158,24 @@ Firebase Firestore 컬렉션 구조.
 
 ```typescript
 {
-  id: string;                      // Firestore 자동 생성 ID
-  date: Timestamp;                 // 경기 날짜
-  blueTeam: [string, string][];    // [플레이어명, 영웅명] 쌍 배열 (이슈 #2)
-  redTeam: [string, string][];     // [플레이어명, 영웅명] 쌍 배열 (이슈 #2)
-  winner: 'blue' | 'red';          // 승리 진영
-  map?: string;                    // 맵 이름
-  dur?: string;                    // 경기시간 (예: "21:04") (이슈 #2)
-  note?: string;                   // 메모
+  id: string;                          // Firestore 자동 생성 ID
+  date: Timestamp;                     // 경기 날짜
+  blueTeam: [string, string][];        // [streamerId, heroName] 쌍 배열
+  redTeam: [string, string][];         // [streamerId, heroName] 쌍 배열
+  blueStats?: PlayerMatchStat[];       // 스크린샷 파싱 시 채워지는 개인 스탯
+  redStats?: PlayerMatchStat[];        // blueTeam/redTeam 인덱스 대응
+  winner: 'blue' | 'red';             // 승리 진영
+  map?: string;                        // 맵 이름
+  dur?: string;                        // 경기시간 (예: "21:04")
+  note?: string;                       // 메모
   createdAt: Timestamp;
+}
+
+// 개인 스탯 (스크린샷 자동 파싱으로 채워짐 — 선택적)
+interface PlayerMatchStat {
+  kills: number; assists: number; deaths: number;
+  siegeDmg: number; heroDmg: number;
+  healing: number; selfHeal: number; xp: number;
 }
 ```
 
@@ -167,11 +193,11 @@ Firebase Firestore 컬렉션 구조.
 
 | 경로 | 제목 | 역할 | 인증 필요 |
 |------|------|------|-----------|
-| `/` | 티어리스트 | 전체 스트리머 S~D 티어 + 전적 표시 | 없음 |
-| `/matches` | 경기 결과 | 전체 경기 목록 (타임라인 피드), 클릭 시 라인업 확장 | 없음 |
-| `/matches/new` | 경기 입력 | 팀 구성·영웅픽·맵·경기시간·승리팀 입력 | 없음 (MVP) |
-| `/streamers` | 스트리머 관리 | 스트리머 추가(롤 포함)·삭제, 클릭 시 프로필 이동 | 없음 (MVP) |
-| `/streamers/[id]` | 개인 전적 | 사이드바(기본 정보) + 영웅별 승률 + 최근 매치 | 없음 |
+| `/` | 티어리스트 | 전체 스트리머 S~D 티어 행, 포지션/이름 필터 | 없음 |
+| `/matches` | 내전기록실 | 날짜별 타임라인, 클릭 시 양 팀 라인업 확장 | 없음 |
+| `/matches/new` | 경기 입력 | 5인 슬롯 팀 구성, 스크린샷 드래그&드롭 → Gemini OCR 자동 채움 | 없음 (MVP) |
+| `/streamers` | 스트리머 관리 | 추가(이름·채널ID·포지션)·삭제, 포지션 토글 칩 | 없음 (MVP) |
+| `/streamers/[id]` | 개인 전적 | 310px sticky 사이드바(티어·승률바·스탯필) + 영웅 승률 그리드 + 최근 6경기 | 없음 |
 
 ---
 
@@ -195,6 +221,24 @@ Firebase Firestore 컬렉션 구조.
 **정렬 기준**: 티어 순 → 같은 티어 내 승률 내림차순.
 
 **상수 위치**: `MIN_GAMES`, `TIER_THRESHOLDS` 모두 `tier.ts` 상단에 집중. 기준 변경 시 이 파일만 수정하면 된다.
+
+### 개인 전적 조회 (`src/lib/profile.ts`)
+
+- `getStreamerProfile(id, streamers, matches)` — 단일 스트리머의 `PlayerStats` 반환. 내부적으로 `calcPlayerStats`를 위임해 재계산. 존재하지 않는 ID → `null`.
+- `getRecentMatches(id, matches, n=6)` — 해당 스트리머가 참여한 최근 n경기를 날짜 내림차순 반환.
+
+### 스크린샷 OCR (`src/app/api/parse-screenshot/route.ts`)
+
+`POST /api/parse-screenshot` — multipart/form-data로 이미지를 받아 Gemini `gemini-1.5-flash`에 전달.  
+프롬프트에 열 순서(킬·어시·데스·공성딜·영웅딜·힐량·자기힐·경험치기여)를 명시해 `ParsedMatch` JSON으로 반환.  
+비용: 약 $0.001/이미지. `GEMINI_API_KEY` 환경변수 필요 (서버 전용, `NEXT_PUBLIC_` 접두어 없음).
+
+### 테마 시스템 (`src/lib/theme.ts`)
+
+- `resolveTheme(stored: string | null): 'dark' | 'light'` — localStorage 값을 받아 유효한 테마를 반환. `null`·알 수 없는 값 → `'dark'` 폴백.
+- `SiteHeader`가 마운트 시 localStorage를 읽어 `document.documentElement`의 `data-theme` 속성을 설정.
+- `layout.tsx` `<head>`에 인라인 스크립트로 하이드레이션 전 테마를 적용해 플리커 방지.
+- 라이트모드: `[data-theme="light"]`로 `light.css`의 모든 토큰 오버라이드가 자동 적용. 다크모드가 기본값(별도 클래스 불필요).
 
 ### 지원 맵 목록 (`src/app/matches/new/page.tsx`)
 
@@ -229,7 +273,14 @@ Claude Design(claude.ai/design)에서 제작한 핸드오프 번들. `claudecode
 
 ### 구현 방식
 
-CSS 변수 토큰을 `globals.css`에 직접 정의, Tailwind `arbitrary value`(`text-[var(--cheese-green)]`)로 사용. `_ds_bundle.js`는 레퍼런스용으로만 참조, 프로덕션에 직접 로드하지 않는다.
+CSS 변수 토큰을 `src/styles/tokens/`에 파일별로 분리, `globals.css`에서 `@import`로 적재.  
+모든 컴포넌트는 인라인 스타일에 DS 토큰(`var(--...)`)만 사용해 라이트/다크 전환이 자동으로 이루어진다.  
+`_ds_bundle.js`는 레퍼런스용으로만 참조, 프로덕션에 직접 로드하지 않는다.
+
+### 라이트모드
+
+`src/styles/tokens/light.css`에 `[data-theme="light"]` 셀렉터로 의미 토큰 전체를 오버라이드.  
+다크모드(기본)에서 `--accent: var(--cheese-green)` (네온 그린), 라이트모드에서 `--accent: var(--cheese-blue-lo)` (히어로익 블루)로 전환. 모든 컴포넌트는 `var(--accent)`를 읽으므로 별도 조건 분기 없이 자동 전환된다.
 
 ### 페이지 목업 파일
 
@@ -280,17 +331,17 @@ CSS 변수 토큰을 `globals.css`에 직접 정의, Tailwind `arbitrary value`(
 /to-issues                  → GitHub 이슈 #1~#7 등록
 ```
 
-### GitHub 이슈 현황 및 권장 스킬
+### GitHub 이슈 현황
 
-| # | 제목 | 블로커 | 권장 스킬 | 이유 |
-|---|------|--------|-----------|------|
-| [#1](https://github.com/hongci9999/CheesStorm-website/issues/1) | 디자인 시스템 토큰 + 글로벌 레이아웃 | 없음 | 없음 | CSS 변수 + 폰트 로드, 단순 작업 |
-| [#2](https://github.com/hongci9999/CheesStorm-website/issues/2) | Match · Streamer 스키마 마이그레이션 | 없음 | `/tdd` | 타입 변경 + 함수 수정, 회귀 위험 |
-| [#3](https://github.com/hongci9999/CheesStorm-website/issues/3) | 티어리스트 페이지 리디자인 | #1 | `/prototype` | 헥사곤 clip-path·glow 등 CSS 결정 많음 |
-| [#4](https://github.com/hongci9999/CheesStorm-website/issues/4) | 경기 등록 폼 업데이트 | #2 | `/tdd` | 5인 미만 제출 불가 등 유효성 규칙 명확 |
-| [#5](https://github.com/hongci9999/CheesStorm-website/issues/5) | 경기 목록 페이지 리디자인 | #1 #2 | `/prototype` | 타임라인 인라인 확장 인터랙션 검증 필요 |
-| [#6](https://github.com/hongci9999/CheesStorm-website/issues/6) | 스트리머 목록 업데이트 | #1 #2 | 없음 | 롤 select + 링크 연결, 단순 작업 |
-| [#7](https://github.com/hongci9999/CheesStorm-website/issues/7) | 개인 전적 프로필 페이지 | #2 #6 | `/tdd` + `/diagnose` | 영웅별 승률 집계 로직 복잡, 엣지 케이스 多 |
+| # | 제목 | 상태 |
+|---|------|------|
+| [#1](https://github.com/hongci9999/CheesStorm-website/issues/1) | 디자인 시스템 토큰 + 글로벌 레이아웃 | ✅ 완료 |
+| [#2](https://github.com/hongci9999/CheesStorm-website/issues/2) | Match · Streamer 스키마 마이그레이션 | ✅ 완료 |
+| [#3](https://github.com/hongci9999/CheesStorm-website/issues/3) | 티어리스트 페이지 리디자인 | ✅ 완료 |
+| [#4](https://github.com/hongci9999/CheesStorm-website/issues/4) | 경기 등록 폼 업데이트 + 스크린샷 OCR | ✅ 완료 |
+| [#5](https://github.com/hongci9999/CheesStorm-website/issues/5) | 경기 목록 페이지 리디자인 | ✅ 완료 |
+| [#6](https://github.com/hongci9999/CheesStorm-website/issues/6) | 스트리머 목록 업데이트 (포지션 선택) | ✅ 완료 |
+| [#7](https://github.com/hongci9999/CheesStorm-website/issues/7) | 개인 전적 프로필 페이지 | ✅ 완료 |
 
 ---
 
@@ -320,6 +371,9 @@ npm run dev   # http://localhost:3000
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Storage 버킷 | 동일 |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | 메시징 발신자 ID | 동일 |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | 앱 ID | 동일 |
+| `GEMINI_API_KEY` | Gemini API 키 (서버 전용) | [Google AI Studio](https://aistudio.google.com/app/apikey) |
+
+> `GEMINI_API_KEY`는 `NEXT_PUBLIC_` 접두어를 붙이지 않는다 — 클라이언트에 노출되지 않아야 한다.
 
 ### Firebase 초기 세팅 순서
 
@@ -374,7 +428,15 @@ MVP 이후 인증을 추가한다면 아래 방향으로 제한:
 | 2026-06-10 | 기능 추가 | MVP 초기 구현 — 티어리스트, 경기 결과 목록/입력, 스트리머 관리 |
 | 2026-06-10 | 설계 변경 | DB를 Supabase → Firebase Firestore로 변경. 연 2~3주 운영 특성상 Supabase 무료 티어의 1주 비활성 자동 일시정지 문제 때문 |
 | 2026-06-10 | 인프라 | Matt Pocock 스킬 패키지 설치 + `/setup-matt-pocock-skills` 실행 (docs/agents/ 생성, CLAUDE.md 업데이트) |
-| 2026-06-10 | 인프라 | GitHub remote 연결 (hongci9999/CheesStorm-website), gh CLI 설치 + 인증 |
+| 2026-06-10 | 인프라 | GitHub remote 연결 (hongci9999/CheesStorm-website) |
 | 2026-06-10 | 설계 변경 | `/grill-with-docs` 세션: 디자인 시스템(claudecode-design/) 검토 후 스키마 결정 — 영웅 픽 저장, 롤 필드 추가, MMR 유보, /streamers/[id] 라우트 추가 |
 | 2026-06-10 | 문서 | CONTEXT.md 도메인 용어 사전 생성, docs/adr/0001-mmr-deferred.md ADR 생성 |
 | 2026-06-10 | 기획 | `/to-issues` 세션: GitHub 이슈 #1~#7 등록 (디자인 리디자인 + 스키마 마이그레이션 작업 분해) |
+| 2026-06-10 | 기능 추가 | 이슈 #1~#5: DS 토큰 적용, 스키마 마이그레이션, 티어리스트·경기 목록·경기 입력 페이지 전면 리디자인 |
+| 2026-06-10 | 기능 추가 | 스크린샷 OCR 기능: Gemini `gemini-1.5-flash`로 경기 결과 이미지 → 팀 구성·영웅·개인 스탯 자동 추출 (`/api/parse-screenshot`) |
+| 2026-06-10 | 기능 추가 | `PlayerMatchStat` 타입 추가 — 킬·어시·데스·공성딜·영웅딜·힐량·자기힐·경험치기여 8개 스탯 기록 |
+| 2026-06-11 | 기능 추가 | 이슈 #6: 스트리머 페이지 DS 토큰 전환 + 포지션 선택(토글 칩·역할 뱃지). TDD: `validateStreamerForm` 4테스트 |
+| 2026-06-11 | 기능 추가 | 이슈 #7: 개인 전적 프로필 페이지 (`/streamers/[id]`). TDD: `getStreamerProfile`·`getRecentMatches` 4테스트 |
+| 2026-06-11 | 기능 추가 | 헤더 DS 적용: `color-mix` 배경·68px·STORM accent색·2줄 탭·활성 underline bar. TDD: `resolveTheme` 4테스트 |
+| 2026-06-11 | 기능 추가 | 라이트모드 구현: ☾/☀ 토글 pill, localStorage 영속, 하이드레이션 전 인라인 스크립트(플리커 방지) |
+| 2026-06-11 | 버그 수정 | `--sp-7` 토큰 누락 추가, `::selection` 토큰화, 하드코딩 hex/rgba → DS 토큰, `TIER_COLORS` dead code 제거 |
