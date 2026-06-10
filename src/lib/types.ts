@@ -31,6 +31,7 @@ export interface HeroStat {
 export interface PlayerStats {
   streamerId: string;
   streamerName: string;
+  role?: Role;
   wins: number;
   losses: number;
   totalGames: number;

@@ -18,11 +18,11 @@ function calcTier(winRate: number, totalGames: number): Tier {
 export function calcPlayerStats(streamers: Streamer[], matches: Match[]): PlayerStats[] {
   const statsMap = new Map<
     string,
-    { wins: number; losses: number; name: string; heroes: Map<string, { wins: number; losses: number }> }
+    { wins: number; losses: number; name: string; role?: import('./types').Role; heroes: Map<string, { wins: number; losses: number }> }
   >();
 
   for (const s of streamers) {
-    statsMap.set(s.id, { wins: 0, losses: 0, name: s.name, heroes: new Map() });
+    statsMap.set(s.id, { wins: 0, losses: 0, name: s.name, role: s.role, heroes: new Map() });
   }
 
   for (const match of matches) {
@@ -49,7 +49,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   }
 
   return Array.from(statsMap.entries())
-    .map(([streamerId, { wins, losses, name, heroes }]) => {
+    .map(([streamerId, { wins, losses, name, role, heroes }]) => {
       const totalGames = wins + losses;
       const winRate = totalGames > 0 ? wins / totalGames : 0;
 
@@ -57,7 +57,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
         .map(([hero, s]) => ({ hero, wins: s.wins, losses: s.losses }))
         .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
 
-      return { streamerId, streamerName: name, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
+      return { streamerId, streamerName: name, role, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
     })
     .sort((a, b) => {
       const tierOrder: Tier[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];
