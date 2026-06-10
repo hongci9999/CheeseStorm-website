@@ -77,14 +77,6 @@ export function groupStatsByTier(
     .filter((g) => g.players.length > 0);
 }
 
-export const TIER_COLORS: Record<Tier, string> = {
-  S: 'bg-amber-500 text-white',
-  A: 'bg-orange-500 text-white',
-  B: 'bg-green-500 text-white',
-  C: 'bg-blue-500 text-white',
-  D: 'bg-slate-500 text-white',
-  unranked: 'bg-slate-200 text-slate-600',
-};
 
 export const TIER_LABELS: Record<Tier, string> = {
   S: 'S',

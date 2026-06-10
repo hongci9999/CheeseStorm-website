@@ -136,8 +136,8 @@ function TeamColumn({
           <span style={{
             display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 8px',
             borderRadius: 'var(--r-xs)',
-            background: isBlue ? 'rgba(128,208,240,0.15)' : 'rgba(255,92,108,0.15)',
-            border: `1px solid ${isBlue ? 'rgba(128,208,240,0.4)' : 'rgba(255,92,108,0.4)'}`,
+            background: isBlue ? 'color-mix(in srgb, var(--cheese-blue) 15%, transparent)' : 'var(--loss-soft)',
+            border: `1px solid ${isBlue ? 'color-mix(in srgb, var(--cheese-blue) 40%, transparent)' : 'color-mix(in srgb, var(--loss) 40%, transparent)'}`,
             color: accent, fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
             letterSpacing: '0.08em',
           }}>승리</span>

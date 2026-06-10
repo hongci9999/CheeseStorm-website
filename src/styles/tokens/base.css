@@ -24,7 +24,8 @@ a { color: inherit; text-decoration: none; }
 
 button, input, select, textarea { font: inherit; color: inherit; }
 
-::selection { background: rgba(0,255,163,0.3); color: var(--text-strong); }
+:root { --selection-bg: rgba(0,255,163,0.3); }
+::selection { background: var(--selection-bg); color: var(--text-strong); }
 
 /* Tabular numerals everywhere stats appear */
 .cheese-tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }

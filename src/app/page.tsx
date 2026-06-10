@@ -101,7 +101,7 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
         {rank <= 3 && tier === 'S' && (
           <span style={{
             position: 'absolute', top: -4, left: -4, width: 18, height: 18,
-            borderRadius: '50%', background: 'var(--mvp)', color: '#241a00',
+            borderRadius: '50%', background: 'var(--mvp)', color: 'var(--bg-void)',
             fontFamily: 'var(--font-numeral)', fontWeight: 800, fontSize: 11,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             boxShadow: '0 0 0 2px var(--surface-card)',
