@@ -67,6 +67,16 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
     });
 }
 
+const TIER_ORDER: (Tier | 'unranked')[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];
+
+export function groupStatsByTier(
+  stats: PlayerStats[],
+): { tier: Tier | 'unranked'; players: PlayerStats[] }[] {
+  return TIER_ORDER
+    .map((tier) => ({ tier, players: stats.filter((s) => s.tier === tier) }))
+    .filter((g) => g.players.length > 0);
+}
+
 export const TIER_COLORS: Record<Tier, string> = {
   S: 'bg-amber-500 text-white',
   A: 'bg-orange-500 text-white',

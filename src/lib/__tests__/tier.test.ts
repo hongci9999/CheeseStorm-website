@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { calcPlayerStats } from '../tier';
-import type { Match, Streamer } from '../types';
+import { calcPlayerStats, groupStatsByTier } from '../tier';
+import type { Match, PlayerStats, Streamer } from '../types';
 
 const makeStreamer = (id: string, name: string): Streamer => ({
   id, name, createdAt: new Date(),
@@ -86,5 +86,45 @@ describe('calcPlayerStats', () => {
 
     const [p1] = calcPlayerStats(streamers, matches);
     expect(p1.tier).toBe('unranked');
+  });
+});
+
+const makeStat = (tier: PlayerStats['tier'], name = 'x'): PlayerStats => ({
+  streamerId: name, streamerName: name, wins: 0, losses: 0,
+  totalGames: 0, winRate: 0, tier, heroStats: [],
+});
+
+describe('groupStatsByTier', () => {
+  // 3. unranked 마지막 + 플레이어 소속 정확성
+  it('각 그룹의 players는 해당 티어 스탯만 포함한다', () => {
+    const p1 = makeStat('S', 'a');
+    const p2 = makeStat('unranked', 'b');
+    const p3 = makeStat('S', 'c');
+    const groups = groupStatsByTier([p1, p2, p3]);
+    const last = groups[groups.length - 1];
+    expect(last.tier).toBe('unranked');
+    expect(last.players).toEqual([p2]);
+    const sGroup = groups.find(g => g.tier === 'S')!;
+    expect(sGroup.players).toEqual([p1, p3]);
+  });
+
+  // 2. 순서 보장
+  it('S → A → B → C → D → unranked 순서로 반환한다', () => {
+    const stats = [makeStat('unranked'), makeStat('C'), makeStat('S'), makeStat('A')];
+    const groups = groupStatsByTier(stats);
+    const tiers = groups.map(g => g.tier);
+    expect(tiers).toEqual(['S', 'A', 'C', 'unranked']);
+  });
+
+  // 1. 빈 티어 제외
+  it('데이터 없는 티어는 결과에 포함하지 않는다', () => {
+    const stats = [makeStat('S'), makeStat('C')];
+    const groups = groupStatsByTier(stats);
+    const tiers = groups.map(g => g.tier);
+    expect(tiers).toContain('S');
+    expect(tiers).toContain('C');
+    expect(tiers).not.toContain('A');
+    expect(tiers).not.toContain('B');
+    expect(tiers).not.toContain('D');
   });
 });
