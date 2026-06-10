@@ -1,42 +1,151 @@
 import type { Metadata } from 'next';
-import { Geist } from 'next/font/google';
+import { Saira, Saira_Condensed } from 'next/font/google';
 import Link from 'next/link';
+import Image from 'next/image';
 import './globals.css';
 
-const geist = Geist({ subsets: ['latin'] });
+const saira = Saira({
+  subsets: ['latin'],
+  variable: '--font-saira',
+  weight: ['400', '500', '600', '700', '800'],
+});
+
+const sairaCondensed = Saira_Condensed({
+  subsets: ['latin'],
+  variable: '--font-saira-condensed',
+  weight: ['400', '500', '600', '700', '800'],
+});
 
 export const metadata: Metadata = {
-  title: 'Cheesestorm - 치지직 히오스 내전',
+  title: 'Cheesestorm — HOTS 내전 전적',
   description: '치지직 스트리머들의 히어로즈 오브 더 스톰 내전 결과 및 티어리스트',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className={`${geist.className} bg-slate-950 text-slate-100 min-h-screen`}>
-        <header className="border-b border-slate-800 bg-slate-900">
-          <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-            <Link href="/" className="text-lg font-bold text-amber-400 hover:text-amber-300 transition-colors">
-              🧀 Cheesestorm
+      <head>
+        <link
+          rel="preload"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+          as="style"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+      </head>
+      <body
+        className={`${saira.variable} ${sairaCondensed.variable} cheese-static-bg min-h-screen`}
+        style={{ fontFamily: 'var(--font-ui)' }}
+      >
+        <header
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 'var(--z-header)',
+            height: 'var(--header-h)',
+            borderBottom: '1px solid var(--border-faint)',
+            background: `rgba(10,14,21,0.82)`,
+            backdropFilter: `blur(var(--blur-glass))`,
+            WebkitBackdropFilter: `blur(var(--blur-glass))`,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 'var(--container)',
+              margin: '0 auto',
+              padding: '0 var(--sp-6)',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            {/* 로고 */}
+            <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+              <Image
+                src="/assets/logo-emblem.png"
+                alt="Cheesestorm"
+                width={32}
+                height={32}
+              />
+              <span
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 800,
+                  fontSize: 'var(--fs-lg)',
+                  letterSpacing: 'var(--ls-tight)',
+                  color: 'var(--text-strong)',
+                }}
+              >
+                CHEESESTORM
+              </span>
             </Link>
-            <nav className="flex gap-6 text-sm text-slate-400">
-              <Link href="/" className="hover:text-slate-100 transition-colors">
-                티어리스트
-              </Link>
-              <Link href="/matches" className="hover:text-slate-100 transition-colors">
-                경기 결과
-              </Link>
-              <Link href="/streamers" className="hover:text-slate-100 transition-colors">
-                스트리머
-              </Link>
-              <Link href="/matches/new" className="text-amber-400 hover:text-amber-300 transition-colors font-medium">
+
+            {/* 네비게이션 */}
+            <nav style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              <NavLink href="/">티어리스트</NavLink>
+              <NavLink href="/matches">경기 결과</NavLink>
+              <NavLink href="/streamers">스트리머</NavLink>
+              <Link
+                href="/matches/new"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  height: 'var(--control-sm)',
+                  padding: '0 var(--sp-4)',
+                  borderRadius: 'var(--r-sm)',
+                  background: 'var(--cheese-green)',
+                  color: 'var(--text-on-green)',
+                  fontFamily: 'var(--font-ui)',
+                  fontWeight: 700,
+                  fontSize: 'var(--fs-xs)',
+                  letterSpacing: 'var(--ls-wide)',
+                  textTransform: 'uppercase',
+                  transition: `background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out)`,
+                  marginLeft: 'var(--sp-2)',
+                }}
+              >
                 + 경기 입력
               </Link>
             </nav>
           </div>
         </header>
-        <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
+
+        <main
+          style={{
+            maxWidth: 'var(--container)',
+            margin: '0 auto',
+            padding: 'var(--sp-8) var(--sp-6)',
+          }}
+        >
+          {children}
+        </main>
       </body>
     </html>
+  );
+}
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      style={{
+        height: 'var(--control-sm)',
+        padding: '0 var(--sp-3)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        borderRadius: 'var(--r-sm)',
+        fontFamily: 'var(--font-ui)',
+        fontWeight: 500,
+        fontSize: 'var(--fs-sm)',
+        color: 'var(--text-muted)',
+        transition: `color var(--dur-fast) var(--ease-out)`,
+      }}
+    >
+      {children}
+    </Link>
   );
 }

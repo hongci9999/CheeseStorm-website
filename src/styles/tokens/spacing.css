@@ -1,0 +1,30 @@
+/* =========================================================================
+   CHEESESTORM — SPACING & SIZING TOKENS
+   4px base grid. Esports UIs are dense — most gaps live at 8/12/16.
+   ========================================================================= */
+
+:root {
+  --sp-0:  0;          /* @kind spacing */
+  --sp-1:  0.25rem;   /* 4  */
+  --sp-2:  0.5rem;    /* 8  */
+  --sp-3:  0.75rem;   /* 12 */
+  --sp-4:  1rem;      /* 16 */
+  --sp-5:  1.25rem;   /* 20 */
+  --sp-6:  1.5rem;    /* 24 */
+  --sp-8:  2rem;      /* 32 */
+  --sp-10: 2.5rem;    /* 40 */
+  --sp-12: 3rem;      /* 48 */
+  --sp-16: 4rem;      /* 64 */
+  --sp-20: 5rem;      /* 80 */
+
+  /* Layout */
+  --container:    1240px;
+  --rail-w:       248px;   /* left nav rail            */
+  --row-h:        56px;    /* leaderboard / match row  */
+  --header-h:     64px;
+
+  /* Control heights */
+  --control-sm:   32px;
+  --control-md:   40px;
+  --control-lg:   48px;
+}

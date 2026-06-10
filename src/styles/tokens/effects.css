@@ -1,0 +1,55 @@
+/* =========================================================================
+   CHEESESTORM — EFFECTS: radius, borders, shadow, glow, blur
+   Hard-edged competitive feel: small radii, thin hairlines, neon glows.
+   The "static crackle" of shows up as green glow + scanline texture.
+   ========================================================================= */
+
+:root {
+  /* ---- Radius (restrained — gaming UI stays sharp) ------------------ */
+  --r-xs:   3px;
+  --r-sm:   5px;
+  --r-md:   8px;
+  --r-lg:   12px;
+  --r-xl:   16px;
+  --r-pill: 999px;
+  /* Regular hexagon clip (pointy-top, equilateral) — the emblem motif.
+     Side vertices inset to 6.7%/93.3% so all six edges are equal in a square box. */
+  --hex-clip: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%); /* @kind other */
+
+  /* ---- Elevation shadows (cool, low-spread on dark) ----------------- */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 14px rgba(0,0,0,0.45);
+  --shadow-lg:  0 12px 32px rgba(0,0,0,0.55);
+  --shadow-pop: 0 16px 48px rgba(0,0,0,0.6);
+
+  /* ---- Neon glows (signature) --------------------------------------- */
+  --glow-green: 0 0 0 1px rgba(0,255,163,0.5), 0 0 18px rgba(0,255,163,0.35);
+  --glow-green-soft: 0 0 24px rgba(0,255,163,0.22);
+  --glow-blue:  0 0 0 1px rgba(128,208,240,0.5), 0 0 18px rgba(128,208,240,0.3);
+  --glow-inset: inset 0 0 0 1px rgba(128,208,240,0.1);
+
+  /* ---- Blur (frosted overlays / sticky headers) --------------------- */
+  --blur-glass: 14px;
+
+  /* ---- Gradients ---------------------------------------------------- */
+  --grad-green:  linear-gradient(135deg, #00FFA3 0%, #00B27E 100%); /* @kind color */
+  --grad-heroic: linear-gradient(135deg, #80D0F0 0%, #4FA8D6 100%); /* @kind color */
+  --grad-apex:   linear-gradient(135deg, #FF7A91 0%, #FF5C7A 100%); /* @kind color */
+  /* Dark vignette wash behind hero / banner imagery */
+  --grad-curtain: linear-gradient(180deg, rgba(6,8,12,0) 0%, rgba(6,8,12,0.85) 78%, var(--ink-1000) 100%); /* @kind color */
+  /* Sweep used on active rows / tier highlight bars */
+  --grad-sweep:  linear-gradient(90deg, rgba(0,255,163,0.16) 0%, rgba(0,255,163,0) 60%); /* @kind color */
+
+  /* ---- Motion ------------------------------------------------------- */
+  --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);    /* @kind other */
+  --ease-snap:  cubic-bezier(0.34, 1.56, 0.64, 1); /* @kind other */
+  --dur-fast:   120ms; /* @kind other */
+  --dur-base:   200ms; /* @kind other */
+  --dur-slow:   360ms; /* @kind other */
+
+  /* ---- Z-index ------------------------------------------------------ */
+  --z-rail:    20; /* @kind other */
+  --z-header:  30; /* @kind other */
+  --z-overlay: 40; /* @kind other */
+  --z-toast:   50; /* @kind other */
+}

@@ -1,0 +1,84 @@
+/* =========================================================================
+   CHEESESTORM — COLOR TOKENS
+   Two extracted brand characteristics:
+   1. CHEESE () — neon "static crackle" green on near-black.
+   2. Heroes of the Storm — heroic sky-blue + tiered competitive ranking.
+   The UI is a dark esports stat surface; green carries action/identity,
+   blue carries heroic/secondary accents, tiers run a warm→cool ramp.
+   ========================================================================= */
+
+:root {
+  /* ---- Brand cores (sampled from the emblem) ------------------------- */
+  --cheese-green:        #00FFA3;   /* CHEESE signature — primary action/identity */
+  --cheese-green-hi:     #4DFFC4;   /* hover / glow highlight                     */
+  --cheese-green-lo:     #00B27E;   /* press / deep state                         */
+  --cheese-blue:         #80D0F0;   /* HotS orbit blue — secondary/heroic accent  */
+  --cheese-blue-hi:      #B0E4FA;
+  --cheese-blue-lo:      #4FA8D6;
+
+  /* ---- Neutral ink scale (cool, blue-shifted dark) ------------------- */
+  --ink-1000: #06080C;   /* app void — deepest background            */
+  --ink-950:  #0A0E15;   /* base background                          */
+  --ink-900:  #0F141E;   /* raised background / rail                 */
+  --ink-850:  #141B28;   /* surface — cards                          */
+  --ink-800:  #1A2230;   /* surface elevated / hover                 */
+  --ink-700:  #232D3E;   /* hairline-strong / input bg               */
+  --ink-600:  #324054;   /* border-strong                            */
+  --ink-500:  #475569;   /* muted lines, disabled fill               */
+  --ink-400:  #647187;   /* faint text                               */
+  --ink-300:  #8A97AD;   /* secondary text                           */
+  --ink-200:  #B6C0D2;   /* body text                                */
+  --ink-100:  #DCE3EF;   /* high text                                */
+  --ink-50:   #F2F5FB;   /* near-white headings                      */
+
+  /* ---- Tier ramp (S → D), warm to cool, brand colors at the cool end --- */
+  --tier-s:  #FF5C7A;   /* apex — rose red    */
+  --tier-a:  #FF9F45;   /* orange             */
+  --tier-b:  #FFD23F;   /* gold              */
+  --tier-c:  #00FFA3;   /* green (brand)      */
+  --tier-d:  #80D0F0;   /* blue (brand) — floor */
+
+  /* ---- Semantic match outcomes -------------------------------------- */
+  --win:      #00FFA3;
+  --win-soft: rgba(0,255,163,0.14);
+  --loss:     #FF5C6C;
+  --loss-soft:rgba(255,92,108,0.14);
+  --mvp:      #FFD23F;
+
+  /* =====================================================================
+     SEMANTIC ALIASES — reach for these in components, not the raw scale.
+     ===================================================================== */
+
+  /* Backgrounds & surfaces */
+  --bg-app:        var(--ink-950);
+  --bg-void:       var(--ink-1000);
+  --surface-rail:  var(--ink-900);
+  --surface-card:  var(--ink-850);
+  --surface-raise: var(--ink-800);
+  --surface-input: var(--ink-700);
+  --surface-hover: rgba(128,208,240,0.06);
+
+  /* Borders */
+  --border-faint:  rgba(128,208,240,0.08);
+  --border-line:   var(--ink-700);
+  --border-strong: var(--ink-600);
+  --border-glow:   rgba(0,255,163,0.45);
+
+  /* Text */
+  --text-strong:   var(--ink-50);
+  --text-high:     var(--ink-100);
+  --text-body:     var(--ink-200);
+  --text-muted:    var(--ink-300);
+  --text-faint:    var(--ink-400);
+  --text-on-green: #04261C;   /* ink against green fills */
+  --text-on-blue:  #04212E;
+
+  /* Action / accent */
+  --accent:        var(--cheese-green);
+  --accent-hover:  var(--cheese-green-hi);
+  --accent-press:  var(--cheese-green-lo);
+  --accent-2:      var(--cheese-blue);
+
+  /* Focus */
+  --focus-ring:    rgba(0,255,163,0.55);
+}

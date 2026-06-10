@@ -1,0 +1,46 @@
+/* =========================================================================
+   CHEESESTORM — TYPOGRAPHY TOKENS
+   Pretendard for Korean/UI, Saira (condensed) for display + stat numerals.
+   Esports density: tight headings, generous numeral weight.
+   ========================================================================= */
+
+:root {
+  /* ---- Families ----------------------------------------------------- */
+  --font-ui:      'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
+                  'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --font-display: var(--font-saira, 'Saira'), 'Saira Semi Condensed', var(--font-ui);
+  --font-numeral: var(--font-saira-condensed, 'Saira Condensed'), 'Saira', var(--font-ui);
+
+  /* ---- Type scale (px in rem) --------------------------------------- */
+  --fs-3xs: 0.6875rem;  /* 11 — micro labels, table headers      */
+  --fs-2xs: 0.75rem;    /* 12 — captions, meta                   */
+  --fs-xs:  0.8125rem;  /* 13 — dense UI, chips                  */
+  --fs-sm:  0.875rem;   /* 14 — secondary body                   */
+  --fs-md:  1rem;       /* 16 — body                             */
+  --fs-lg:  1.125rem;   /* 18 — lead                             */
+  --fs-xl:  1.375rem;   /* 22 — card titles                      */
+  --fs-2xl: 1.75rem;    /* 28 — section heads                    */
+  --fs-3xl: 2.375rem;   /* 38 — page titles                      */
+  --fs-4xl: 3.25rem;    /* 52 — display                          */
+  --fs-5xl: 4.5rem;     /* 72 — hero numerals / tier glyph       */
+
+  /* ---- Weights ------------------------------------------------------ */
+  --fw-regular:  400; /* @kind font */
+  --fw-medium:   500; /* @kind font */
+  --fw-semibold: 600; /* @kind font */
+  --fw-bold:     700; /* @kind font */
+  --fw-black:    800; /* @kind font */
+
+  /* ---- Line heights ------------------------------------------------- */
+  --lh-tight:   1.05; /* @kind font */
+  --lh-snug:    1.2;  /* @kind font */
+  --lh-normal:  1.45; /* @kind font */
+  --lh-relaxed: 1.6;  /* @kind font */
+
+  /* ---- Letter spacing ----------------------------------------------- */
+  --ls-tight:   -0.02em; /* @kind font */
+  --ls-normal:  0;       /* @kind font */
+  --ls-wide:    0.04em;  /* @kind font */
+  /* --ls-caps: uppercase micro-labels / "" mood */
+  --ls-caps:    0.12em;  /* @kind font */
+}

@@ -1,0 +1,91 @@
+/* =========================================================================
+   CHEESESTORM — LIGHT MODE  (heroic-blue forward)
+   The neon green is an identity color that only sings on near-black; on
+   white it fails contrast for text, dots and small UI. So LIGHT MODE pivots the
+   primary action color to the HotS **heroic blue** (deepened for legibility),
+   and keeps green strictly for win / success semantics (also deepened).
+
+   Opt in by setting data-theme="light" on <html> (or any ancestor of the UI):
+     <html data-theme="light">  …or…  <div data-theme="light" class="cheese-static-bg">
+   Everything below only overrides SEMANTIC aliases + a few raw scales, so all
+   components — which read the semantic vars — flip automatically.
+   ========================================================================= */
+
+[data-theme="light"] {
+  /* ---- Brand cores tuned for light surfaces ------------------------- */
+  --cheese-green:    #009E72;   /* deepened — legible green on white       */
+  --cheese-green-hi: #00B888;
+  --cheese-green-lo: #00805C;
+  --cheese-blue:     #2E8BC4;   /* heroic blue, now the lead accent        */
+  --cheese-blue-hi:  #4FA3D6;
+  --cheese-blue-lo:  #1E6FA8;
+
+  /* ---- Surfaces — cool, faintly blue-tinted near-white -------------- */
+  --bg-app:        #EAF1F9;
+  --bg-void:       #DDE7F2;
+  --surface-rail:  #FFFFFF;
+  --surface-card:  #FFFFFF;
+  --surface-raise: #F2F7FC;
+  --surface-input: #FFFFFF;
+  --surface-hover: rgba(46,139,196,0.08);
+
+  /* ---- Borders ------------------------------------------------------ */
+  --border-faint:  rgba(30,111,168,0.10);
+  --border-line:   #D8E3F0;
+  --border-strong: #B7C8DC;
+  --border-glow:   rgba(46,139,196,0.55);
+
+  /* ---- Text — dark blue-ink ----------------------------------------- */
+  --text-strong:   #0B1B2B;
+  --text-high:     #18293C;
+  --text-body:     #39506A;
+  --text-muted:    #647B95;
+  --text-faint:    #94A6BC;
+  --text-on-green: #FFFFFF;
+  --text-on-blue:  #FFFFFF;
+
+  /* ---- Action / accent — HEROIC BLUE leads, green is secondary ------ */
+  --accent:        var(--cheese-blue-lo);   /* #1E6FA8 primary action      */
+  --accent-hover:  var(--cheese-blue);
+  --accent-press:  #155E8A;
+  --accent-2:      var(--cheese-green);
+
+  /* ---- Focus -------------------------------------------------------- */
+  --focus-ring:    rgba(46,139,196,0.4);
+
+  /* ---- Match outcomes (deepened for white) -------------------------- */
+  --win:      #06A87A;
+  --win-soft: rgba(6,168,122,0.14);
+  --loss:     #E0455A;
+  --loss-soft:rgba(224,69,90,0.12);
+  --mvp:      #D99412;
+
+  /* ---- Elevation — soft cool-grey shadows (no heavy black) ---------- */
+  --shadow-sm:  0 1px 2px rgba(20,46,82,0.08);
+  --shadow-md:  0 4px 14px rgba(20,46,82,0.10);
+  --shadow-lg:  0 12px 30px rgba(20,46,82,0.14);
+  --shadow-pop: 0 18px 46px rgba(20,46,82,0.18);
+
+  /* ---- Glows — toned to blue, much softer on light ------------------ */
+  --glow-green:      0 0 0 1px rgba(0,158,114,0.4), 0 0 14px rgba(0,158,114,0.18);
+  --glow-green-soft: 0 0 20px rgba(0,158,114,0.14);
+  --glow-blue:       0 0 0 1px rgba(46,139,196,0.45), 0 0 16px rgba(46,139,196,0.22);
+  --glow-inset:      inset 0 0 0 1px rgba(46,139,196,0.10);
+
+  /* ---- Gradients — blue-led accents, light curtain ------------------ */
+  --grad-green:   linear-gradient(135deg, #00B888 0%, #009E72 100%); /* @kind color */
+  --grad-heroic:  linear-gradient(135deg, #4FA3D6 0%, #1E6FA8 100%); /* @kind color */
+  --grad-curtain: linear-gradient(180deg, rgba(234,241,249,0) 0%, rgba(234,241,249,0.85) 78%, var(--bg-void) 100%); /* @kind color */
+  --grad-sweep:   linear-gradient(90deg, rgba(46,139,196,0.12) 0%, rgba(46,139,196,0) 60%); /* @kind color */
+}
+
+/* The "static" backdrop, restyled for light: a heroic-blue wash + faint
+   ink scanlines instead of the dark-mode green glow + white scanlines. */
+[data-theme="light"].cheese-static-bg,
+[data-theme="light"] .cheese-static-bg {
+  background-color: var(--bg-app);
+  background-image:
+    radial-gradient(900px 500px at 12% -8%, rgba(46,139,196,0.14), transparent 60%),
+    radial-gradient(900px 600px at 100% 0%, rgba(0,158,114,0.08), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(20,46,82,0.022) 0 1px, transparent 1px 3px);
+}
