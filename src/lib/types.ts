@@ -8,12 +8,26 @@ export interface Streamer {
   createdAt: Date;
 }
 
+// 경기 내 개인 스탯 (스크린샷 파싱으로 채워짐)
+export interface PlayerMatchStat {
+  kills: number;
+  assists: number;
+  deaths: number;
+  siegeDmg: number;
+  heroDmg: number;
+  healing: number;
+  selfHeal: number;
+  xp: number;
+}
+
 export interface Match {
   id: string;
   date: Date;
   map?: string;
-  blueTeam: [string, string][];  // [streamerId, heroName]
-  redTeam: [string, string][];   // [streamerId, heroName]
+  blueTeam: [string, string][];      // [streamerId, heroName]
+  redTeam: [string, string][];       // [streamerId, heroName]
+  blueStats?: PlayerMatchStat[];     // blueTeam 인덱스 대응
+  redStats?: PlayerMatchStat[];      // redTeam 인덱스 대응
   winner: 'blue' | 'red';
   dur?: string;
   note?: string;

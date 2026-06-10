@@ -1,88 +1,226 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStreamers, addMatch, isFirebaseConfigured } from '@/lib/firestore';
 import { validateMatchForm } from '@/lib/match';
-import type { Streamer } from '@/lib/types';
+import type { Streamer, PlayerMatchStat } from '@/lib/types';
 import { MOCK_STREAMERS } from '@/test/fixtures';
+import type { ParsedMatch } from '@/app/api/parse-screenshot/route';
 
 const HOTS_MAPS = [
   '뒤틀린 식물원','공포의 정원','하늘 신전','용의 둥지','공허의 파도',
   '거미 여왕의 무덤','영원의 전쟁터','탑승구 만','불지옥 신단','볼스카야 공장','알터랙 고개',
 ];
 
-const INPUT_STYLE: React.CSSProperties = {
+const INPUT: React.CSSProperties = {
   width: '100%', height: 36, padding: '0 10px',
   borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
   background: 'var(--surface-input)', color: 'var(--text-high)',
   fontFamily: 'var(--font-ui)', fontSize: 13, outline: 'none', boxSizing: 'border-box',
 };
 
-const LABEL_STYLE: React.CSSProperties = {
+const LABEL: React.CSSProperties = {
   fontSize: 11, fontFamily: 'var(--font-numeral)', letterSpacing: '0.08em',
   color: 'var(--text-faint)', textTransform: 'uppercase', marginBottom: 6, display: 'block',
 };
 
+interface TeamSlot {
+  extractedName: string;
+  streamerId: string;
+  hero: string;
+  stat?: PlayerMatchStat;
+}
+
+const emptySlot = (): TeamSlot => ({ extractedName: '', streamerId: '', hero: '' });
+
+function fmtK(n: number) { return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n); }
+
+function matchName(name: string, streamers: Streamer[]): string {
+  const l = name.toLowerCase();
+  return (
+    streamers.find(s => s.name === name)?.id ??
+    streamers.find(s => s.name.toLowerCase() === l)?.id ??
+    streamers.find(s => s.chzzkId?.toLowerCase() === l)?.id ??
+    ''
+  );
+}
+
+// ── 슬롯 컴포넌트 ─────────────────────────────────────────────
+function Slot({
+  slot, index, side, streamers, onUpdate,
+}: {
+  slot: TeamSlot; index: number; side: 'blue' | 'red';
+  streamers: Streamer[]; onUpdate: (patch: Partial<TeamSlot>) => void;
+}) {
+  const isActive   = !!(slot.streamerId || slot.extractedName || slot.hero);
+  const isUnmatched = !!(slot.extractedName && !slot.streamerId);
+
+  return (
+    <div style={{
+      borderRadius: 'var(--r-sm)',
+      border: `1px solid ${isUnmatched
+        ? 'color-mix(in srgb, var(--loss) 50%, var(--border-line))'
+        : isActive ? 'var(--border-line)' : 'var(--border-faint)'}`,
+      background: isActive ? 'var(--surface-raise)' : 'transparent',
+      padding: 'var(--sp-2) var(--sp-3)',
+      transition: 'background var(--dur-fast) var(--ease-out)',
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+
+        {/* 미매칭 경고 */}
+        {isUnmatched && (
+          <span style={{ fontSize: 10, color: 'var(--loss)', fontFamily: 'var(--font-ui)', lineHeight: 1 }}>
+            ⚠ &quot;{slot.extractedName}&quot; — 스트리머를 직접 선택해주세요
+          </span>
+        )}
+
+        {/* 스트리머 선택 + 영웅명 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+          <select
+            value={slot.streamerId}
+            onChange={e => onUpdate({ streamerId: e.target.value })}
+            style={{ ...INPUT, height: 30, fontSize: 12, padding: '0 6px', cursor: 'pointer',
+              color: slot.streamerId ? 'var(--text-high)' : 'var(--text-faint)',
+              borderColor: isUnmatched ? 'var(--loss)' : 'var(--border-line)' }}
+          >
+            <option value="">{isActive ? '스트리머 선택' : `슬롯 ${index + 1}`}</option>
+            {streamers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <input
+            value={slot.hero}
+            onChange={e => onUpdate({ hero: e.target.value })}
+            placeholder="영웅명"
+            style={{ ...INPUT, height: 30, fontSize: 12,
+              borderColor: slot.streamerId && !slot.hero ? 'var(--loss-soft)' : 'var(--border-line)',
+              color: slot.hero ? 'var(--text-high)' : 'var(--text-faint)' }}
+          />
+        </div>
+
+        {/* 스탯 행 */}
+        {slot.stat ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px',
+            fontFamily: 'var(--font-numeral)', fontSize: 10.5 }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+              {slot.stat.kills}K/{slot.stat.assists}A/{slot.stat.deaths}D
+            </span>
+            <span style={{ color: 'var(--text-faint)' }}>·</span>
+            <span style={{ color: 'var(--text-faint)' }}>딜 {fmtK(slot.stat.heroDmg)}</span>
+            <span style={{ color: 'var(--text-faint)' }}>공성 {fmtK(slot.stat.siegeDmg)}</span>
+            {slot.stat.healing > 0 && (
+              <span style={{ color: 'var(--text-faint)' }}>힐 {fmtK(slot.stat.healing)}</span>
+            )}
+            {slot.stat.selfHeal > 0 && (
+              <span style={{ color: 'var(--text-faint)' }}>자힐 {fmtK(slot.stat.selfHeal)}</span>
+            )}
+            <span style={{ color: 'var(--text-faint)' }}>·</span>
+            <span style={{ color: 'var(--text-faint)' }}>XP {fmtK(slot.stat.xp)}</span>
+          </div>
+        ) : (
+          /* 스탯 플레이스홀더 칩 */
+          <div style={{ display: 'flex', gap: 4 }}>
+            {['K/A/D', '딜', '공성', 'XP'].map(lbl => (
+              <span key={lbl} style={{
+                padding: '1px 7px', borderRadius: 3, fontSize: 10,
+                fontFamily: 'var(--font-numeral)', color: 'var(--text-faint)',
+                border: '1px dashed var(--border-faint)',
+              }}>{lbl}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 페이지 ─────────────────────────────────────────────────────
 export default function NewMatchPage() {
-  const router = useRouter();
+  const router     = useRouter();
+  const fileRef    = useRef<HTMLInputElement>(null);
   const [streamers, setStreamers] = useState<Streamer[]>([]);
-  const [blueTeam, setBlueTeam] = useState<[string, string][]>([]);
-  const [redTeam, setRedTeam] = useState<[string, string][]>([]);
-  const [winner, setWinner] = useState<'blue' | 'red'>('blue');
-  const [map, setMap] = useState('');
-  const [dur, setDur] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [note, setNote] = useState('');
+  const [blueSlots, setBlueSlots] = useState<TeamSlot[]>(() => Array.from({ length: 5 }, emptySlot));
+  const [redSlots,  setRedSlots]  = useState<TeamSlot[]>(() => Array.from({ length: 5 }, emptySlot));
+  const [winner,   setWinner]   = useState<'blue' | 'red'>('blue');
+  const [map,      setMap]      = useState('');
+  const [dur,      setDur]      = useState('');
+  const [date,     setDate]     = useState(new Date().toISOString().split('T')[0]);
+  const [note,     setNote]     = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [parsing,    setParsing]    = useState(false);
+  const [parseError, setParseError] = useState('');
+  const [dragOver,   setDragOver]   = useState(false);
+  const [error,      setError]      = useState('');
 
   useEffect(() => {
     if (!isFirebaseConfigured) { setStreamers(MOCK_STREAMERS); return; }
     getStreamers().then(setStreamers);
   }, []);
 
-  function getTeam(id: string): 'blue' | 'red' | null {
-    if (blueTeam.some(([x]) => x === id)) return 'blue';
-    if (redTeam.some(([x]) => x === id)) return 'red';
-    return null;
-  }
+  async function processImage(file: File) {
+    setParsing(true);
+    setParseError('');
+    try {
+      const fd = new FormData();
+      fd.append('image', file);
+      const res = await fetch('/api/parse-screenshot', { method: 'POST', body: fd });
+      if (!res.ok) { setParseError((await res.json()).error ?? '파싱 실패'); return; }
+      const parsed: ParsedMatch = await res.json();
 
-  function assignPlayer(id: string, side: 'blue' | 'red') {
-    const cur = getTeam(id);
-    if (cur === side) {
-      // 같은 팀 클릭 → 제거
-      if (side === 'blue') setBlueTeam(p => p.filter(([x]) => x !== id));
-      else setRedTeam(p => p.filter(([x]) => x !== id));
-    } else {
-      // 상대팀에서 제거 후 이 팀에 추가
-      setBlueTeam(p => p.filter(([x]) => x !== id));
-      setRedTeam(p => p.filter(([x]) => x !== id));
-      if (side === 'blue') setBlueTeam(p => [...p, [id, '']]);
-      else setRedTeam(p => [...p, [id, '']]);
+      if (parsed.map)    setMap(parsed.map);
+      if (parsed.dur)    setDur(parsed.dur);
+      if (parsed.winner) setWinner(parsed.winner);
+
+      function buildSlots(players: ParsedMatch['blueTeam']): TeamSlot[] {
+        const slots: TeamSlot[] = players.map(p => ({
+          extractedName: p.name,
+          streamerId:    matchName(p.name, streamers),
+          hero:          p.hero,
+          stat: {
+            kills: p.kills, assists: p.assists, deaths: p.deaths,
+            siegeDmg: p.siegeDmg, heroDmg: p.heroDmg,
+            healing: p.healing, selfHeal: p.selfHeal, xp: p.xp,
+          },
+        }));
+        while (slots.length < 5) slots.push(emptySlot());
+        return slots;
+      }
+      setBlueSlots(buildSlots(parsed.blueTeam));
+      setRedSlots(buildSlots(parsed.redTeam));
+    } catch {
+      setParseError('서버 오류');
+    } finally {
+      setParsing(false);
+      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
-  function setHero(side: 'blue' | 'red', id: string, hero: string) {
-    const setter = side === 'blue' ? setBlueTeam : setRedTeam;
-    setter(p => p.map(([pid, h]) => pid === id ? [pid, hero] : [pid, h]));
+  function patchSlot(side: 'blue' | 'red', i: number, patch: Partial<TeamSlot>) {
+    (side === 'blue' ? setBlueSlots : setRedSlots)(
+      prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s)
+    );
   }
+
+  const toTeam  = (slots: TeamSlot[]): [string, string][] =>
+    slots.filter(s => s.streamerId).map(s => [s.streamerId, s.hero]);
+
+  const toStats = (slots: TeamSlot[]): PlayerMatchStat[] | undefined => {
+    const active = slots.filter(s => s.streamerId);
+    const stats  = active.map(s => s.stat).filter((x): x is PlayerMatchStat => !!x);
+    return stats.length === active.length && stats.length > 0 ? stats : undefined;
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const validation = validateMatchForm(blueTeam, redTeam);
-    if (!validation.valid) { setError(validation.error); return; }
-    setSubmitting(true);
-    setError('');
+    const blueTeam = toTeam(blueSlots);
+    const redTeam  = toTeam(redSlots);
+    const v = validateMatchForm(blueTeam, redTeam);
+    if (!v.valid) { setError(v.error); return; }
+    setSubmitting(true); setError('');
     try {
       await addMatch({
-        date: new Date(date),
-        blueTeam,
-        redTeam,
-        winner,
-        map: map || undefined,
-        dur: dur || undefined,
-        note: note || undefined,
+        date: new Date(date), blueTeam, redTeam,
+        blueStats: toStats(blueSlots), redStats: toStats(redSlots),
+        winner, map: map || undefined, dur: dur || undefined, note: note || undefined,
       });
       router.push('/matches');
     } catch {
@@ -92,7 +230,7 @@ export default function NewMatchPage() {
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+    <div style={{ maxWidth: 820, margin: '0 auto' }}>
       <div style={{ padding: 'var(--sp-7) 0 var(--sp-5)' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22,
           color: 'var(--text-strong)', margin: 0 }}>경기 결과 입력</h1>
@@ -100,112 +238,111 @@ export default function NewMatchPage() {
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
 
-        {/* 날짜 / 맵 / 경기시간 */}
+        {/* ── 스크린샷 업로드 존 ── */}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) processImage(f); }} />
+
+        <div
+          onClick={() => !parsing && fileRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) processImage(f); }}
+          style={{
+            borderRadius: 'var(--r-lg)', cursor: parsing ? 'default' : 'pointer',
+            border: `2px dashed ${dragOver ? 'var(--cheese-green)' : parsing ? 'var(--border-faint)' : 'var(--border-line)'}`,
+            background: dragOver
+              ? 'color-mix(in srgb, var(--cheese-green) 6%, var(--surface-card))'
+              : 'var(--surface-card)',
+            padding: 'var(--sp-6)', textAlign: 'center',
+            transition: 'border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out)',
+          }}
+        >
+          {parsing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 30, opacity: 0.6 }}>⏳</span>
+              <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14, color: 'var(--text-muted)' }}>
+                Gemini가 스크린샷을 분석 중...
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 30 }}>📷</span>
+              <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14, color: 'var(--text-high)' }}>
+                경기 결과 스크린샷 업로드
+              </span>
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-faint)' }}>
+                클릭하거나 파일을 드래그 · 팀 구성·영웅·스탯이 아래 슬롯에 자동으로 채워집니다
+              </span>
+            </div>
+          )}
+          {parseError && (
+            <p style={{ marginTop: 8, fontSize: 12, color: 'var(--loss)', fontFamily: 'var(--font-ui)' }}>
+              {parseError}
+            </p>
+          )}
+        </div>
+
+        {/* ── 날짜 / 맵 / 경기시간 ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 'var(--sp-3)' }}>
           <div>
-            <label style={LABEL_STYLE}>날짜</label>
-            <input type="date" value={date} onChange={e => setDate(e.target.value)}
-              required style={INPUT_STYLE} />
+            <label style={LABEL}>날짜</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} required style={INPUT} />
           </div>
           <div>
-            <label style={LABEL_STYLE}>맵 (선택)</label>
-            <select value={map} onChange={e => setMap(e.target.value)}
-              style={{ ...INPUT_STYLE, cursor: 'pointer' }}>
+            <label style={LABEL}>맵 (선택)</label>
+            <select value={map} onChange={e => setMap(e.target.value)} style={{ ...INPUT, cursor: 'pointer' }}>
               <option value="">선택 안 함</option>
               {HOTS_MAPS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
           <div>
-            <label style={LABEL_STYLE}>경기시간</label>
-            <input value={dur} onChange={e => setDur(e.target.value)}
-              placeholder="21:04" style={INPUT_STYLE} />
+            <label style={LABEL}>경기시간</label>
+            <input value={dur} onChange={e => setDur(e.target.value)} placeholder="21:04" style={INPUT} />
           </div>
         </div>
 
-        {/* 팀 배정 */}
-        <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
-          border: '1px solid var(--border-line)', padding: 'var(--sp-4)' }}>
-          <span style={LABEL_STYLE}>팀 배정 — 스트리머 선택 후 팀 버튼 클릭</span>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {streamers.map(s => {
-              const team = getTeam(s.id);
-              return (
-                <div key={s.id} style={{ display: 'flex', borderRadius: 'var(--r-sm)', overflow: 'hidden',
-                  border: `1px solid ${team === 'blue' ? 'var(--cheese-blue)' : team === 'red' ? 'var(--loss)' : 'var(--border-line)'}` }}>
-                  <button type="button" onClick={() => assignPlayer(s.id, 'blue')}
-                    style={{ padding: '5px 10px', background: team === 'blue' ? 'var(--cheese-blue)' : 'var(--surface-raise)',
-                      color: team === 'blue' ? 'var(--text-on-blue)' : 'var(--text-faint)',
-                      fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
-                      border: 'none', cursor: 'pointer', transition: 'all var(--dur-fast) var(--ease-out)' }}>
-                    B
-                  </button>
-                  <span style={{ padding: '5px 10px', fontFamily: 'var(--font-ui)', fontWeight: 600,
-                    fontSize: 13, color: 'var(--text-high)', background: 'var(--surface-card)',
-                    borderLeft: '1px solid var(--border-line)', borderRight: '1px solid var(--border-line)' }}>
-                    {s.name}
-                  </span>
-                  <button type="button" onClick={() => assignPlayer(s.id, 'red')}
-                    style={{ padding: '5px 10px', background: team === 'red' ? 'var(--loss)' : 'var(--surface-raise)',
-                      color: team === 'red' ? '#fff' : 'var(--text-faint)',
-                      fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
-                      border: 'none', cursor: 'pointer', transition: 'all var(--dur-fast) var(--ease-out)' }}>
-                    R
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 팀 편성 + 영웅 입력 */}
+        {/* ── 팀 슬롯 패널 ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)' }}>
           {(['blue', 'red'] as const).map(side => {
-            const team = side === 'blue' ? blueTeam : redTeam;
-            const accentColor = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
-            const label = side === 'blue' ? '블루팀' : '레드팀';
-            const slots = Array.from({ length: 5 }, (_, i) => team[i] ?? null);
+            const slots      = side === 'blue' ? blueSlots : redSlots;
+            const accent     = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
+            const label      = side === 'blue' ? '블루팀' : '레드팀';
+            const filledCount = slots.filter(s => s.streamerId).length;
+
             return (
-              <div key={side} style={{ background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
-                border: `1px solid ${team.length === 5 ? accentColor : 'var(--border-line)'}`,
-                overflow: 'hidden' }}>
-                <div style={{ padding: 'var(--sp-3) var(--sp-4)', borderBottom: '1px solid var(--border-faint)',
+              <div key={side} style={{
+                background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+                border: `1px solid ${filledCount === 5 ? accent : 'var(--border-line)'}`,
+                overflow: 'hidden',
+                transition: 'border-color var(--dur-fast) var(--ease-out)',
+              }}>
+                {/* 헤더 */}
+                <div style={{
+                  padding: 'var(--sp-3) var(--sp-4)',
+                  borderBottom: '1px solid var(--border-faint)',
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  background: `color-mix(in srgb, ${accentColor} 8%, transparent)` }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13,
-                    color: accentColor }}>{label}</span>
+                  background: `color-mix(in srgb, ${accent} 8%, transparent)`,
+                }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: accent }}>
+                    {label}
+                  </span>
                   <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11,
-                    color: team.length === 5 ? accentColor : 'var(--text-faint)' }}>
-                    {team.length} / 5
+                    color: filledCount === 5 ? accent : 'var(--text-faint)' }}>
+                    {filledCount} / 5
                   </span>
                 </div>
-                <div style={{ padding: 'var(--sp-3)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+                {/* 슬롯 목록 */}
+                <div style={{ padding: 'var(--sp-3)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
                   {slots.map((slot, i) => (
-                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6,
-                      alignItems: 'center' }}>
-                      {slot ? (
-                        <>
-                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
-                            color: 'var(--text-high)', padding: '0 4px',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {streamers.find(s => s.id === slot[0])?.name ?? slot[0]}
-                          </span>
-                          <input
-                            value={slot[1]}
-                            onChange={e => setHero(side, slot[0], e.target.value)}
-                            placeholder="영웅명"
-                            style={{ ...INPUT_STYLE, height: 30, fontSize: 12,
-                              borderColor: !slot[1] ? 'var(--loss-soft)' : 'var(--border-line)' }}
-                          />
-                        </>
-                      ) : (
-                        <span style={{ gridColumn: '1/-1', height: 30, borderRadius: 'var(--r-sm)',
-                          border: '1px dashed var(--border-faint)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 11, color: 'var(--text-faint)' }}>
-                          {i + 1}번 슬롯
-                        </span>
-                      )}
-                    </div>
+                    <Slot
+                      key={i}
+                      slot={slot}
+                      index={i}
+                      side={side}
+                      streamers={streamers}
+                      onUpdate={patch => patchSlot(side, i, patch)}
+                    />
                   ))}
                 </div>
               </div>
@@ -213,13 +350,13 @@ export default function NewMatchPage() {
           })}
         </div>
 
-        {/* 승리팀 */}
+        {/* ── 승리팀 ── */}
         <div>
-          <span style={LABEL_STYLE}>승리팀</span>
+          <span style={LABEL}>승리팀</span>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-3)' }}>
             {(['blue', 'red'] as const).map(side => {
               const active = winner === side;
-              const color = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
+              const color  = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
               return (
                 <button key={side} type="button" onClick={() => setWinner(side)} style={{
                   height: 48, borderRadius: 'var(--r-md)', fontFamily: 'var(--font-display)',
@@ -236,21 +373,20 @@ export default function NewMatchPage() {
           </div>
         </div>
 
-        {/* 메모 */}
+        {/* ── 메모 ── */}
         <div>
-          <label style={LABEL_STYLE}>메모 (선택)</label>
+          <label style={LABEL}>메모 (선택)</label>
           <textarea value={note} onChange={e => setNote(e.target.value)}
             placeholder="경기에 대한 메모..." rows={2}
-            style={{ ...INPUT_STYLE, height: 'auto', padding: '8px 10px', resize: 'none' }} />
+            style={{ ...INPUT, height: 'auto', padding: '8px 10px', resize: 'none' }} />
         </div>
 
         {error && (
           <p style={{ fontSize: 13, color: 'var(--loss)', fontFamily: 'var(--font-ui)' }}>{error}</p>
         )}
 
-        {/* 버튼 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--sp-3)',
-          paddingBottom: 'var(--sp-10)' }}>
+        {/* ── 버튼 ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--sp-3)', paddingBottom: 'var(--sp-10)' }}>
           <button type="button" onClick={() => router.back()} style={{
             height: 44, borderRadius: 'var(--r-md)', border: '1px solid var(--border-line)',
             background: 'transparent', color: 'var(--text-muted)', fontFamily: 'var(--font-display)',
