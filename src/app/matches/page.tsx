@@ -97,9 +97,9 @@ function MatchCard({
             </span>
           </div>
           <div className="flex flex-wrap gap-1">
-            {match.blueTeam.map((id) => (
+            {match.blueTeam.map(([id, hero]) => (
               <span key={id} className="text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-200">
-                {getName(id)}
+                {getName(id)}{hero && ` (${hero})`}
               </span>
             ))}
           </div>
@@ -116,9 +116,9 @@ function MatchCard({
             <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
           </div>
           <div className="flex flex-wrap gap-1 justify-end">
-            {match.redTeam.map((id) => (
+            {match.redTeam.map(([id, hero]) => (
               <span key={id} className="text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-200">
-                {getName(id)}
+                {getName(id)}{hero && ` (${hero})`}
               </span>
             ))}
           </div>

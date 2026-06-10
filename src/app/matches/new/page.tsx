@@ -23,8 +23,8 @@ const HOTS_MAPS = [
 export default function NewMatchPage() {
   const router = useRouter();
   const [streamers, setStreamers] = useState<Streamer[]>([]);
-  const [blueTeam, setBlueTeam] = useState<string[]>([]);
-  const [redTeam, setRedTeam] = useState<string[]>([]);
+  const [blueTeam, setBlueTeam] = useState<[string, string][]>([]);
+  const [redTeam, setRedTeam] = useState<[string, string][]>([]);
   const [winner, setWinner] = useState<'blue' | 'red'>('blue');
   const [map, setMap] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -39,20 +39,20 @@ export default function NewMatchPage() {
   function togglePlayer(id: string, team: 'blue' | 'red') {
     if (team === 'blue') {
       setBlueTeam((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        prev.some(([x]) => x === id) ? prev.filter(([x]) => x !== id) : [...prev, [id, '']]
       );
-      setRedTeam((prev) => prev.filter((x) => x !== id));
+      setRedTeam((prev) => prev.filter(([x]) => x !== id));
     } else {
       setRedTeam((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        prev.some(([x]) => x === id) ? prev.filter(([x]) => x !== id) : [...prev, [id, '']]
       );
-      setBlueTeam((prev) => prev.filter((x) => x !== id));
+      setBlueTeam((prev) => prev.filter(([x]) => x !== id));
     }
   }
 
   function getPlayerTeam(id: string): 'blue' | 'red' | null {
-    if (blueTeam.includes(id)) return 'blue';
-    if (redTeam.includes(id)) return 'red';
+    if (blueTeam.some(([x]) => x === id)) return 'blue';
+    if (redTeam.some(([x]) => x === id)) return 'red';
     return null;
   }
 
@@ -164,7 +164,7 @@ export default function NewMatchPage() {
             <div className="bg-blue-950/40 border border-blue-900 rounded-lg p-2">
               <div className="text-xs font-semibold text-blue-400 mb-1">블루팀 ({blueTeam.length}명)</div>
               <div className="flex flex-wrap gap-1">
-                {blueTeam.map((id) => (
+                {blueTeam.map(([id]) => (
                   <span key={id} className="text-xs bg-blue-900/50 text-blue-200 px-1.5 py-0.5 rounded">
                     {streamers.find((s) => s.id === id)?.name}
                   </span>
@@ -174,7 +174,7 @@ export default function NewMatchPage() {
             <div className="bg-red-950/40 border border-red-900 rounded-lg p-2">
               <div className="text-xs font-semibold text-red-400 mb-1">레드팀 ({redTeam.length}명)</div>
               <div className="flex flex-wrap gap-1">
-                {redTeam.map((id) => (
+                {redTeam.map(([id]) => (
                   <span key={id} className="text-xs bg-red-900/50 text-red-200 px-1.5 py-0.5 rounded">
                     {streamers.find((s) => s.id === id)?.name}
                   </span>
