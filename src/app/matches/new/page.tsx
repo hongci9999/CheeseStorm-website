@@ -39,6 +39,7 @@ function fmtK(n: number) { return n >= 1000 ? `${Math.round(n / 1000)}k` : Strin
 function matchName(name: string, streamers: Streamer[]): string {
   const l = name.toLowerCase();
   return (
+    streamers.find(s => s.gameNames?.some(g => g.toLowerCase() === l))?.id ??
     streamers.find(s => s.name === name)?.id ??
     streamers.find(s => s.name.toLowerCase() === l)?.id ??
     streamers.find(s => s.chzzkId?.toLowerCase() === l)?.id ??

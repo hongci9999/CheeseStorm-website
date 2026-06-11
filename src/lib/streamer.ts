@@ -1,8 +1,20 @@
-import type { Role } from './types';
-
 type Result = { valid: true } | { valid: false; error: string };
 
-export function validateStreamerForm(name: string, role?: Role): Result {
+// 추가폼 검증. 롤은 내전 기록에서 파생하므로 입력받지 않음.
+export function validateStreamerForm(name: string, accountLevel?: string): Result {
   if (!name.trim()) return { valid: false, error: '이름을 입력해주세요.' };
+  if (accountLevel && accountLevel.trim()) {
+    const n = Number(accountLevel);
+    if (!Number.isInteger(n) || n <= 0)
+      return { valid: false, error: '계정레벨은 양의 정수여야 합니다.' };
+  }
   return { valid: true };
+}
+
+// 채널주소 입력에서 치지직 채널 ID 추출. URL이 아니면 그대로, 빈값은 undefined.
+export function parseChzzkId(input: string): string | undefined {
+  const t = input.trim();
+  if (!t) return undefined;
+  const m = t.match(/chzzk\.naver\.com\/([^/?#\s]+)/);
+  return m ? m[1] : t;
 }

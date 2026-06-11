@@ -1,4 +1,4 @@
-import type { Match } from './types';
+import type { Match, PlayerMatchStat } from './types';
 
 const MIN_TEAM_SIZE = 5;
 
@@ -41,6 +41,15 @@ export function losingTeam(m: Match): Team {
 // 양 팀 참가자 전원(10명) 합집합.
 export function participants(m: Match): Team {
   return [...m.blueTeam, ...m.redTeam];
+}
+
+// 이 경기에서 해당 스트리머의 개인 스탯. 스탯 미기록·비참가면 null.
+export function statOf(m: Match, streamerId: string): PlayerMatchStat | null {
+  const bi = m.blueTeam.findIndex(([id]) => id === streamerId);
+  if (bi >= 0) return m.blueStats?.[bi] ?? null;
+  const ri = m.redTeam.findIndex(([id]) => id === streamerId);
+  if (ri >= 0) return m.redStats?.[ri] ?? null;
+  return null;
 }
 
 export function validateMatchForm(blueTeam: Team, redTeam: Team): Result {

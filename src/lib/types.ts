@@ -4,7 +4,9 @@ export interface Streamer {
   id: string;
   name: string;
   chzzkId?: string;
-  role?: Role;
+  role?: Role;            // 레거시 필드 — 롤은 내전 기록에서 파생, 더 이상 입력받지 않음
+  accountLevel?: number;  // HotS 계정레벨
+  gameNames?: string[];   // 인게임 이름(배틀태그) 목록 — OCR 매칭용 (CONTEXT.md 인게임 이름)
   createdAt: Date;
 }
 

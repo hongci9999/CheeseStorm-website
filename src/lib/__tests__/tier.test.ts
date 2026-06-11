@@ -20,6 +20,18 @@ const makeMatch = (
 });
 
 describe('calcPlayerStats', () => {
+  // 롤은 수동 입력이 아닌 내전 기록(플레이 영웅)에서 파생된다
+  it('스트리머 롤을 플레이한 영웅의 역할군에서 파생한다', () => {
+    const streamers = [{ ...makeStreamer('p1', '폭풍칼날'), role: '지원가' as const }];
+    const matches = [
+      makeMatch([['p1', '겐지']], [['x1', '우서']], 'blue'),
+      makeMatch([['p1', '발라']], [['x1', '우서']], 'blue'),
+    ];
+    const stats = calcPlayerStats(streamers, matches);
+    // 수동 role(지원가) 무시, 기록 기준 암살자
+    expect(stats.find(s => s.streamerId === 'p1')!.role).toBe('암살자');
+  });
+
   // 1. 트레이서: [id, hero][] 형식에서 승/패 카운트
   it('[id, hero][] 형식 경기에서 승/패를 정확히 집계한다', () => {
     const streamers = [makeStreamer('p1', '폭풍칼날'), makeStreamer('p2', '한빛')];

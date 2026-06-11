@@ -1,5 +1,6 @@
 import type { HeroStat, Match, PlayerStats, Streamer, Tier } from './types';
 import { winningTeam, losingTeam } from './match';
+import { deriveRole } from './heroes';
 
 const MIN_GAMES = 3;
 
@@ -23,7 +24,12 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   >();
 
   for (const s of streamers) {
-    statsMap.set(s.id, { wins: 0, losses: 0, name: s.name, role: s.role, heroes: new Map() });
+    // 롤은 수동 입력이 아닌 내전 기록에서 파생 (CONTEXT.md 롤 참조)
+    statsMap.set(s.id, {
+      wins: 0, losses: 0, name: s.name,
+      role: deriveRole(matches, s.id),
+      heroes: new Map(),
+    });
   }
 
   for (const match of matches) {
