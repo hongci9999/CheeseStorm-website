@@ -35,8 +35,10 @@ src/
 │   ├── firebase.ts             # Firebase 초기화
 │   ├── firestore.ts            # Firestore CRUD
 │   ├── tier.ts                 # 티어 계산 로직 (승률 기반)
-│   ├── profile.ts              # getStreamerProfile, getRecentMatches
-│   ├── streamer.ts             # validateStreamerForm
+│   ├── match.ts                # 단일 경기 질의 (outcomeFor, heroOf, statOf)
+│   ├── heroes.ts               # 영웅→역할군 매핑, deriveRole, roleAffinity
+│   ├── profile.ts              # getStreamerProfile, getRecentMatches, currentStreak, kdaFor
+│   ├── streamer.ts             # validateStreamerForm, parseChzzkId
 │   ├── theme.ts                # resolveTheme (다크/라이트)
 │   └── types.ts                # TypeScript 타입
 ├── styles/tokens/              # DS 토큰 CSS 파일 모음
@@ -45,7 +47,7 @@ src/
 
 ## Firestore 컬렉션 구조
 
-- `streamers`: `{ name, chzzkId?, role?, createdAt }`
+- `streamers`: `{ name, chzzkId?, accountLevel?, gameNames?, profileImageUrl?, role?(레거시), createdAt }` — 롤은 저장 안 하고 내전 기록에서 파생
 - `matches`: `{ date, blueTeam: [string,string][], redTeam: [string,string][], winner: 'blue'|'red', blueStats?: PlayerMatchStat[], redStats?: PlayerMatchStat[], map?, dur?, note?, createdAt }`
 
 ## 개발 환경 설정
