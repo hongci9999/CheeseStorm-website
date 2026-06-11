@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getMatches, getStreamers, deleteMatch, isFirebaseConfigured } from '@/lib/firestore';
+import { participants } from '@/lib/match';
 import type { Match } from '@/lib/types';
 import { MOCK_MATCHES, MOCK_STREAMERS } from '@/test/fixtures';
 
@@ -333,7 +334,7 @@ export default function MatchesPage() {
     if (filter === '레드팀 승' && m.winner !== 'red') return false;
     if (search) {
       const q = search.toLowerCase();
-      const players = [...m.blueTeam, ...m.redTeam];
+      const players = participants(m);
       const matchesPlayer = players.some(([id, hero]) =>
         getName(id).toLowerCase().includes(q) || hero.toLowerCase().includes(q)
       );

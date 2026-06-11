@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
 import { getStreamerProfile, getRecentMatches } from '@/lib/profile';
+import { outcomeFor, heroOf } from '@/lib/match';
 import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
 import { MOCK_MATCHES } from '@/test/fixtures/matches';
 import type { HeroStat, Match, PlayerStats, Tier } from '@/lib/types';
@@ -22,16 +23,6 @@ const TIER_LABEL: Record<Tier, string> = {
 function pct(n: number): string { return `${Math.round(n * 100)}%`; }
 function heroTotal(h: HeroStat): number { return h.wins + h.losses; }
 
-function matchResult(m: Match, streamerId: string): 'win' | 'loss' {
-  const onBlue = m.blueTeam.some(([id]) => id === streamerId);
-  return (onBlue && m.winner === 'blue') || (!onBlue && m.winner === 'red') ? 'win' : 'loss';
-}
-function matchHero(m: Match, streamerId: string): string {
-  const slot =
-    m.blueTeam.find(([id]) => id === streamerId) ??
-    m.redTeam.find(([id]) => id === streamerId);
-  return slot?.[1] ?? '—';
-}
 function fmtDate(d: Date): string {
   return `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -117,9 +108,8 @@ function HeroCard({ h, rank }: { h: HeroStat; rank?: boolean }) {
 }
 
 function MatchRow({ m, streamerId }: { m: Match; streamerId: string }) {
-  const result = matchResult(m, streamerId);
-  const hero   = matchHero(m, streamerId);
-  const win    = result === 'win';
+  const hero = heroOf(m, streamerId) ?? '—';
+  const win  = outcomeFor(m, streamerId) === 'win';
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',

@@ -1,4 +1,5 @@
 import type { HeroStat, Match, PlayerStats, Streamer, Tier } from './types';
+import { winningTeam, losingTeam } from './match';
 
 const MIN_GAMES = 3;
 
@@ -26,8 +27,8 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   }
 
   for (const match of matches) {
-    const winners = match.winner === 'blue' ? match.blueTeam : match.redTeam;
-    const losers  = match.winner === 'blue' ? match.redTeam  : match.blueTeam;
+    const winners = winningTeam(match);
+    const losers  = losingTeam(match);
 
     for (const [id, hero] of winners) {
       const entry = statsMap.get(id);
