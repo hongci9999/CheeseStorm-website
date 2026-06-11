@@ -19,6 +19,8 @@
   --cheese-blue:     #2E8BC4;   /* heroic blue, now the lead accent        */
   --cheese-blue-hi:  #4FA3D6;
   --cheese-blue-lo:  #1E6FA8;
+  --hots-purple:     #7C4DD6;   /* deepened — legible Nexus purple on white */
+  --hots-purple-hi:  #9568E6;
 
   /* ---- Surfaces — cool, faintly blue-tinted near-white -------------- */
   --bg-app:        #EAF1F9;

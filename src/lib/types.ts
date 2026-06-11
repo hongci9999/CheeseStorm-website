@@ -7,6 +7,7 @@ export interface Streamer {
   role?: Role;            // 레거시 필드 — 롤은 내전 기록에서 파생, 더 이상 입력받지 않음
   accountLevel?: number;  // HotS 계정레벨
   gameNames?: string[];   // 인게임 이름(배틀태그) 목록 — OCR 매칭용 (CONTEXT.md 인게임 이름)
+  profileImageUrl?: string; // 치지직 프로필 사진. 없으면 닉네임 이니셜로 폴백
   createdAt: Date;
 }
 
@@ -47,6 +48,7 @@ export interface HeroStat {
 export interface PlayerStats {
   streamerId: string;
   streamerName: string;
+  profileImageUrl?: string;
   role?: Role;
   wins: number;
   losses: number;

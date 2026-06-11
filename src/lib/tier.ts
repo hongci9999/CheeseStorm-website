@@ -20,13 +20,13 @@ function calcTier(winRate: number, totalGames: number): Tier {
 export function calcPlayerStats(streamers: Streamer[], matches: Match[]): PlayerStats[] {
   const statsMap = new Map<
     string,
-    { wins: number; losses: number; name: string; role?: import('./types').Role; heroes: Map<string, { wins: number; losses: number }> }
+    { wins: number; losses: number; name: string; img?: string; role?: import('./types').Role; heroes: Map<string, { wins: number; losses: number }> }
   >();
 
   for (const s of streamers) {
     // 롤은 수동 입력이 아닌 내전 기록에서 파생 (CONTEXT.md 롤 참조)
     statsMap.set(s.id, {
-      wins: 0, losses: 0, name: s.name,
+      wins: 0, losses: 0, name: s.name, img: s.profileImageUrl,
       role: deriveRole(matches, s.id),
       heroes: new Map(),
     });
@@ -56,7 +56,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   }
 
   return Array.from(statsMap.entries())
-    .map(([streamerId, { wins, losses, name, role, heroes }]) => {
+    .map(([streamerId, { wins, losses, name, img, role, heroes }]) => {
       const totalGames = wins + losses;
       const winRate = totalGames > 0 ? wins / totalGames : 0;
 
@@ -64,7 +64,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
         .map(([hero, s]) => ({ hero, wins: s.wins, losses: s.losses }))
         .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
 
-      return { streamerId, streamerName: name, role, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
+      return { streamerId, streamerName: name, profileImageUrl: img, role, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
     })
     .sort((a, b) => {
       const tierOrder: Tier[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];

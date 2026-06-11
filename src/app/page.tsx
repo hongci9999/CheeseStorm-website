@@ -5,11 +5,8 @@ import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore'
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
 import type { PlayerStats, Role, Tier } from '@/lib/types';
 import { MOCK_STATS } from '@/test/fixtures';
+import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
 
-const TIER_COLOR_VAR: Record<Tier, string> = {
-  S: '--tier-s', A: '--tier-a', B: '--tier-b',
-  C: '--tier-c', D: '--tier-d', unranked: '--ink-500',
-};
 const TIER_DESC_KO: Record<Tier, string> = {
   S: '에이펙스', A: '상위', B: '중상위', C: '중위', D: '기반', unranked: '미배정',
 };
@@ -18,38 +15,9 @@ const TIER_DESC_EN: Record<Tier, string> = {
 };
 
 const ROLES: Role[] = ['탱커', '투사', '암살자', '지원가', '전문가'];
-const HEX_CLIP = 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)';
 
 function pct(p: PlayerStats) {
   return p.totalGames > 0 ? Math.round(p.winRate * 100) : 0;
-}
-
-// ── Avatar — DS 스펙 그대로: 티어색 링(외부 hex) + 어두운 내부 hex + 이니셜 2자
-function Avatar({ name, tier, size = 54 }: { name: string; tier: Tier; size?: number }) {
-  const ring = `var(${TIER_COLOR_VAR[tier]})`;
-  const pad = tier !== 'unranked' ? 2 : 1.5;
-  const initials = name.trim().slice(0, 2);
-  return (
-    <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size }}>
-      {/* 외부 링 — 티어 색 헥사곤 */}
-      <span style={{
-        position: 'absolute', inset: 0,
-        background: ring, clipPath: HEX_CLIP, padding: pad,
-        display: 'flex',
-      }}>
-        {/* 내부 — 어두운 배경 헥사곤 + 이니셜 */}
-        <span style={{
-          display: 'flex', width: '100%', height: '100%',
-          alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-          background: 'var(--surface-raise)', clipPath: HEX_CLIP,
-          color: 'var(--text-muted)', fontFamily: 'var(--font-display)',
-          fontWeight: 700, fontSize: Math.round(size * 0.34),
-        }}>
-          {initials}
-        </span>
-      </span>
-    </span>
-  );
 }
 
 // ── TierBadge — DS 스펙 그대로: 꽉 찬 헥사곤 + glow + 어두운 텍스트
@@ -97,7 +65,13 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
     >
       {/* 아바타 + S티어 순위 뱃지 */}
       <div style={{ position: 'relative' }}>
-        <Avatar name={p.streamerName} tier={tier} size={54} />
+        <HexAvatar
+          name={p.streamerName}
+          imageUrl={p.profileImageUrl}
+          ring={`var(${TIER_COLOR_VAR[tier]})`}
+          ringWidth={tier !== 'unranked' ? 2 : 1.5}
+          size={54}
+        />
         {rank <= 3 && tier === 'S' && (
           <span style={{
             position: 'absolute', top: -4, left: -4, width: 18, height: 18,
