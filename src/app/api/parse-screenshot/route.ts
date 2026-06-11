@@ -66,12 +66,19 @@ export async function POST(req: NextRequest) {
   const base64 = Buffer.from(bytes).toString('base64');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-  const result = await model.generateContent([
-    { inlineData: { mimeType: file.type as 'image/png' | 'image/jpeg', data: base64 } },
-    PROMPT,
-  ]);
+  let result;
+  try {
+    result = await model.generateContent([
+      { inlineData: { mimeType: file.type as 'image/png' | 'image/jpeg', data: base64 } },
+      PROMPT,
+    ]);
+  } catch (e) {
+    // 모델 retire(404)·쿼터 초과(429) 등 Gemini 쪽 실패를 그대로 노출
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `Gemini 호출 실패: ${message}` }, { status: 502 });
+  }
 
   const text = result.response.text().trim();
   const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
