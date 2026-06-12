@@ -26,3 +26,17 @@ export function parseChzzkId(input: string): string | undefined {
 export function sortStreamersByName(list: Streamer[]): Streamer[] {
   return [...list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 }
+
+// OCR로 추출한 인게임 이름(배틀태그)을 스트리머 목록과 매칭해 streamerId를 반환.
+// 매칭 우선순위: gameNames(대소문자 무시) → 표시명 완전일치 → 표시명 대소문자 무시 → chzzkId 대소문자 무시.
+// 매칭 실패 시 빈 문자열 반환.
+export function matchName(name: string, streamers: Streamer[]): string {
+  const l = name.toLowerCase();
+  return (
+    streamers.find(s => s.gameNames?.some(g => g.toLowerCase() === l))?.id ??
+    streamers.find(s => s.name === name)?.id ??
+    streamers.find(s => s.name.toLowerCase() === l)?.id ??
+    streamers.find(s => s.chzzkId?.toLowerCase() === l)?.id ??
+    ''
+  );
+}

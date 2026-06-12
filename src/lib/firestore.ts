@@ -8,6 +8,7 @@ import {
   deleteDoc,
   orderBy,
   query,
+  arrayUnion,
   Timestamp,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
@@ -36,6 +37,19 @@ export async function addStreamer(data: Omit<Streamer, 'id' | 'createdAt'>): Pro
 
 export async function deleteStreamer(id: string): Promise<void> {
   await deleteDoc(doc(db, 'streamers', id));
+}
+
+// 미매칭 슬롯 자가학습: 인게임 이름을 스트리머의 gameNames에 append.
+// 이미 존재하는 값이면 Firestore arrayUnion이 중복을 방지한다.
+export async function appendGameName(streamerId: string, gameName: string): Promise<void> {
+  await updateDoc(doc(db, 'streamers', streamerId), {
+    gameNames: arrayUnion(gameName),
+  });
+}
+
+// 스트리머의 gameNames 전체를 교체 (편집 모달에서 직접 수정할 때 사용).
+export async function updateStreamerGameNames(streamerId: string, gameNames: string[]): Promise<void> {
+  await updateDoc(doc(db, 'streamers', streamerId), { gameNames });
 }
 
 // --- Matches ---

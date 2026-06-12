@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, getMatches, addMatch, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getMatches, addMatch, appendGameName, isFirebaseConfigured } from '@/lib/firestore';
 import { validateMatchForm } from '@/lib/match';
+import { matchName } from '@/lib/streamer';
 import { findDuplicateMatch } from '@/lib/dedupe';
 import type { Streamer, PlayerMatchStat, Match } from '@/lib/types';
 import { MOCK_STREAMERS } from '@/test/fixtures';
@@ -36,17 +37,6 @@ interface TeamSlot {
 const emptySlot = (): TeamSlot => ({ extractedName: '', streamerId: '', hero: '' });
 
 function fmtK(n: number) { return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n); }
-
-function matchName(name: string, streamers: Streamer[]): string {
-  const l = name.toLowerCase();
-  return (
-    streamers.find(s => s.gameNames?.some(g => g.toLowerCase() === l))?.id ??
-    streamers.find(s => s.name === name)?.id ??
-    streamers.find(s => s.name.toLowerCase() === l)?.id ??
-    streamers.find(s => s.chzzkId?.toLowerCase() === l)?.id ??
-    ''
-  );
-}
 
 // ── 슬롯 컴포넌트 ─────────────────────────────────────────────
 function Slot({
@@ -201,6 +191,30 @@ export default function NewMatchPage() {
   }
 
   function patchSlot(side: 'blue' | 'red', i: number, patch: Partial<TeamSlot>) {
+    const slots = side === 'blue' ? blueSlots : redSlots;
+    const current = slots[i];
+
+    // 자가학습: 미매칭 슬롯(extractedName 있고 기존 streamerId 없음)을 수동으로 스트리머에 지정하면
+    // 해당 추출 이름을 그 스트리머의 gameNames에 append → 다음 OCR부터 자동 매칭됨.
+    if (
+      patch.streamerId &&
+      !current.streamerId &&
+      current.extractedName &&
+      isFirebaseConfigured
+    ) {
+      appendGameName(patch.streamerId, current.extractedName).catch(() => {
+        // 자가학습 실패는 무시 — 경기 저장에 영향 없음
+      });
+      // 로컬 state도 즉시 반영 (다음 matchName 호출 시 바로 매칭되도록)
+      setStreamers(prev =>
+        prev.map(s =>
+          s.id === patch.streamerId
+            ? { ...s, gameNames: [...(s.gameNames ?? []), current.extractedName] }
+            : s,
+        ),
+      );
+    }
+
     (side === 'blue' ? setBlueSlots : setRedSlots)(
       prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s)
     );

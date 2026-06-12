@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, getMatches, addStreamer, deleteStreamer, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getMatches, addStreamer, deleteStreamer, updateStreamerGameNames, isFirebaseConfigured } from '@/lib/firestore';
 import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '@/lib/streamer';
 import { calcPlayerStats } from '@/lib/tier';
 import type { Streamer, PlayerStats, Tier } from '@/lib/types';
@@ -30,13 +30,14 @@ const CARD_HEX = 200;
 type BorderMode = 'tier' | 'purple';
 
 function StreamerCard({
-  streamer, tier = 'unranked', borderMode = 'tier', onOpen, onDelete,
+  streamer, tier = 'unranked', borderMode = 'tier', onOpen, onDelete, onEditGameNames,
 }: {
   streamer: Streamer;
   tier?: Tier;            // 내전 기록 기반 티어 — 테두리 색
   borderMode?: BorderMode; // A) 티어색  B) 히오스 보라 통일
   onOpen: () => void;
   onDelete: () => void;
+  onEditGameNames: () => void;
 }) {
   const [hover, setHover] = useState(false);
   // A) 티어리스트와 동일하게 티어 색(unranked 회색)  B) 전부 히오스 보라로 통일
@@ -55,23 +56,42 @@ function StreamerCard({
         filter: hover ? `drop-shadow(0 0 12px color-mix(in srgb, ${ring} 45%, transparent))` : 'none',
       }}
     >
-      {/* 삭제 — hover 시만 */}
+      {/* 삭제 + 배틀태그 편집 — hover 시만 */}
       {hover && (
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(); }}
-          aria-label="삭제"
-          style={{
-            position: 'absolute', top: 4, right: '50%', marginRight: -CARD_HEX / 2 + 4, zIndex: 2,
-            background: 'color-mix(in srgb, var(--bg-void) 55%, transparent)',
-            border: 'none', cursor: 'pointer',
-            width: 22, height: 22, borderRadius: '50%',
-            color: 'var(--text-faint)', fontSize: 12, lineHeight: 1,
-          }}
-          onMouseEnter={e => (e.currentTarget.style.color = 'var(--loss)')}
-          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
-        >
-          ✕
-        </button>
+        <>
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(); }}
+            aria-label="삭제"
+            style={{
+              position: 'absolute', top: 4, right: '50%', marginRight: -CARD_HEX / 2 + 4, zIndex: 2,
+              background: 'color-mix(in srgb, var(--bg-void) 55%, transparent)',
+              border: 'none', cursor: 'pointer',
+              width: 22, height: 22, borderRadius: '50%',
+              color: 'var(--text-faint)', fontSize: 12, lineHeight: 1,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--loss)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+          >
+            ✕
+          </button>
+          {/* 배틀태그(gameNames) 편집 버튼 */}
+          <button
+            onClick={e => { e.stopPropagation(); onEditGameNames(); }}
+            aria-label="배틀태그 편집"
+            title="배틀태그(인게임 이름) 편집"
+            style={{
+              position: 'absolute', top: 4, right: '50%', marginRight: -CARD_HEX / 2 + 30, zIndex: 2,
+              background: 'color-mix(in srgb, var(--bg-void) 55%, transparent)',
+              border: 'none', cursor: 'pointer',
+              width: 22, height: 22, borderRadius: '50%',
+              color: 'var(--text-faint)', fontSize: 11, lineHeight: 1,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--cheese-green)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+          >
+            ✎
+          </button>
+        </>
       )}
 
       {/* 육각형 프로필 — 사진 or 이니셜 + 하단 그라데이션 오버레이 */}
@@ -153,6 +173,158 @@ function Honeycomb({ children }: { children: ReactElement[] }) {
           ))}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── 배틀태그(gameNames) 편집 모달 ────────────────────────────
+// 스트리머의 인게임 이름 목록을 확인·수정. 자가학습으로 추가된 별칭도 여기서 관리.
+function EditGameNamesModal({
+  streamer, onClose, onSaved,
+}: {
+  streamer: Streamer;
+  onClose: () => void;
+  onSaved: (updated: Streamer) => void;
+}) {
+  const [tags,    setTags]    = useState<string[]>(streamer.gameNames ?? []);
+  const [input,   setInput]   = useState('');
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState('');
+
+  function addTag() {
+    const t = input.trim();
+    if (!t) return;
+    if (tags.includes(t)) { setInput(''); return; }
+    setTags(prev => [...prev, t]);
+    setInput('');
+  }
+
+  function removeTag(i: number) {
+    setTags(prev => prev.filter((_, idx) => idx !== i));
+  }
+
+  async function handleSave() {
+    setSaving(true); setError('');
+    try {
+      if (isFirebaseConfigured) {
+        await updateStreamerGameNames(streamer.id, tags);
+      }
+      onSaved({ ...streamer, gameNames: tags });
+      onClose();
+    } catch {
+      setError('저장 중 오류가 발생했습니다.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: 'color-mix(in srgb, var(--bg-void) 65%, transparent)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 'var(--sp-4)',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 420,
+          background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+          border: '1px solid var(--border-line)', padding: 'var(--sp-6)',
+          display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)',
+          boxShadow: 'var(--shadow-lg, 0 12px 40px rgba(0,0,0,.4))',
+        }}
+      >
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17,
+          color: 'var(--text-strong)' }}>
+          배틀태그 편집 — {streamer.name}
+        </span>
+
+        <p style={{ fontSize: 11.5, color: 'var(--text-faint)', fontFamily: 'var(--font-ui)',
+          margin: 0, lineHeight: 1.5 }}>
+          OCR이 읽은 인게임 이름(배틀태그)을 등록하면 다음부터 자동 매칭됩니다.
+          미매칭 슬롯을 직접 지정하면 자동으로 추가됩니다.
+        </p>
+
+        {/* 등록된 태그 목록 */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minHeight: 32 }}>
+          {tags.length === 0 ? (
+            <span style={{ fontSize: 12, color: 'var(--text-faint)', fontFamily: 'var(--font-ui)' }}>
+              등록된 배틀태그 없음
+            </span>
+          ) : tags.map((tag, i) => (
+            <span key={i} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '3px 8px', borderRadius: 'var(--r-pill)',
+              background: 'var(--surface-input)', border: '1px solid var(--border-line)',
+              fontSize: 12, fontFamily: 'var(--font-numeral)', color: 'var(--text-high)',
+            }}>
+              {tag}
+              <button
+                onClick={() => removeTag(i)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--text-faint)', fontSize: 11, lineHeight: 1, padding: 0,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--loss)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+              >✕</button>
+            </span>
+          ))}
+        </div>
+
+        {/* 태그 추가 입력 */}
+        <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+            placeholder="Cheese#3142"
+            style={{
+              flex: 1, height: 36, padding: '0 10px',
+              borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
+              background: 'var(--surface-input)', color: 'var(--text-high)',
+              fontFamily: 'var(--font-numeral)', fontSize: 13, outline: 'none',
+            }}
+          />
+          <button
+            type="button"
+            onClick={addTag}
+            disabled={!input.trim()}
+            style={{
+              height: 36, padding: '0 14px', borderRadius: 'var(--r-sm)',
+              border: '1px solid var(--border-line)', background: 'transparent',
+              color: input.trim() ? 'var(--cheese-green)' : 'var(--text-faint)',
+              fontFamily: 'var(--font-ui)', fontSize: 13, cursor: input.trim() ? 'pointer' : 'default',
+            }}
+          >추가</button>
+        </div>
+
+        {error && (
+          <p style={{ fontSize: 12.5, color: 'var(--loss)', fontFamily: 'var(--font-ui)', margin: 0 }}>
+            {error}
+          </p>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--sp-3)' }}>
+          <button type="button" onClick={onClose} style={{
+            height: 44, borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
+            background: 'transparent', color: 'var(--text-muted)',
+            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14, cursor: 'pointer',
+          }}>취소</button>
+          <button type="button" onClick={handleSave} disabled={saving} style={{
+            height: 44, borderRadius: 'var(--r-sm)', border: 'none',
+            background: saving ? 'var(--ink-700)' : 'var(--cheese-green)',
+            color: saving ? 'var(--text-faint)' : 'var(--text-on-green)',
+            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
+            cursor: saving ? 'not-allowed' : 'pointer',
+          }}>
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -284,6 +456,8 @@ export default function StreamersPage() {
   const [search,    setSearch]    = useState('');
   const [showModal, setShowModal] = useState(false);
   const [borderMode, setBorderMode] = useState<BorderMode>('tier');
+  // gameNames 편집 모달 대상 스트리머 (null이면 닫힘)
+  const [editGameNamesTarget, setEditGameNamesTarget] = useState<Streamer | null>(null);
 
   async function load() {
     const [list, matches] = isFirebaseConfigured
@@ -376,6 +550,7 @@ export default function StreamersPage() {
               borderMode={borderMode}
               onOpen={() => router.push(`/streamers/${s.id}`)}
               onDelete={() => handleDelete(s)}
+              onEditGameNames={() => setEditGameNamesTarget(s)}
             />
           ))}
         </Honeycomb>
@@ -401,6 +576,18 @@ export default function StreamersPage() {
 
       {showModal && (
         <AddModal onClose={() => setShowModal(false)} onAdded={load} />
+      )}
+
+      {editGameNamesTarget && (
+        <EditGameNamesModal
+          streamer={editGameNamesTarget}
+          onClose={() => setEditGameNamesTarget(null)}
+          onSaved={updated => {
+            // 로컬 state 즉시 반영 — Firestore 재조회 없이 UI 갱신
+            setStreamers(prev => prev.map(s => s.id === updated.id ? updated : s));
+            setEditGameNamesTarget(null);
+          }}
+        />
       )}
 
       <div style={{ height: 'var(--sp-20)' }} />

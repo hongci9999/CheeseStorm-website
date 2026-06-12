@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '../streamer';
+import { validateStreamerForm, parseChzzkId, sortStreamersByName, matchName } from '../streamer';
 import type { Streamer } from '../types';
 
 // 테스트용 최소 Streamer 픽스처 생성 헬퍼
@@ -92,5 +92,67 @@ describe('sortStreamersByName', () => {
   it('단일 요소 배열은 그대로 반환한다', () => {
     const input = [makeStreamer('가람')];
     expect(sortStreamersByName(input).map(s => s.name)).toEqual(['가람']);
+  });
+});
+
+describe('matchName', () => {
+  // 테스트용 스트리머 픽스처 — MOCK_STREAMERS의 s4(치즈먹자) 패턴 참조
+  const streamers: Streamer[] = [
+    {
+      id: 's1', name: '폭풍칼날', chzzkId: 'storm1',
+      gameNames: ['Storm#3142'],
+      createdAt: new Date(),
+    },
+    {
+      id: 's4', name: '치즈먹자',
+      gameNames: ['Cheese#5555', '치즈부캐#9090'],
+      createdAt: new Date(),
+    },
+    {
+      id: 's5', name: '달빛소녀', chzzkId: 'moongl',
+      createdAt: new Date(),
+    },
+  ];
+
+  it('gameNames 완전일치(대소문자 동일)로 스트리머를 찾는다', () => {
+    expect(matchName('Storm#3142', streamers)).toBe('s1');
+  });
+
+  it('gameNames 대소문자 무시 매칭이 동작한다', () => {
+    expect(matchName('storm#3142', streamers)).toBe('s1');
+    expect(matchName('STORM#3142', streamers)).toBe('s1');
+  });
+
+  it('gameNames가 여러 개인 스트리머(부캐)도 두 번째 별칭으로 매칭된다', () => {
+    expect(matchName('Cheese#5555', streamers)).toBe('s4');
+    expect(matchName('치즈부캐#9090', streamers)).toBe('s4');
+  });
+
+  it('gameNames 없는 스트리머는 표시명으로 매칭된다', () => {
+    expect(matchName('달빛소녀', streamers)).toBe('s5');
+  });
+
+  it('gameNames 없는 스트리머는 chzzkId로 매칭된다', () => {
+    expect(matchName('moongl', streamers)).toBe('s5');
+  });
+
+  it('표시명 대소문자 무시 매칭이 동작한다', () => {
+    expect(matchName('달빛소녀', streamers)).toBe('s5');
+  });
+
+  it('gameNames가 표시명보다 우선 매칭된다', () => {
+    // Storm#3142 gameNames로 s1 매칭 — s1의 name('폭풍칼날')은 관계없음
+    expect(matchName('Storm#3142', streamers)).toBe('s1');
+    // 표시명 직접 입력도 여전히 동작
+    expect(matchName('폭풍칼날', streamers)).toBe('s1');
+  });
+
+  it('매칭 실패 시 빈 문자열을 반환한다', () => {
+    expect(matchName('없는이름#0000', streamers)).toBe('');
+    expect(matchName('', streamers)).toBe('');
+  });
+
+  it('빈 스트리머 목록이면 빈 문자열을 반환한다', () => {
+    expect(matchName('Storm#3142', [])).toBe('');
   });
 });
