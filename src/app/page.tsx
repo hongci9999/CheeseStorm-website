@@ -1,18 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
 import type { PlayerStats, Role, Tier } from '@/lib/types';
 import { MOCK_STATS } from '@/test/fixtures';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
-
-const TIER_DESC_KO: Record<Tier, string> = {
-  S: '에이펙스', A: '상위', B: '중상위', C: '중위', D: '기반', unranked: '미배정',
-};
-const TIER_DESC_EN: Record<Tier, string> = {
-  S: 'APEX', A: 'UPPER', B: 'HIGH-MID', C: 'MID', D: 'FLOOR', unranked: 'UNRANKED',
-};
 
 const ROLES: Role[] = ['탱커', '투사', '암살자', '지원가', '전문가'];
 
@@ -52,7 +46,8 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
   const win = pct(p) >= 50;
 
   return (
-    <div
+    <Link
+      href={`/streamers/${p.streamerId}`}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -61,6 +56,7 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
         background: hover ? 'var(--surface-raise)' : 'transparent',
         transform: hover ? 'translateY(-2px)' : 'none',
         transition: 'transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out)',
+        textDecoration: 'none',
       }}
     >
       {/* 아바타 + S티어 순위 뱃지 */}
@@ -107,7 +103,7 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
           {p.wins}W {p.losses}L
         </span>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -138,20 +134,13 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
         <TierBadge tier={tier} size="lg" />
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-          <span style={{
-            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15,
-            color: 'var(--text-high)',
-          }}>
-            {TIER_DESC_KO[tier]}
-          </span>
-          <span style={{
-            fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.14em',
-            color: 'var(--text-faint)',
-          }}>
-            {TIER_DESC_EN[tier]} · {players.length}명
-          </span>
-        </div>
+        {/* 인원 수만 표시 — 수사적 등급 부가문구 제거 */}
+        <span style={{
+          fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.14em',
+          color: 'var(--text-faint)',
+        }}>
+          {players.length}명
+        </span>
       </div>
 
       {/* 아바타 플로우 */}
@@ -167,38 +156,13 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
   );
 }
 
-// ── 필터 바 ───────────────────────────────────────────────────
-function FilterBar({
-  search, onSearch, role, onRole,
-}: {
-  search: string; onSearch: (v: string) => void;
-  role: string; onRole: (v: string) => void;
-}) {
+// ── 필터 바 (역할 탭만 — 검색 입력 제거) ────────────────────
+function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
       flexWrap: 'wrap', marginBottom: 'var(--sp-5)',
     }}>
-      {/* 검색 */}
-      <div style={{ position: 'relative', width: 220 }}>
-        <span style={{
-          position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-          color: 'var(--text-faint)', fontSize: 15, pointerEvents: 'none',
-        }}>⌕</span>
-        <input
-          value={search}
-          onChange={e => onSearch(e.target.value)}
-          placeholder="스트리머 검색"
-          style={{
-            width: '100%', height: 38, paddingLeft: 36, paddingRight: 12,
-            borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
-            background: 'var(--surface-input)', color: 'var(--text-high)',
-            fontFamily: 'var(--font-ui)', fontSize: 13, outline: 'none',
-            boxSizing: 'border-box',
-          }}
-        />
-      </div>
-
       {/* 역할 탭 */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {['전체', ...ROLES].map(r => (
@@ -226,7 +190,6 @@ function FilterBar({
 export default function HomePage() {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [role, setRole] = useState('전체');
 
   useEffect(() => {
@@ -253,7 +216,6 @@ export default function HomePage() {
   }
 
   const filtered = stats.filter(p => {
-    if (search && !p.streamerName.includes(search)) return false;
     if (role !== '전체' && p.role !== role) return false;
     return true;
   });
@@ -275,7 +237,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      <FilterBar search={search} onSearch={setSearch} role={role} onRole={setRole} />
+      <FilterBar role={role} onRole={setRole} />
 
       {groups.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
