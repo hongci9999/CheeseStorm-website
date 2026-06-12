@@ -1,4 +1,4 @@
-import type { Match, Role } from './types';
+import type { Match, Role, FineRole } from './types';
 import { heroOf } from './match';
 
 // HotS 영웅 → 역할군 (구 5분류: 탱커/투사/암살자/지원가/전문가)
@@ -45,6 +45,22 @@ export function roleOfHero(hero: string): Role | null {
   return HERO_ROLES[hero.trim()] ?? null;
 }
 
+// 근접(밀리) 암살자 집합. 나머지 암살자는 원거리로 분류. (출처: HotS 공식 역할군)
+const MELEE_ASSASSINS = new Set([
+  '도살자', '부처', '더 부처', '마이에브', '머키', '발리라', '사무로',
+  '알라라크', '일리단', '제라툴', '케리건', '키히라',
+]);
+
+// 영웅명 → 세분 역할군. 암살자는 원거리/근접으로 구별, 나머지는 Role 그대로. 모르면 null.
+export function fineRoleOfHero(hero: string): FineRole | null {
+  const role = roleOfHero(hero);
+  if (role === null) return null;
+  if (role === '암살자') {
+    return MELEE_ASSASSINS.has(hero.trim()) ? '근접 암살자' : '원거리 암살자';
+  }
+  return role;
+}
+
 // 역할군별 플레이 분포 (판수 내림차순). pct는 정수 반올림.
 export function roleAffinity(
   matches: Match[],
@@ -79,6 +95,45 @@ export function deriveRole(matches: Match[], streamerId: string): Role | undefin
     counts.set(role, (counts.get(role) ?? 0) + 1);
   }
   let best: Role | undefined;
+  let max = 0;
+  for (const [role, n] of counts) {
+    if (n > max) { best = role; max = n; }
+  }
+  return best;
+}
+
+// 세분 역할군(암살자 원거리/근접 구별) 분포 — roleAffinity의 fine 버전. UI 표시용.
+export function fineRoleAffinity(
+  matches: Match[],
+  streamerId: string,
+): { role: FineRole; games: number; pct: number }[] {
+  const counts = new Map<FineRole, number>();
+  let total = 0;
+  for (const m of matches) {
+    const hero = heroOf(m, streamerId);
+    if (!hero) continue;
+    const role = fineRoleOfHero(hero);
+    if (!role) continue;
+    counts.set(role, (counts.get(role) ?? 0) + 1);
+    total++;
+  }
+  return Array.from(counts.entries())
+    .map(([role, games]) => ({ role, games, pct: Math.round((games / total) * 100) }))
+    .sort((a, b) => b.games - a.games);
+}
+
+// 세분 주 역할군 파생 — deriveRole의 fine 버전. 동률이면 최근 경기 우선.
+export function deriveFineRole(matches: Match[], streamerId: string): FineRole | undefined {
+  const recentFirst = [...matches].sort((a, b) => b.date.getTime() - a.date.getTime());
+  const counts = new Map<FineRole, number>();
+  for (const m of recentFirst) {
+    const hero = heroOf(m, streamerId);
+    if (!hero) continue;
+    const role = fineRoleOfHero(hero);
+    if (!role) continue;
+    counts.set(role, (counts.get(role) ?? 0) + 1);
+  }
+  let best: FineRole | undefined;
   let max = 0;
   for (const [role, n] of counts) {
     if (n > max) { best = role; max = n; }

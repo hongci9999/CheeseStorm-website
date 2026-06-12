@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getMatches, getStreamers, deleteMatch, isFirebaseConfigured } from '@/lib/firestore';
+import { getMatches, getStreamers, getCachedMatches, getCachedStreamers, deleteMatch, isFirebaseConfigured } from '@/lib/firestore';
+import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
 import { participants } from '@/lib/match';
 import type { Match, Streamer } from '@/lib/types';
 import { MOCK_MATCHES, MOCK_STREAMERS } from '@/test/fixtures';
@@ -135,9 +136,10 @@ function MatchRow({
         {match.map ?? '—'}
       </span>
 
-      {/* 경기 시간 */}
+      {/* 경기 시간 — 더 크고 뚜렷하게 */}
       {match.dur && (
-        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12.5, color: 'var(--text-muted)',
+        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 16, fontWeight: 800,
+          color: 'var(--text-high)', letterSpacing: '0.02em',
           whiteSpace: 'nowrap', flexShrink: 0 }}>
           {match.dur}
         </span>
@@ -174,16 +176,20 @@ function MatchRow({
 
 // ── 메인 페이지 ──────────────────────────────────────────────
 export default function MatchesPage() {
-  const [matches,   setMatches]   = useState<Match[]>([]);
-  const [streamers, setStreamers] = useState<Streamer[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  // 캐시가 있으면 첫 렌더부터 데이터로 그려 스피너·재요청을 건너뛴다 (SPA 재방문 시)
+  const cachedMatches = getCachedMatches();
+  const cachedStreamers = getCachedStreamers();
+  const [matches,   setMatches]   = useState<Match[]>(cachedMatches ?? []);
+  const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
+  const [loading,   setLoading]   = useState(cachedMatches === null || cachedStreamers === null);
   const [openId,    setOpenId]    = useState<string | null>(null);
   const [search,    setSearch]    = useState('');
 
   useEffect(() => {
     async function load() {
-      const sl = isFirebaseConfigured ? await getStreamers() : MOCK_STREAMERS;
-      const ml = isFirebaseConfigured ? await getMatches() : MOCK_MATCHES;
+      const useMock = resolveUseMock(readDataSourceCookieClient(), isFirebaseConfigured);
+      const sl = useMock ? MOCK_STREAMERS : await getStreamers();
+      const ml = useMock ? MOCK_MATCHES : await getMatches();
       setMatches(ml);
       setStreamers(sl);
       setLoading(false);

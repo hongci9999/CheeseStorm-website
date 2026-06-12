@@ -15,11 +15,11 @@ const mk = (id: string, map: string | undefined, winner: 'blue' | 'red'): Match 
 describe('mapWinRates', () => {
   it('맵별 승/패를 집계한다', () => {
     const matches = [
-      mk('m1', '하늘 신전', 'blue'),
-      mk('m2', '하늘 신전', 'blue'),
-      mk('m3', '하늘 신전', 'red'),
+      mk('m1', '하늘 사원', 'blue'),
+      mk('m2', '하늘 사원', 'blue'),
+      mk('m3', '하늘 사원', 'red'),
     ];
-    const sky = mapWinRates('me', matches).find((r) => r.map === '하늘 신전')!;
+    const sky = mapWinRates('me', matches).find((r) => r.map === '하늘 사원')!;
     expect(sky.wins).toBe(2);
     expect(sky.losses).toBe(1);
     expect(sky.games).toBe(3);
@@ -40,10 +40,10 @@ describe('mapWinRates', () => {
     const matches = [
       mk('m1', undefined, 'blue'),
       mk('m2', '   ', 'blue'),
-      mk('m3', '하늘 신전', 'blue'),
+      mk('m3', '하늘 사원', 'blue'),
     ];
     const result = mapWinRates('me', matches);
-    expect(result.map((r) => r.map)).toEqual(['하늘 신전']);
+    expect(result.map((r) => r.map)).toEqual(['하늘 사원']);
   });
 
   it('미참가 경기는 제외한다', () => {
@@ -60,15 +60,15 @@ describe('mapWinRates', () => {
 
   it('충족 맵을 미충족 맵보다 먼저, 승률 내림차순으로 정렬한다', () => {
     const matches = [
-      // 하늘 신전 3승 (100%)
-      mk('a1', '하늘 신전', 'blue'), mk('a2', '하늘 신전', 'blue'), mk('a3', '하늘 신전', 'blue'),
+      // 하늘 사원 3승 (100%)
+      mk('a1', '하늘 사원', 'blue'), mk('a2', '하늘 사원', 'blue'), mk('a3', '하늘 사원', 'blue'),
       // 용의 둥지 3패 (0%)
       mk('b1', '용의 둥지', 'red'), mk('b2', '용의 둥지', 'red'), mk('b3', '용의 둥지', 'red'),
       // 영원의 전쟁터 1판 (데이터 부족)
       mk('c1', '영원의 전쟁터', 'blue'),
     ];
     const result = mapWinRates('me', matches);
-    expect(result[0].map).toBe('하늘 신전');   // 100%
+    expect(result[0].map).toBe('하늘 사원');   // 100%
     expect(result[1].map).toBe('용의 둥지');   // 0%
     expect(result[2].map).toBe('영원의 전쟁터'); // null = 맨 뒤
     expect(result[2].winRate).toBeNull();

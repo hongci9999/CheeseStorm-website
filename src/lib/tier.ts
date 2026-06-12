@@ -1,6 +1,6 @@
 import type { HeroStat, Match, PlayerStats, Streamer, Tier } from './types';
 import { winningTeam, losingTeam } from './match';
-import { deriveRole } from './heroes';
+import { deriveRole, deriveFineRole } from './heroes';
 import { MIN_SAMPLE } from './sample';
 
 const TIER_THRESHOLDS: { tier: Tier; min: number }[] = [
@@ -24,7 +24,7 @@ export const TIER_ORDER: Tier[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];
 export function calcPlayerStats(streamers: Streamer[], matches: Match[]): PlayerStats[] {
   const statsMap = new Map<
     string,
-    { wins: number; losses: number; name: string; img?: string; role?: import('./types').Role; heroes: Map<string, { wins: number; losses: number }> }
+    { wins: number; losses: number; name: string; img?: string; role?: import('./types').Role; fineRole?: import('./types').FineRole; heroes: Map<string, { wins: number; losses: number }> }
   >();
 
   for (const s of streamers) {
@@ -32,6 +32,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
     statsMap.set(s.id, {
       wins: 0, losses: 0, name: s.name, img: s.profileImageUrl,
       role: deriveRole(matches, s.id),
+      fineRole: deriveFineRole(matches, s.id),
       heroes: new Map(),
     });
   }
@@ -60,7 +61,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   }
 
   return Array.from(statsMap.entries())
-    .map(([streamerId, { wins, losses, name, img, role, heroes }]) => {
+    .map(([streamerId, { wins, losses, name, img, role, fineRole, heroes }]) => {
       const totalGames = wins + losses;
       const winRate = totalGames > 0 ? wins / totalGames : 0;
 
@@ -68,7 +69,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
         .map(([hero, s]) => ({ hero, wins: s.wins, losses: s.losses }))
         .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
 
-      return { streamerId, streamerName: name, profileImageUrl: img, role, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
+      return { streamerId, streamerName: name, profileImageUrl: img, role, fineRole, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
     })
     .sort((a, b) => {
       const diff = TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier);

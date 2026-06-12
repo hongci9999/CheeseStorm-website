@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Tier } from '@/lib/types';
 
@@ -29,6 +32,9 @@ export function HexAvatar({
   children?: ReactNode;
   style?: CSSProperties;
 }) {
+  // 이미지 로드 실패(파일 없음 등) 시 이니셜로 폴백
+  const [broken, setBroken] = useState(false);
+  const showImg = !!imageUrl && !broken;
   const initials = name.trim().slice(0, 2);
   // 사진 없는 빈 육각형 — 단색 대신 ring 색을 머금은 그라데이션으로 채워 입체감 부여.
   // ring(티어색·히오스 보라 등)에서 파생 → 테마·색 무관하게 자동으로 어울림.
@@ -49,11 +55,12 @@ export function HexAvatar({
         <span style={{
           position: 'relative', display: 'flex', width: '100%', height: '100%',
           alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-          background: imageUrl ? 'var(--surface-raise)' : emptyFill, clipPath: HEX_CLIP,
+          background: showImg ? 'var(--surface-raise)' : emptyFill, clipPath: HEX_CLIP,
         }}>
-          {imageUrl ? (
+          {showImg ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imageUrl} alt={name}
+              onError={() => setBroken(true)}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             <span style={{

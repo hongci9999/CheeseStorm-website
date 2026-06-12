@@ -6,7 +6,7 @@ import type { Streamer } from '@/lib/types';
 // s4(치즈먹자)는 gameNames 2개 — 부캐/별칭 매칭(#8) 검증용
 export const MOCK_STREAMERS: Streamer[] = [
   { id: 's1',  name: '폭풍칼날',  chzzkId: 'storm1',  accountLevel: 1247, gameNames: ['Storm#3142'],  profileImageUrl: '/test/image.png', createdAt: new Date('2025-01-01') },
-  { id: 's2',  name: '한빛',      chzzkId: 'hanbit',  accountLevel: 982,  gameNames: ['Hanbit#1191'], profileImageUrl: '/test/image.png', createdAt: new Date('2025-01-01') },
+  { id: 's2',  name: '한빛',      chzzkId: 'hanbit',  accountLevel: 950, gameNames: ['Hanbit#1191'], profileImageUrl: '/test/image.png', createdAt: new Date('2025-01-01') },
   { id: 's3',  name: '강철방패',  chzzkId: 'shield3', accountLevel: 876,                              createdAt: new Date('2025-01-02') },
   { id: 's4',  name: '치즈먹자',                      accountLevel: 654,  gameNames: ['Cheese#5555', '치즈부캐#9090'], createdAt: new Date('2025-01-02') },
   { id: 's5',  name: '달빛소녀',  chzzkId: 'moongl',  accountLevel: 731,                              createdAt: new Date('2025-01-03') },

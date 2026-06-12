@@ -1,5 +1,9 @@
 export type Role = '탱커' | '투사' | '암살자' | '지원가' | '전문가';
 
+// 세분 역할군 — 암살자를 원거리/근접으로 구별 (역할 필터·선호 포지션 표시용).
+// 내부 집계(Role)는 5분류 유지, UI 레이어에서만 이 6분류를 사용.
+export type FineRole = '탱커' | '투사' | '원거리 암살자' | '근접 암살자' | '지원가' | '전문가';
+
 export interface Streamer {
   id: string;
   name: string;
@@ -8,6 +12,7 @@ export interface Streamer {
   accountLevel?: number;  // HotS 계정레벨
   gameNames?: string[];   // 인게임 이름(배틀태그) 목록 — OCR 매칭용 (CONTEXT.md 인게임 이름)
   profileImageUrl?: string; // 치지직 프로필 사진. 없으면 닉네임 이니셜로 폴백
+  profileImageUpdatedAt?: Date; // 프로필 사진 마지막 갱신 시각 (주기 갱신 TTL 판정용)
   createdAt: Date;
 }
 
@@ -58,5 +63,6 @@ export interface PlayerStats {
   totalGames: number;
   winRate: number;
   tier: Tier;
+  fineRole?: FineRole;    // 세분 주 역할군 (암살자 원거리/근접 구별) — 역할 필터용
   heroStats: HeroStat[];  // 경기수 내림차순 정렬
 }

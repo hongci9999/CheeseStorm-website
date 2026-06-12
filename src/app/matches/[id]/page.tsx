@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
+import { DATA_SOURCE_COOKIE, parseDataSource, resolveUseMock } from '@/lib/data-source';
 import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
 import { MOCK_MATCHES } from '@/test/fixtures/matches';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
@@ -19,9 +21,11 @@ export default async function MatchDetailPage({
 }) {
   const { id } = await params;
 
-  const [streamers, matches] = isFirebaseConfigured
-    ? await Promise.all([getStreamers(), getMatches()])
-    : [MOCK_STREAMERS, MOCK_MATCHES];
+  const override = parseDataSource((await cookies()).get(DATA_SOURCE_COOKIE)?.value);
+  const useMock = resolveUseMock(override, isFirebaseConfigured);
+  const [streamers, matches] = useMock
+    ? [MOCK_STREAMERS, MOCK_MATCHES]
+    : await Promise.all([getStreamers(), getMatches()]);
 
   const match = matches.find((m) => m.id === id);
   if (!match) notFound();

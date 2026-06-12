@@ -42,4 +42,5 @@ next-env.d.ts
 node_modules
 
 claudecode-design
-.claude/settings.local.json.omc/
+.claude/settings.local.json
+.omc/

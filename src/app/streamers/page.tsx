@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, addStreamer, deleteStreamer, updateStreamerGameNames, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getCachedStreamers, addStreamer, deleteStreamer, updateStreamerGameNames, updateStreamerProfileImage, isFirebaseConfigured } from '@/lib/firestore';
+import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
 import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '@/lib/streamer';
+import { fetchChzzkProfiles, isProfileStale } from '@/lib/chzzk-profile';
 import type { Streamer } from '@/lib/types';
 import { MOCK_STREAMERS } from '@/test/fixtures';
 import { HexAvatar } from '@/components/hexagon-avatar';
+import { LevelBadge } from '@/components/level-badge';
 
 const INPUT: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px',
@@ -113,13 +116,7 @@ function StreamerCard({
             {streamer.name}
           </span>
           {streamer.accountLevel != null && (
-            <span style={{
-              fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 12.5,
-              letterSpacing: '0.04em', color: 'var(--cheese-green)',
-              textShadow: 'var(--hex-label-shadow)',
-            }}>
-              Lv {streamer.accountLevel}
-            </span>
+            <LevelBadge level={streamer.accountLevel} />
           )}
         </span>
       </HexAvatar>
@@ -445,17 +442,46 @@ function AddModal({
 // ── 페이지 ────────────────────────────────────────────────────
 export default function StreamersPage() {
   const router = useRouter();
-  const [streamers, setStreamers] = useState<Streamer[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  // 캐시가 있으면 첫 렌더부터 데이터로 그려 스피너·재요청을 건너뛴다 (SPA 재방문 시)
+  const cachedStreamers = getCachedStreamers();
+  const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
+  const [loading,   setLoading]   = useState(cachedStreamers === null);
   const [search,    setSearch]    = useState('');
   const [showModal, setShowModal] = useState(false);
   // gameNames 편집 모달 대상 스트리머 (null이면 닫힘)
   const [editGameNamesTarget, setEditGameNamesTarget] = useState<Streamer | null>(null);
 
   async function load() {
-    const list = isFirebaseConfigured ? await getStreamers() : MOCK_STREAMERS;
+    const useMock = resolveUseMock(readDataSourceCookieClient(), isFirebaseConfigured);
+    const list = useMock ? MOCK_STREAMERS : await getStreamers();
     setStreamers(list);
     setLoading(false);
+    // 실 데이터일 때만 치지직 프로필 사진을 백그라운드로 주기 갱신.
+    // 새로 추가된 스트리머(갱신시각 없음)도 stale로 잡혀 함께 처리된다.
+    if (!useMock) void refreshStaleProfiles(list);
+  }
+
+  // chzzkId가 있고 TTL이 지난(또는 한 번도 안 받은) 스트리머의 프로필 사진을
+  // 치지직에서 일괄 조회해 Firestore와 화면에 반영. 실패한 건 다음 로드에서 재시도.
+  async function refreshStaleProfiles(list: Streamer[]) {
+    const stale = list.filter(isProfileStale);
+    if (stale.length === 0) return;
+
+    const profiles = await fetchChzzkProfiles(
+      stale.map(s => s.chzzkId).filter((v): v is string => !!v),
+    );
+    const updates = stale
+      .map(s => ({ id: s.id, url: s.chzzkId ? profiles[s.chzzkId]?.imageUrl : undefined }))
+      .filter((u): u is { id: string; url: string } => u.url !== undefined);
+    if (updates.length === 0) return;
+
+    await Promise.allSettled(updates.map(u => updateStreamerProfileImage(u.id, u.url)));
+
+    const now = new Date();
+    setStreamers(prev => prev.map(s => {
+      const u = updates.find(x => x.id === s.id);
+      return u ? { ...s, profileImageUrl: u.url, profileImageUpdatedAt: now } : s;
+    }));
   }
 
   useEffect(() => { load(); }, []);

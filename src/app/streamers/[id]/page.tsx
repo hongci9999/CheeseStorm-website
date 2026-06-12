@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
-import { getStreamerProfile, getRecentMatches, currentStreak, kdaFor } from '@/lib/profile';
-import { calcPlayerStats } from '@/lib/tier';
-import { roleAffinity, roleOfHero } from '@/lib/heroes';
+import { DATA_SOURCE_COOKIE, parseDataSource, resolveUseMock } from '@/lib/data-source';
+import { getStreamerProfile, getRecentMatches, kdaFor } from '@/lib/profile';
+import { fineRoleAffinity, fineRoleOfHero } from '@/lib/heroes';
 import { outcomeFor, heroOf, statOf } from '@/lib/match';
 import { aggregateHeroStats } from '@/lib/hero-stats';
 import { computeRelations } from '@/lib/relations';
@@ -11,6 +12,8 @@ import { INSUFFICIENT_DATA } from '@/lib/sample';
 import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
 import { MOCK_MATCHES } from '@/test/fixtures/matches';
 import { HexAvatar } from '@/components/hexagon-avatar';
+import { LevelBadge } from '@/components/level-badge';
+import { heroImageUrl } from '@/lib/hero-image';
 import type { HeroAggregate } from '@/lib/hero-stats';
 import type { SynergyStat, NemesisStat } from '@/lib/relations';
 import type { MapWinRate } from '@/lib/map-stats';
@@ -105,18 +108,9 @@ function StatPill({ value, suffix, label, accent }: {
   );
 }
 
+// 영웅 아바타 — 육각형 영웅 프로필 (보라 테두리). 영웅 사진 있으면 표시, 없으면 이니셜 폴백.
 function HeroAvatar({ name, size = 32 }: { name: string; size?: number }) {
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: size, height: size, borderRadius: 'var(--r-sm)', flexShrink: 0,
-      background: 'var(--surface-raise)', border: '1px solid var(--border-faint)',
-      fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: Math.round(size * 0.38),
-      color: 'var(--text-muted)',
-    }}>
-      {name.slice(0, 2)}
-    </span>
-  );
+  return <HexAvatar name={name} imageUrl={heroImageUrl(name)} ring="var(--hots-purple)" size={size} ringWidth={1.5} />;
 }
 
 // --- 탭 카운트 뱃지 ---
@@ -366,40 +360,87 @@ function RelationList({ rows, tone }: {
   );
 }
 
-// --- 맵별 승률 목록 (#24) ---
+// --- 맵별 승률: 주요 맵 1행 (큰 막대) ---
+function MapWinRateRowMain({ r }: { r: MapWinRate }) {
+  const enough = r.winRate !== null;
+  const winColor = enough && r.winRate! >= 0.5 ? 'var(--win)' : 'var(--loss)';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+      <span style={{ width: 110, fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 14.5,
+        color: enough ? 'var(--text-high)' : 'var(--text-faint)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {r.map}
+      </span>
+      <div style={{ flex: 1, height: 10, borderRadius: 999,
+        background: 'var(--surface-raise)', overflow: 'hidden' }}>
+        {enough && (
+          <div style={{ width: `${Math.round(r.winRate! * 100)}%`, height: '100%',
+            borderRadius: 999, background: winColor }} />
+        )}
+      </div>
+      <span style={{ width: 120, textAlign: 'right', fontFamily: 'var(--font-numeral)',
+        fontSize: 13, whiteSpace: 'nowrap',
+        color: enough ? winColor : 'var(--text-faint)', fontWeight: enough ? 800 : 400 }}>
+        {enough
+          ? `${Math.round(r.winRate! * 100)}% · ${r.wins}승 ${r.losses}패`
+          : `${INSUFFICIENT_DATA} (${r.games}판)`}
+      </span>
+    </div>
+  );
+}
+
+// --- 맵별 승률: 축소 칩 (이름 + 승률%만) ---
+function MapWinRateChip({ r }: { r: MapWinRate }) {
+  const enough = r.winRate !== null;
+  const winColor = enough && r.winRate! >= 0.5 ? 'var(--win)' : 'var(--loss)';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', minWidth: 0 }}>
+      <span style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: 500, fontSize: 12,
+        color: enough ? 'var(--text-muted)' : 'var(--text-faint)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {r.map}
+      </span>
+      <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11.5, whiteSpace: 'nowrap',
+        color: enough ? winColor : 'var(--text-faint)', fontWeight: enough ? 700 : 400 }}>
+        {enough
+          ? `${Math.round(r.winRate! * 100)}% · ${r.wins}승 ${r.losses}패`
+          : `${r.games}판`}
+      </span>
+    </div>
+  );
+}
+
+// --- 맵별 승률 목록 (#24): 좌측 베스트 3(큰 막대) | 우측 나머지(열 우선 2열) ---
 function MapWinRateList({ rows }: { rows: MapWinRate[] }) {
   if (rows.length === 0) {
     return <EmptyHint>맵 기록이 있는 경기가 없습니다.</EmptyHint>;
   }
+  const top = rows.slice(0, 3);
+  const rest = rows.slice(3);
+  // 나머지를 2열로 채우되 첫째 열을 위→아래로 다 채운 뒤 둘째 열로 (열 우선).
+  // grid-auto-flow: column + 행 수 고정으로 열 우선 배치를 구현.
+  const restRows = Math.max(1, Math.ceil(rest.length / 2));
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-      {rows.map((r) => {
-        const enough = r.winRate !== null;
-        const winColor = enough && r.winRate! >= 0.5 ? 'var(--win)' : 'var(--loss)';
-        return (
-          <div key={r.map} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-            <span style={{ width: 96, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
-              color: enough ? 'var(--text-high)' : 'var(--text-faint)',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {r.map}
-            </span>
-            <div style={{ flex: 1, height: 8, borderRadius: 999,
-              background: 'var(--surface-raise)', overflow: 'hidden' }}>
-              {enough && (
-                <div style={{ width: `${Math.round(r.winRate! * 100)}%`, height: '100%',
-                  borderRadius: 999, background: winColor }} />
-              )}
-            </div>
-            <span style={{ width: 110, textAlign: 'right', fontFamily: 'var(--font-numeral)',
-              fontSize: 12, whiteSpace: 'nowrap',
-              color: enough ? winColor : 'var(--text-faint)', fontWeight: enough ? 700 : 400 }}>
-              {enough
-                ? `${Math.round(r.winRate! * 100)}% · ${r.wins}승 ${r.losses}패`
-                : `${INSUFFICIENT_DATA} (${r.games}판)`}
-            </span>
-          </div>
-        );
-      })}
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-6)', flexWrap: 'wrap' }}>
+      {/* 좌측: 베스트 3 — 막대로 크게 */}
+      <div style={{ flex: '1 1 340px', minWidth: 300,
+        display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+        {top.map((r) => <MapWinRateRowMain key={r.map} r={r} />)}
+      </div>
+      {/* 우측: 나머지 맵 — 승률 순으로 첫째 열 → 둘째 열 (열 우선) */}
+      {rest.length > 0 && (
+        <div style={{
+          flex: '1 1 300px', minWidth: 280,
+          display: 'grid',
+          gridTemplateRows: `repeat(${restRows}, auto)`,
+          gridAutoFlow: 'column',
+          gridAutoColumns: '1fr',
+          rowGap: 'var(--sp-2)', columnGap: 'var(--sp-5)',
+          paddingLeft: 'var(--sp-6)', borderLeft: '1px solid var(--border-faint)',
+        }}>
+          {rest.map((r) => <MapWinRateChip key={r.map} r={r} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -418,19 +459,18 @@ export default async function ProfilePage({
   const activeTab: 'overview' | 'heroes' | 'matches' =
     tab === 'heroes' ? 'heroes' : tab === 'matches' ? 'matches' : 'overview';
 
-  const [streamers, matches] = isFirebaseConfigured
-    ? await Promise.all([getStreamers(), getMatches()])
-    : [MOCK_STREAMERS, MOCK_MATCHES];
+  const override = parseDataSource((await cookies()).get(DATA_SOURCE_COOKIE)?.value);
+  const useMock = resolveUseMock(override, isFirebaseConfigured);
+  const [streamers, matches] = useMock
+    ? [MOCK_STREAMERS, MOCK_MATCHES]
+    : await Promise.all([getStreamers(), getMatches()]);
 
   const profile = getStreamerProfile(id, streamers, matches);
   if (!profile) notFound();
 
   const streamer = streamers.find(s => s.id === id)!;
-  const allStats = calcPlayerStats(streamers, matches);
-  const rank     = allStats.findIndex(p => p.streamerId === id) + 1;
-  const streak   = currentStreak(matches, id);
   const kda      = kdaFor(matches, id);
-  const affinity = roleAffinity(matches, id);
+  const affinity = fineRoleAffinity(matches, id);
   const maxAff   = affinity.length > 0 ? affinity[0].games : 1;
   const recent   = getRecentMatches(id, matches, 6);
   const allMatches = getRecentMatches(id, matches, Infinity);
@@ -488,42 +528,23 @@ export default async function ProfilePage({
             <TierBadge tier={profile.tier} />
           </div>
 
-          {/* 계정레벨 — 주요 정보로 강조 */}
+          {/* 계정레벨 — 주요 정보로 강조 (레벨 기반 색상 캡슐) */}
           {streamer.accountLevel != null && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 5, marginTop: 8 }}>
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                height: 22, padding: '0 10px', borderRadius: 'var(--r-pill)',
-                background: 'color-mix(in srgb, var(--cheese-blue) 14%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--cheese-blue) 35%, transparent)',
-                fontFamily: 'var(--font-numeral)', fontWeight: 800, fontSize: 12,
-                color: 'var(--cheese-blue)', letterSpacing: '0.02em',
-              }}>
-                Lv.{streamer.accountLevel}
-              </span>
+              <LevelBadge level={streamer.accountLevel} />
             </div>
           )}
 
-          {/* 연승 배지 + 메인 롤 · 랭킹 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            {streak && streak.count >= 2 && (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 5,
-                height: 22, padding: '0 9px', borderRadius: 'var(--r-pill)',
-                background: streak.result === 'win' ? 'var(--win-soft)' : 'var(--loss-soft)',
-                color: streak.result === 'win' ? 'var(--win)' : 'var(--loss)',
-                fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
-                {streak.count}{streak.result === 'win' ? '연승' : '연패'}
+          {/* 메인 롤 — 세분(암살자 원거리/근접 구별) */}
+          {affinity[0] && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginTop: 10 }}>
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--text-muted)' }}>
+                {affinity[0].role} 메인
               </span>
-            )}
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--text-muted)' }}>
-              {profile.role ? `${profile.role} 메인 · ` : ''}랭킹 #{rank}
-            </span>
-          </div>
+            </div>
+          )}
 
           {/* 스탯 필 */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--sp-6)',
@@ -644,7 +665,7 @@ export default async function ProfilePage({
                     gap: 'var(--sp-4)' }}>
                     {top3.map((h, i) => {
                       const total = heroTotal(h);
-                      const role = roleOfHero(h.hero);
+                      const role = fineRoleOfHero(h.hero);
                       return (
                         <div key={h.hero} style={{
                           background: 'var(--surface-raise)', borderRadius: 'var(--r-md)',

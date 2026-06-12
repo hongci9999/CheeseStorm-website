@@ -1,6 +1,6 @@
-import type { Match, Role, Tier } from './types';
+import type { Match, Role, FineRole, Tier } from './types';
 import { winningTeam, losingTeam } from './match';
-import { roleOfHero } from './heroes';
+import { roleOfHero, fineRoleOfHero } from './heroes';
 import { calcTier, TIER_ORDER } from './tier';
 
 // 영웅 단위 티어 집계 결과 (집계 단위가 스트리머가 아니라 영웅)
@@ -12,6 +12,7 @@ export interface HeroTierStat {
   winRate: number;
   tier: Tier;          // 스트리머와 동일 기준 (calcTier, 최소 3경기)
   role: Role | null;   // 알 수 없는 영웅은 null
+  fineRole: FineRole | null; // 세분 역할군 (암살자 원거리/근접 구별) — 역할 필터용
 }
 
 /**
@@ -40,7 +41,7 @@ export function calcHeroTiers(matches: Match[]): HeroTierStat[] {
     .map(([hero, { wins, losses }]) => {
       const games = wins + losses;
       const winRate = games > 0 ? wins / games : 0;
-      return { hero, wins, losses, games, winRate, tier: calcTier(winRate, games), role: roleOfHero(hero) };
+      return { hero, wins, losses, games, winRate, tier: calcTier(winRate, games), role: roleOfHero(hero), fineRole: fineRoleOfHero(hero) };
     })
     .sort((a, b) => {
       const diff = TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier);

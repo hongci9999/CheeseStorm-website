@@ -2,23 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getMatches, getCachedStreamers, getCachedMatches, isFirebaseConfigured } from '@/lib/firestore';
+import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
 import { calcHeroTiers, groupHeroesByTier } from '@/lib/hero-tier';
 import type { HeroTierStat } from '@/lib/hero-tier';
-import type { PlayerStats, Role, Tier } from '@/lib/types';
+import type { PlayerStats, FineRole, Tier } from '@/lib/types';
 import { MOCK_STATS } from '@/test/fixtures';
 import { MOCK_MATCHES } from '@/test/fixtures/matches';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
+import { heroImageUrl } from '@/lib/hero-image';
 
 // 상위 탭 종류
 type MainTab = 'auto' | 'curation' | 'hero';
 
-const ROLES: Role[] = ['탱커', '투사', '암살자', '지원가', '전문가'];
-
-function pct(p: PlayerStats) {
-  return p.totalGames > 0 ? Math.round(p.winRate * 100) : 0;
-}
+const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
 
 // ── TierBadge — DS 스펙 그대로: 꽉 찬 헥사곤 + glow + 어두운 텍스트
 function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
@@ -49,7 +47,6 @@ function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg
 // ── 플레이어 셀 ───────────────────────────────────────────────
 function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tier }) {
   const [hover, setHover] = useState(false);
-  const win = pct(p) >= 50;
 
   return (
     <Link
@@ -95,20 +92,6 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
       }}>
         {p.streamerName}
       </span>
-
-      {/* 승률 · 전적 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{
-          fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 12,
-          color: win ? 'var(--win)' : 'var(--text-faint)',
-        }}>
-          {pct(p)}%
-        </span>
-        <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--ink-600)' }} />
-        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--text-faint)' }}>
-          {p.wins}W {p.losses}L
-        </span>
-      </div>
     </Link>
   );
 }
@@ -135,24 +118,18 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
       <div style={{
         width: 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 10,
-        padding: 'var(--sp-5) var(--sp-4)',
+        padding: 'var(--sp-3) var(--sp-4)',
         borderRight: '1px solid var(--border-faint)',
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
         <TierBadge tier={tier} size="lg" />
-        {/* 인원 수만 표시 — 수사적 등급 부가문구 제거 */}
-        <span style={{
-          fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.14em',
-          color: 'var(--text-faint)',
-        }}>
-          {players.length}명
-        </span>
+        
       </div>
 
       {/* 아바타 플로우 */}
       <div style={{
         flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
-        alignContent: 'center', padding: 'var(--sp-4)',
+        alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)',
       }}>
         {players.map((p, i) => (
           <PlayerCell key={p.streamerId} p={p} rank={i + 1} tier={tier} />
@@ -243,7 +220,7 @@ function AutoTierTab({ stats }: { stats: PlayerStats[] }) {
   const [role, setRole] = useState('전체');
 
   const filtered = stats.filter(p => {
-    if (role !== '전체' && p.role !== role) return false;
+    if (role !== '전체' && p.fineRole !== role) return false;
     return true;
   });
 
@@ -267,19 +244,9 @@ function AutoTierTab({ stats }: { stats: PlayerStats[] }) {
   );
 }
 
-// ── 영웅 타일 (초성 기반, 티어색 테두리) ────────────────────────
+// ── 영웅 타일 (육각형, 티어색 테두리) — 영웅 사진 있으면 표시, 없으면 이니셜 폴백
 function HeroTile({ name, ring, size = 54 }: { name: string; ring: string; size?: number }) {
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: size, height: size, borderRadius: 'var(--r-md)', flexShrink: 0,
-      background: 'var(--surface-raise)', border: `2px solid ${ring}`,
-      fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: Math.round(size * 0.34),
-      color: 'var(--text-high)',
-    }}>
-      {name.slice(0, 2)}
-    </span>
-  );
+  return <HexAvatar name={name} imageUrl={heroImageUrl(name)} ring={ring} size={size} ringWidth={2} />;
 }
 
 // ── 영웅 셀 ───────────────────────────────────────────────────
@@ -334,7 +301,7 @@ function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
       <div style={{
         width: 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 10,
-        padding: 'var(--sp-5) var(--sp-4)',
+        padding: 'var(--sp-3) var(--sp-4)',
         borderRight: '1px solid var(--border-faint)',
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
@@ -348,7 +315,7 @@ function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
       </div>
       <div style={{
         flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
-        alignContent: 'center', padding: 'var(--sp-4)',
+        alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)',
       }}>
         {heroes.map((h) => (
           <HeroCell key={h.hero} h={h} tier={tier} />
@@ -362,7 +329,7 @@ function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
 function HeroTierTab({ heroTiers }: { heroTiers: HeroTierStat[] }) {
   const [role, setRole] = useState('전체');
 
-  const filtered = heroTiers.filter((h) => role === '전체' || h.role === role);
+  const filtered = heroTiers.filter((h) => role === '전체' || h.fineRole === role);
   const groups = groupHeroesByTier(filtered);
 
   return (
@@ -399,16 +366,32 @@ function PlaceholderTab({ label }: { label: string }) {
   );
 }
 
+// 스트리머·매치 → 티어리스트 표시 데이터. 데이터 없으면 더미로 폴백.
+function computeHome(streamers: Parameters<typeof calcPlayerStats>[0], matches: Parameters<typeof calcHeroTiers>[0]) {
+  const computed = calcPlayerStats(streamers, matches);
+  const hasData = computed.length > 0 && matches.length > 0;
+  return {
+    stats: hasData ? computed : MOCK_STATS,
+    heroTiers: hasData ? calcHeroTiers(matches) : calcHeroTiers(MOCK_MATCHES),
+  };
+}
+
 // ── 페이지 ────────────────────────────────────────────────────
 export default function HomePage() {
-  const [stats, setStats] = useState<PlayerStats[]>([]);
-  const [heroTiers, setHeroTiers] = useState<HeroTierStat[]>([]);
-  const [loading, setLoading] = useState(true);
+  // 캐시가 있으면 첫 렌더에서 바로 계산해 스피너·재요청을 건너뛴다 (SPA 재방문 시)
+  const cachedStreamers = getCachedStreamers();
+  const cachedMatches = getCachedMatches();
+  const initial = cachedStreamers && cachedMatches
+    ? computeHome(cachedStreamers, cachedMatches) : null;
+  const [stats, setStats] = useState<PlayerStats[]>(initial?.stats ?? []);
+  const [heroTiers, setHeroTiers] = useState<HeroTierStat[]>(initial?.heroTiers ?? []);
+  const [loading, setLoading] = useState(initial === null);
   const [mainTab, setMainTab] = useState<MainTab>('auto');
 
   useEffect(() => {
     async function load() {
-      if (!isFirebaseConfigured) {
+      const useMock = resolveUseMock(readDataSourceCookieClient(), isFirebaseConfigured);
+      if (useMock) {
         setStats(MOCK_STATS);
         setHeroTiers(calcHeroTiers(MOCK_MATCHES));
         setLoading(false);
@@ -416,10 +399,9 @@ export default function HomePage() {
       }
       try {
         const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
-        const computed = calcPlayerStats(streamers, matches);
-        const hasData = computed.length > 0 && matches.length > 0;
-        setStats(hasData ? computed : MOCK_STATS);
-        setHeroTiers(hasData ? calcHeroTiers(matches) : calcHeroTiers(MOCK_MATCHES));
+        const next = computeHome(streamers, matches);
+        setStats(next.stats);
+        setHeroTiers(next.heroTiers);
       } catch {
         setStats(MOCK_STATS);
         setHeroTiers(calcHeroTiers(MOCK_MATCHES));

@@ -51,3 +51,16 @@
     font-family: var(--font-ui);
   }
 }
+
+/* 레벨 1000 초과 캡슐(LevelBadge)의 흐르는 애니메이션.
+   배경/색 등 시각 스타일은 컴포넌트 인라인으로 그려지고, 여기선 움직임만 담당. */
+@keyframes lvl-shimmer {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+.lvl-legendary {
+  animation: lvl-shimmer 3s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lvl-legendary { animation: none; }
+}
