@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStreamers, getMatches, addStreamer, deleteStreamer, isFirebaseConfigured } from '@/lib/firestore';
-import { validateStreamerForm, parseChzzkId } from '@/lib/streamer';
+import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '@/lib/streamer';
 import { calcPlayerStats } from '@/lib/tier';
 import type { Streamer, PlayerStats, Tier } from '@/lib/types';
 import { MOCK_STREAMERS, MOCK_MATCHES } from '@/test/fixtures';
@@ -302,8 +302,9 @@ export default function StreamersPage() {
     setStreamers(prev => prev.filter(x => x.id !== s.id));
   }
 
-  const filtered = streamers.filter(s =>
-    !search || s.name.toLowerCase().includes(search.toLowerCase()),
+  // 검색 필터 후 가나다순 정렬 (복사본에서 — 원본 state 불변 유지)
+  const filtered = sortStreamersByName(
+    streamers.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase())),
   );
 
   return (

@@ -1,3 +1,5 @@
+import type { Streamer } from './types';
+
 type Result = { valid: true } | { valid: false; error: string };
 
 // 추가폼 검증. 롤은 내전 기록에서 파생하므로 입력받지 않음.
@@ -17,4 +19,10 @@ export function parseChzzkId(input: string): string | undefined {
   if (!t) return undefined;
   const m = t.match(/chzzk\.naver\.com\/([^/?#\s]+)/);
   return m ? m[1] : t;
+}
+
+// 스트리머 배열을 이름 기준 가나다순으로 정렬한 복사본 반환.
+// 한국어 로캘(localeCompare 'ko') 사용 — 동점 시 원본 순서 유지(안정 정렬).
+export function sortStreamersByName(list: Streamer[]): Streamer[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 }
