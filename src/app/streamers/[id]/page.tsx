@@ -159,8 +159,10 @@ function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
   const cellBase: React.CSSProperties = {
     padding: '0 var(--sp-3)',
     fontFamily: 'var(--font-numeral)',
-    fontSize: 13,
-    color: 'var(--text-muted)',
+    // 중요 스탯 — 크고 뚜렷하게
+    fontSize: 14,
+    fontWeight: 600,
+    color: 'var(--text-high)',
     whiteSpace: 'nowrap',
     verticalAlign: 'middle',
   };
@@ -201,7 +203,7 @@ function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <HeroAvatar name={h.hero} size={30} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
+                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
                         color: 'var(--text-high)' }}>
                         {h.hero}
                       </span>
@@ -219,8 +221,9 @@ function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
                   <span style={{ fontWeight: 700, color: winColor }}>{winRateStr}</span>
                   <span style={{ color: 'var(--text-faint)', marginLeft: 4 }}>({h.games})</span>
                 </td>
-                {/* KDA */}
-                <td style={{ ...cellBase, textAlign: 'right', color: hasStats ? 'var(--text-high)' : 'var(--text-faint)' }}>
+                {/* KDA — 중요 정보 */}
+                <td style={{ ...cellBase, textAlign: 'right', fontWeight: 700,
+                  color: hasStats ? 'var(--text-high)' : 'var(--text-faint)' }}>
                   {h.avgKda !== null ? h.avgKda.toFixed(2) : '—'}
                 </td>
                 {/* 영웅딜 */}
@@ -600,14 +603,14 @@ export default async function ProfilePage({
                         }}>
                           <HeroAvatar name={hero} size={32} />
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 72 }}>
-                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
+                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
                               color: 'var(--text-high)' }}>{hero}</span>
                             <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5,
                               color: 'var(--text-faint)' }}>{m.map ?? '—'}</span>
                           </div>
                           {kdaStr && (
-                            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 13,
-                              color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums',
+                            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 15, fontWeight: 700,
+                              color: 'var(--text-high)', fontVariantNumeric: 'tabular-nums',
                               whiteSpace: 'nowrap', marginLeft: 'var(--sp-2)' }}>
                               {kdaStr}
                             </span>

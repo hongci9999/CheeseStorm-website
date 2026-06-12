@@ -115,7 +115,7 @@ function StatRow({
       // 이름(flex)+영웅(flex) | K/A/D | 영웅딜 | 공성딜 | 힐
       gridTemplateColumns: '1fr 1fr 72px 72px 72px 72px',
       alignItems: 'center', gap: 0,
-      height: 40, padding: '0 12px',
+      height: 46, padding: '0 12px',
       borderRadius: 'var(--r-sm)', background: 'var(--surface-card)',
       borderLeft: `3px solid ${won ? accent : 'var(--ink-700)'}`,
       fontSize: 12.5,
@@ -140,42 +140,42 @@ function StatRow({
         </span>
       </div>
 
-      {/* 영웅 */}
+      {/* 영웅 — 중요 정보, 크고 뚜렷하게 */}
       <span style={{
-        fontFamily: 'var(--font-ui)', fontSize: 12.5,
-        color: 'var(--text-muted)', whiteSpace: 'nowrap',
+        fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600,
+        color: 'var(--text-high)', whiteSpace: 'nowrap',
         overflow: 'hidden', textOverflow: 'ellipsis',
       }}>
         {hero || '—'}
       </span>
 
-      {/* K/A/D */}
+      {/* K/A/D — 중요 정보 */}
       <span style={{
-        fontFamily: 'var(--font-numeral)', fontSize: 12, color: 'var(--text-high)',
-        textAlign: 'center',
+        fontFamily: 'var(--font-numeral)', fontSize: 14, fontWeight: 700,
+        color: 'var(--text-high)', textAlign: 'center',
       }}>
         {stat ? `${stat.kills}/${stat.assists}/${stat.deaths}` : '—'}
       </span>
 
-      {/* 영웅딜 */}
+      {/* 영웅딜 — 중요 스탯 */}
       <span style={{
-        fontFamily: 'var(--font-numeral)', fontSize: 12, color: 'var(--text-muted)',
-        textAlign: 'right',
+        fontFamily: 'var(--font-numeral)', fontSize: 13.5, fontWeight: 600,
+        color: 'var(--text-high)', textAlign: 'right',
       }}>
         {stat ? fmtNum(stat.heroDmg) : '—'}
       </span>
 
-      {/* 공성딜 */}
+      {/* 공성딜 — 중요 스탯 */}
       <span style={{
-        fontFamily: 'var(--font-numeral)', fontSize: 12, color: 'var(--text-muted)',
-        textAlign: 'right',
+        fontFamily: 'var(--font-numeral)', fontSize: 13.5, fontWeight: 600,
+        color: 'var(--text-high)', textAlign: 'right',
       }}>
         {stat ? fmtNum(stat.siegeDmg) : '—'}
       </span>
 
-      {/* 힐 */}
+      {/* 힐 — 중요 스탯 */}
       <span style={{
-        fontFamily: 'var(--font-numeral)', fontSize: 12,
+        fontFamily: 'var(--font-numeral)', fontSize: 13.5, fontWeight: 600,
         color: stat && stat.healing > 0 ? 'var(--cheese-green)' : 'var(--text-faint)',
         textAlign: 'right',
       }}>
