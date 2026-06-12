@@ -1,8 +1,7 @@
 import type { HeroStat, Match, PlayerStats, Streamer, Tier } from './types';
 import { winningTeam, losingTeam } from './match';
 import { deriveRole } from './heroes';
-
-const MIN_GAMES = 3;
+import { MIN_SAMPLE } from './sample';
 
 const TIER_THRESHOLDS: { tier: Tier; min: number }[] = [
   { tier: 'S', min: 0.65 },
@@ -12,10 +11,15 @@ const TIER_THRESHOLDS: { tier: Tier; min: number }[] = [
   { tier: 'D', min: 0 },
 ];
 
-function calcTier(winRate: number, totalGames: number): Tier {
-  if (totalGames < MIN_GAMES) return 'unranked';
+// 승률 → 티어. 표본 임계(MIN_SAMPLE) 미만은 unranked.
+// 스트리머·영웅 티어가 동일 기준을 쓰도록 단일 소스로 export (CONTEXT.md 티어)
+export function calcTier(winRate: number, totalGames: number): Tier {
+  if (totalGames < MIN_SAMPLE) return 'unranked';
   return TIER_THRESHOLDS.find((t) => winRate >= t.min)?.tier ?? 'D';
 }
+
+// 티어 정렬·그룹화 공통 순서
+export const TIER_ORDER: Tier[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];
 
 export function calcPlayerStats(streamers: Streamer[], matches: Match[]): PlayerStats[] {
   const statsMap = new Map<
@@ -67,14 +71,11 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
       return { streamerId, streamerName: name, profileImageUrl: img, role, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
     })
     .sort((a, b) => {
-      const tierOrder: Tier[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];
-      const diff = tierOrder.indexOf(a.tier) - tierOrder.indexOf(b.tier);
+      const diff = TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier);
       if (diff !== 0) return diff;
       return b.winRate - a.winRate;
     });
 }
-
-const TIER_ORDER: (Tier | 'unranked')[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];
 
 export function groupStatsByTier(
   stats: PlayerStats[],
