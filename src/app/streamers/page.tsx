@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, getCachedStreamers, addStreamer, deleteStreamer, updateStreamerGameNames, updateStreamerProfileImage, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getCachedStreamers, addStreamer, deleteStreamer, updateStreamerGameNames, updateStreamerInfo, updateStreamerProfileImage, isFirebaseConfigured } from '@/lib/firestore';
 import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
 import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '@/lib/streamer';
 import { fetchChzzkProfiles, isProfileStale } from '@/lib/chzzk-profile';
@@ -178,6 +178,8 @@ function EditGameNamesModal({
   onClose: () => void;
   onSaved: (updated: Streamer) => void;
 }) {
+  const [name,    setName]    = useState(streamer.name);
+  const [level,   setLevel]   = useState(streamer.accountLevel != null ? String(streamer.accountLevel) : '');
   const [tags,    setTags]    = useState<string[]>(streamer.gameNames ?? []);
   const [input,   setInput]   = useState('');
   const [saving,  setSaving]  = useState(false);
@@ -196,12 +198,19 @@ function EditGameNamesModal({
   }
 
   async function handleSave() {
+    const trimmed = name.trim();
+    if (!trimmed) { setError('이름을 입력하세요.'); return; }
+    const lvl = level.trim() === '' ? undefined : Number(level);
+    if (lvl !== undefined && (!Number.isInteger(lvl) || lvl < 0)) {
+      setError('레벨은 0 이상 정수여야 합니다.'); return;
+    }
     setSaving(true); setError('');
     try {
       if (isFirebaseConfigured) {
+        await updateStreamerInfo(streamer.id, trimmed, lvl);
         await updateStreamerGameNames(streamer.id, tags);
       }
-      onSaved({ ...streamer, gameNames: tags });
+      onSaved({ ...streamer, name: trimmed, accountLevel: lvl ?? streamer.accountLevel, gameNames: tags });
       onClose();
     } catch {
       setError('저장 중 오류가 발생했습니다.');
@@ -231,12 +240,26 @@ function EditGameNamesModal({
       >
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 17,
           color: 'var(--text-strong)' }}>
-          배틀태그 편집 — {streamer.name}
+          스트리머 편집 — {streamer.name}
         </span>
+
+        {/* 이름 · 계정 레벨 */}
+        <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
+          <div style={{ flex: 2 }}>
+            <label style={LABEL}>이름</label>
+            <input value={name} onChange={e => setName(e.target.value)}
+              placeholder="닉네임" style={INPUT} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={LABEL}>계정 레벨</label>
+            <input value={level} onChange={e => setLevel(e.target.value)}
+              placeholder="523" inputMode="numeric" style={INPUT} />
+          </div>
+        </div>
 
         <p style={{ fontSize: 11.5, color: 'var(--text-faint)', fontFamily: 'var(--font-ui)',
           margin: 0, lineHeight: 1.5 }}>
-          OCR이 읽은 인게임 이름(배틀태그)을 등록하면 다음부터 자동 매칭됩니다.
+          OCR이 읽은 인게임 이름(배틀넷 닉네임)을 등록하면 다음부터 자동 매칭됩니다.
           미매칭 슬롯을 직접 지정하면 자동으로 추가됩니다.
         </p>
 
@@ -273,7 +296,7 @@ function EditGameNamesModal({
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-            placeholder="Cheese#3142"
+            placeholder="Cheese"
             style={{
               flex: 1, height: 36, padding: '0 10px',
               borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
@@ -401,16 +424,13 @@ function AddModal({
               placeholder="523" inputMode="numeric" style={INPUT} />
           </div>
           <div>
-            <label style={LABEL}>배틀태그 (선택)</label>
+            <label style={LABEL}>배틀넷 닉네임 (선택)</label>
             <input value={battleTag} onChange={e => setBattleTag(e.target.value)}
-              placeholder="Cheese#3142" style={INPUT} />
+              placeholder="Cheese" style={INPUT} />
           </div>
         </div>
 
-        <p style={{ fontSize: 11.5, color: 'var(--text-faint)', fontFamily: 'var(--font-ui)',
-          margin: 0, lineHeight: 1.5 }}>
-          포지션은 입력하지 않습니다 — 내전 기록의 플레이 영웅에 따라 자동 결정됩니다.
-        </p>
+        
 
         {error && (
           <p style={{ fontSize: 12.5, color: 'var(--loss)', fontFamily: 'var(--font-ui)', margin: 0 }}>

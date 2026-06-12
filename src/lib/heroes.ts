@@ -61,6 +61,14 @@ export function fineRoleOfHero(hero: string): FineRole | null {
   return role;
 }
 
+// 영웅명이 알려진 영웅인지 (역할군 매핑 존재 여부). OCR 오타·신규 영웅 검출용.
+export function isKnownHero(hero: string): boolean {
+  return roleOfHero(hero) !== null;
+}
+
+// 자동완성 제안용 영웅명 목록 (별칭 포함, 가나다순).
+export const KNOWN_HEROES: string[] = Object.keys(HERO_ROLES).sort((a, b) => a.localeCompare(b, 'ko'));
+
 // 역할군별 플레이 분포 (판수 내림차순). pct는 정수 반올림.
 export function roleAffinity(
   matches: Match[],

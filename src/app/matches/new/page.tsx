@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getStreamers, getMatches, addMatch, appendGameName, isFirebaseConfigured } from '@/lib/firestore';
 import { validateMatchForm } from '@/lib/match';
 import { matchName } from '@/lib/streamer';
+import { isKnownHero, KNOWN_HEROES } from '@/lib/heroes';
 import { findDuplicateMatch } from '@/lib/dedupe';
 import type { Streamer, PlayerMatchStat, Match } from '@/lib/types';
 import { MOCK_STREAMERS } from '@/test/fixtures';
@@ -49,6 +50,8 @@ function Slot({
 }) {
   const isActive   = !!(slot.streamerId || slot.extractedName || slot.hero);
   const isUnmatched = !!(slot.extractedName && !slot.streamerId);
+  // 영웅명이 입력됐는데 알려진 영웅 목록에 없으면 경고 (OCR 오타 등)
+  const heroUnknown = !!slot.hero.trim() && !isKnownHero(slot.hero);
 
   return (
     <div style={{
@@ -85,11 +88,20 @@ function Slot({
             value={slot.hero}
             onChange={e => onUpdate({ hero: e.target.value })}
             placeholder="영웅명"
+            list="hots-heroes"
             style={{ ...INPUT, height: 30, fontSize: 12,
-              borderColor: slot.streamerId && !slot.hero ? 'var(--loss-soft)' : 'var(--border-line)',
+              borderColor: heroUnknown ? 'var(--loss)'
+                : slot.streamerId && !slot.hero ? 'var(--loss-soft)' : 'var(--border-line)',
               color: slot.hero ? 'var(--text-high)' : 'var(--text-faint)' }}
           />
         </div>
+
+        {/* 영웅 목록에 없는 이름 경고 */}
+        {heroUnknown && (
+          <span style={{ fontSize: 10, color: 'var(--loss)', fontFamily: 'var(--font-ui)', lineHeight: 1 }}>
+            ⚠ &quot;{slot.hero}&quot; — 영웅 목록에 없음 (오타 확인)
+          </span>
+        )}
 
         {/* 스탯 행 */}
         {slot.stat ? (
@@ -139,6 +151,9 @@ export default function NewMatchPage() {
   const [leftTeam, setLeftTeam] = useState<'blue' | 'red' | ''>('');
   const [map,      setMap]      = useState('');
   const [dur,      setDur]      = useState('');
+  // 팀별 최종 레벨 (선택) — HotS 공유 레벨
+  const [blueLevel, setBlueLevel] = useState('');
+  const [redLevel,  setRedLevel]  = useState('');
   const [date,     setDate]     = useState(new Date().toISOString().split('T')[0]);
   const [note,     setNote]     = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -167,16 +182,19 @@ export default function NewMatchPage() {
       if (parsed.map)    setMap(parsed.map);
       if (parsed.dur)    setDur(parsed.dur);
       if (parsed.winner) setWinner(parsed.winner);
+      if (parsed.blueLevel != null) setBlueLevel(String(parsed.blueLevel));
+      if (parsed.redLevel != null)  setRedLevel(String(parsed.redLevel));
 
       function buildSlots(players: ParsedMatch['blueTeam']): TeamSlot[] {
         const slots: TeamSlot[] = players.map(p => ({
           extractedName: p.name,
           streamerId:    matchName(p.name, streamers),
           hero:          p.hero,
+          // OCR이 일부 수치를 누락하면 undefined가 되어 Firestore가 거부 → 0으로 보정
           stat: {
-            kills: p.kills, assists: p.assists, deaths: p.deaths,
-            siegeDmg: p.siegeDmg, heroDmg: p.heroDmg,
-            healing: p.healing, selfHeal: p.selfHeal, xp: p.xp,
+            kills: Number(p.kills) || 0, assists: Number(p.assists) || 0, deaths: Number(p.deaths) || 0,
+            siegeDmg: Number(p.siegeDmg) || 0, heroDmg: Number(p.heroDmg) || 0,
+            healing: Number(p.healing) || 0, selfHeal: Number(p.selfHeal) || 0, xp: Number(p.xp) || 0,
           },
         }));
         while (slots.length < 5) slots.push(emptySlot());
@@ -253,16 +271,23 @@ export default function NewMatchPage() {
 
     setSubmitting(true); setError(''); setDupWarning(null);
     try {
+      const parseLevel = (s: string) => {
+        const n = Number(s);
+        return s.trim() !== '' && Number.isInteger(n) && n >= 0 ? n : undefined;
+      };
       await addMatch({
         date: new Date(date), blueTeam, redTeam,
         blueStats: toStats(blueSlots), redStats: toStats(redSlots),
         winner,
         leftTeam: leftTeam || undefined,
+        blueLevel: parseLevel(blueLevel), redLevel: parseLevel(redLevel),
         map: map || undefined, dur: dur || undefined, note: note || undefined,
       });
       router.push('/matches');
-    } catch {
-      setError('저장 중 오류가 발생했습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('경기 저장 실패:', err);
+      setError(`저장 중 오류: ${msg}`);
       setSubmitting(false);
     }
   }
@@ -275,6 +300,11 @@ export default function NewMatchPage() {
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
+
+        {/* 영웅명 자동완성 — 모든 영웅 입력칸이 list="hots-heroes"로 참조 */}
+        <datalist id="hots-heroes">
+          {KNOWN_HEROES.map(h => <option key={h} value={h} />)}
+        </datalist>
 
         {/* ── 스크린샷 업로드 존 ── */}
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
@@ -365,10 +395,26 @@ export default function NewMatchPage() {
                   <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: accent }}>
                     {label}
                   </span>
-                  <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11,
-                    color: filledCount === 5 ? accent : 'var(--text-faint)' }}>
-                    {filledCount} / 5
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {/* 팀 최종 레벨 (선택) */}
+                    <input
+                      value={side === 'blue' ? blueLevel : redLevel}
+                      onChange={e => (side === 'blue' ? setBlueLevel : setRedLevel)(e.target.value)}
+                      placeholder="Lv"
+                      inputMode="numeric"
+                      title="팀 최종 레벨 (선택)"
+                      style={{
+                        width: 52, height: 28, padding: '0 8px',
+                        borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
+                        background: 'var(--surface-input)', color: 'var(--text-high)',
+                        fontFamily: 'var(--font-numeral)', fontSize: 12, textAlign: 'center', outline: 'none',
+                      }}
+                    />
+                    <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11,
+                      color: filledCount === 5 ? accent : 'var(--text-faint)' }}>
+                      {filledCount} / 5
+                    </span>
+                  </div>
                 </div>
 
                 {/* 슬롯 목록 */}

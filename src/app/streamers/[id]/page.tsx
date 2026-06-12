@@ -528,6 +528,15 @@ export default async function ProfilePage({
             <TierBadge tier={profile.tier} />
           </div>
 
+          {/* 배틀넷 닉네임 — 이름 아래 흐릿하게 */}
+          {streamer.gameNames && streamer.gameNames.length > 0 && (
+            <div style={{ marginTop: 4, fontFamily: 'var(--font-numeral)', fontSize: 12,
+              color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap' }}>
+              {streamer.gameNames.join(' · ')}
+            </div>
+          )}
+
           {/* 계정레벨 — 주요 정보로 강조 (레벨 기반 색상 캡슐) */}
           {streamer.accountLevel != null && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',

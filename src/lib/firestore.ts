@@ -80,6 +80,18 @@ export async function updateStreamerGameNames(streamerId: string, gameNames: str
   streamersCache = null;
 }
 
+// 스트리머 기본 정보(이름·계정레벨) 수정. accountLevel 미지정 시 해당 필드는 건드리지 않는다.
+export async function updateStreamerInfo(
+  streamerId: string,
+  name: string,
+  accountLevel?: number,
+): Promise<void> {
+  const payload: Record<string, unknown> = { name };
+  if (accountLevel !== undefined) payload.accountLevel = accountLevel;
+  await updateDoc(doc(db, 'streamers', streamerId), payload);
+  streamersCache = null;
+}
+
 // 치지직에서 가져온 프로필 사진 URL과 갱신 시각을 저장.
 // imageUrl이 빈 문자열이어도 갱신 시각은 기록 — TTL이 지나기 전 재조회를 막는다.
 export async function updateStreamerProfileImage(streamerId: string, imageUrl: string): Promise<void> {
@@ -92,16 +104,38 @@ export async function updateStreamerProfileImage(streamerId: string, imageUrl: s
 
 // --- Matches ---
 
+// Firestore는 중첩 배열([[id,hero],...])을 금지하므로 팀을 객체 배열({id,hero})로 직렬화.
+type StoredPick = { id: string; hero: string };
+function packTeam(team: [string, string][]): StoredPick[] {
+  return team.map(([id, hero]) => ({ id, hero }));
+}
+// 읽기: 객체 배열 → 튜플. 혹시 남아있을 구버전 중첩배열도 호환.
+function unpackTeam(raw: unknown): [string, string][] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((p) =>
+    Array.isArray(p)
+      ? ([p[0], p[1]] as [string, string])
+      : ([(p as StoredPick).id, (p as StoredPick).hero] as [string, string]),
+  );
+}
+
+// Firestore 문서 → Match (팀 복원 + Timestamp 변환)
+function toMatch(id: string, data: Record<string, unknown>): Match {
+  return {
+    ...data,
+    id,
+    blueTeam: unpackTeam(data.blueTeam),
+    redTeam: unpackTeam(data.redTeam),
+    date: (data.date as Timestamp).toDate(),
+    createdAt: (data.createdAt as Timestamp).toDate(),
+  } as Match;
+}
+
 export async function getMatches(): Promise<Match[]> {
   if (isClient && matchesCache) return matchesCache;
   const q = query(collection(db, 'matches'), orderBy('date', 'desc'));
   const snapshot = await getDocs(q);
-  const list = snapshot.docs.map((d) => ({
-    id: d.id,
-    ...d.data(),
-    date: (d.data().date as Timestamp).toDate(),
-    createdAt: (d.data().createdAt as Timestamp).toDate(),
-  })) as Match[];
+  const list = snapshot.docs.map((d) => toMatch(d.id, d.data()));
   if (isClient) matchesCache = list;
   return list;
 }
@@ -109,23 +143,23 @@ export async function getMatches(): Promise<Match[]> {
 export async function getMatch(id: string): Promise<Match | null> {
   const d = await getDoc(doc(db, 'matches', id));
   if (!d.exists()) return null;
-  return {
-    id: d.id,
-    ...d.data(),
-    date: (d.data().date as Timestamp).toDate(),
-    createdAt: (d.data().createdAt as Timestamp).toDate(),
-  } as Match;
+  return toMatch(d.id, d.data());
 }
 
 export async function addMatch(data: Omit<Match, 'id' | 'createdAt'>): Promise<string> {
-  // Firestore는 undefined 값을 거부하므로 leftTeam이 없으면 필드 자체를 제외
-  const { leftTeam, ...rest } = data;
   const payload: Record<string, unknown> = {
-    ...rest,
+    ...data,
+    // 중첩 배열 금지 → 객체 배열로 직렬화 (읽을 때 unpackTeam으로 복원)
+    blueTeam: packTeam(data.blueTeam),
+    redTeam: packTeam(data.redTeam),
     date: Timestamp.fromDate(data.date),
     createdAt: Timestamp.now(),
   };
-  if (leftTeam !== undefined) payload.leftTeam = leftTeam;
+  // Firestore는 undefined 값을 거부하므로 undefined 필드를 모두 제거
+  // (map·dur·note·blueStats·redStats·leftTeam·blueLevel·redLevel 등 선택 필드)
+  for (const k of Object.keys(payload)) {
+    if (payload[k] === undefined) delete payload[k];
+  }
 
   const ref = await addDoc(collection(db, 'matches'), payload);
   matchesCache = null; // 변경됨 → 다음 조회 시 새로고침

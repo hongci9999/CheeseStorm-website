@@ -221,7 +221,18 @@ export default function MatchesPage() {
     return true;
   });
 
-  const groups = groupByDate(filtered);
+  // 표시 순서: 최신이 위, 낮은 번호(먼저 등록)가 아래. 날짜 내림차순(동률 시 등록 늦은 순).
+  const sorted = [...filtered].sort(
+    (a, b) => (b.date.getTime() - a.date.getTime()) || (b.createdAt.getTime() - a.createdAt.getTime()),
+  );
+  const groups = groupByDate(sorted);
+
+  // 경기 일련번호: 먼저 등록한 경기가 더 낮은 번호.
+  // 날짜 오름차순(동률이면 등록순 createdAt)으로 정렬해 1부터 부여 — 표시 순서·데이터 소스와 무관하게 안정적.
+  const numberById = new Map<string, number>();
+  [...matches]
+    .sort((a, b) => (a.date.getTime() - b.date.getTime()) || (a.createdAt.getTime() - b.createdAt.getTime()))
+    .forEach((m, i) => numberById.set(m.id, i + 1));
 
   if (loading) return (
     <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 80 }}>
@@ -295,7 +306,7 @@ export default function MatchesPage() {
                       <MatchRow
                         match={m}
                         open={isOpen}
-                        idx={matches.length - matches.indexOf(m)}
+                        idx={numberById.get(m.id) ?? 0}
                         onClick={() => setOpenId(isOpen ? null : m.id)}
                         onDelete={() => handleDelete(m.id)}
                       />
