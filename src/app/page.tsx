@@ -8,6 +8,9 @@ import type { PlayerStats, Role, Tier } from '@/lib/types';
 import { MOCK_STATS } from '@/test/fixtures';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
 
+// 상위 탭 종류
+type MainTab = 'auto' | 'curation' | 'hero';
+
 const ROLES: Role[] = ['탱커', '투사', '암살자', '지원가', '전문가'];
 
 function pct(p: PlayerStats) {
@@ -156,7 +159,7 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
   );
 }
 
-// ── 필터 바 (역할 탭만 — 검색 입력 제거) ────────────────────
+// ── 역할 필터 바 (역할 탭만 — 검색 입력 제거) ────────────────────
 function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void }) {
   return (
     <div style={{
@@ -186,11 +189,102 @@ function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void
   );
 }
 
+// ── 상위 탭 바 — FilterBar와 계층이 명확히 다른 스타일 ────────────
+const MAIN_TAB_LABELS: Record<MainTab, string> = {
+  auto:     '스트리머 자동',
+  curation: '스트리머 큐레이션',
+  hero:     '영웅',
+};
+
+function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void }) {
+  return (
+    // 하단 보더 라인으로 탭 컨테이너를 구분
+    <div style={{
+      display: 'flex', gap: 0,
+      borderBottom: '2px solid var(--border-line)',
+      marginBottom: 'var(--sp-6)',
+    }}>
+      {(Object.keys(MAIN_TAB_LABELS) as MainTab[]).map(t => {
+        const active = tab === t;
+        return (
+          <button
+            key={t}
+            onClick={() => onTab(t)}
+            style={{
+              position: 'relative',
+              height: 44, padding: '0 20px',
+              background: 'transparent',
+              border: 'none',
+              fontFamily: 'var(--font-ui)', fontWeight: active ? 700 : 500,
+              fontSize: 14,
+              color: active ? 'var(--text-strong)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              transition: 'color var(--dur-fast) var(--ease-out)',
+              // 선택된 탭의 하단 강조선 (역할 필터의 pill 스타일과 명확히 다름)
+              borderBottom: active
+                ? '2px solid var(--cheese-green)'
+                : '2px solid transparent',
+              marginBottom: -2, // 컨테이너 보더와 겹쳐 선택선이 border-bottom 위에 오도록
+            }}
+          >
+            {MAIN_TAB_LABELS[t]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── 자동 티어리스트 탭 콘텐츠 ───────────────────────────────────
+function AutoTierTab({ stats }: { stats: PlayerStats[] }) {
+  const [role, setRole] = useState('전체');
+
+  const filtered = stats.filter(p => {
+    if (role !== '전체' && p.role !== role) return false;
+    return true;
+  });
+
+  const groups = groupStatsByTier(filtered);
+
+  return (
+    <div>
+      <FilterBar role={role} onRole={setRole} />
+      {groups.length === 0 ? (
+        <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
+          검색 결과가 없습니다.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+          {groups.map(({ tier, players }) => (
+            <TierRow key={tier} tier={tier} players={players} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 준비 중 플레이스홀더 탭 ────────────────────────────────────
+function PlaceholderTab({ label }: { label: string }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      minHeight: 240, gap: 'var(--sp-3)',
+      color: 'var(--text-faint)',
+    }}>
+      <span style={{ fontSize: 32 }}>🚧</span>
+      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 15 }}>
+        {label} — 준비 중
+      </span>
+    </div>
+  );
+}
+
 // ── 페이지 ────────────────────────────────────────────────────
 export default function HomePage() {
   const [stats, setStats] = useState<PlayerStats[]>([]);
   const [loading, setLoading] = useState(true);
-  const [role, setRole] = useState('전체');
+  const [mainTab, setMainTab] = useState<MainTab>('auto');
 
   useEffect(() => {
     async function load() {
@@ -215,13 +309,6 @@ export default function HomePage() {
     return <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 80 }}>불러오는 중...</div>;
   }
 
-  const filtered = stats.filter(p => {
-    if (role !== '전체' && p.role !== role) return false;
-    return true;
-  });
-
-  const groups = groupStatsByTier(filtered);
-
   return (
     <div>
       {/* 페이지 헤더 */}
@@ -237,19 +324,13 @@ export default function HomePage() {
         </p>
       </div>
 
-      <FilterBar role={role} onRole={setRole} />
+      {/* 상위 3대 탭 — 역할 필터와 시각적 계층 구분 */}
+      <MainTabBar tab={mainTab} onTab={setMainTab} />
 
-      {groups.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
-          검색 결과가 없습니다.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-          {groups.map(({ tier, players }) => (
-            <TierRow key={tier} tier={tier} players={players} />
-          ))}
-        </div>
-      )}
+      {/* 탭 패널 */}
+      {mainTab === 'auto' && <AutoTierTab stats={stats} />}
+      {mainTab === 'curation' && <PlaceholderTab label="스트리머 큐레이션" />}
+      {mainTab === 'hero' && <PlaceholderTab label="영웅 티어리스트" />}
 
       <div style={{ height: 'var(--sp-20)' }} />
     </div>
