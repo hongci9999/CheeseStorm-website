@@ -16,6 +16,7 @@ export function HexAvatar({
   name,
   imageUrl,
   ring = 'var(--ink-500)',
+  fill,
   size = 54,
   ringWidth = 2,
   children,
@@ -24,12 +25,16 @@ export function HexAvatar({
   name: string;
   imageUrl?: string;
   ring?: string;       // 외곽 헥사곤 색 (티어색·롤색 등)
+  fill?: string;       // 사진 없을 때 내부 채움 색 (없으면 surface-raise) — 빈 프로필 보라 등
   size?: number;
   ringWidth?: number;
   children?: ReactNode;
   style?: CSSProperties;
 }) {
   const initials = name.trim().slice(0, 2);
+  // 채움색이 지정되면 그 위 이니셜은 밝게(대비), 아니면 기존 muted
+  const innerBg = imageUrl ? 'var(--surface-raise)' : (fill ?? 'var(--surface-raise)');
+  const initialsColor = fill ? 'rgba(255,255,255,0.92)' : 'var(--text-muted)';
   return (
     <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size, ...style }}>
       {/* 외곽 링 — 색 헥사곤 */}
@@ -41,7 +46,7 @@ export function HexAvatar({
         <span style={{
           position: 'relative', display: 'flex', width: '100%', height: '100%',
           alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-          background: 'var(--surface-raise)', clipPath: HEX_CLIP,
+          background: innerBg, clipPath: HEX_CLIP,
         }}>
           {imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -49,7 +54,7 @@ export function HexAvatar({
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
             <span style={{
-              color: 'var(--text-muted)', fontFamily: 'var(--font-display)',
+              color: initialsColor, fontFamily: 'var(--font-display)',
               fontWeight: 700, fontSize: Math.round(size * 0.34),
             }}>
               {initials}
