@@ -3,12 +3,11 @@
 import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, getMatches, addStreamer, deleteStreamer, updateStreamerGameNames, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, addStreamer, deleteStreamer, updateStreamerGameNames, isFirebaseConfigured } from '@/lib/firestore';
 import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '@/lib/streamer';
-import { calcPlayerStats } from '@/lib/tier';
-import type { Streamer, PlayerStats, Tier } from '@/lib/types';
-import { MOCK_STREAMERS, MOCK_MATCHES } from '@/test/fixtures';
-import { HexAvatar, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
+import type { Streamer } from '@/lib/types';
+import { MOCK_STREAMERS } from '@/test/fixtures';
+import { HexAvatar } from '@/components/hexagon-avatar';
 
 const INPUT: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px',
@@ -27,21 +26,17 @@ const LABEL: React.CSSProperties = {
 // 하단 그라데이션 위에 닉네임 + 계정레벨(주요 정보) 기입.
 const CARD_HEX = 200;
 
-type BorderMode = 'tier' | 'purple';
-
 function StreamerCard({
-  streamer, tier = 'unranked', borderMode = 'tier', onOpen, onDelete, onEditGameNames,
+  streamer, onOpen, onDelete, onEditGameNames,
 }: {
   streamer: Streamer;
-  tier?: Tier;            // 내전 기록 기반 티어 — 테두리 색
-  borderMode?: BorderMode; // A) 티어색  B) 히오스 보라 통일
   onOpen: () => void;
   onDelete: () => void;
   onEditGameNames: () => void;
 }) {
   const [hover, setHover] = useState(false);
-  // A) 티어리스트와 동일하게 티어 색(unranked 회색)  B) 전부 히오스 보라로 통일
-  const ring = borderMode === 'purple' ? 'var(--hots-purple)' : `var(${TIER_COLOR_VAR[tier]})`;
+  // 테두리는 히오스 보라로 통일 (티어색 미사용)
+  const ring = 'var(--hots-purple)';
 
   return (
     <div
@@ -451,20 +446,15 @@ function AddModal({
 export default function StreamersPage() {
   const router = useRouter();
   const [streamers, setStreamers] = useState<Streamer[]>([]);
-  const [statsMap,  setStatsMap]  = useState<Map<string, PlayerStats>>(new Map());
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [borderMode, setBorderMode] = useState<BorderMode>('tier');
   // gameNames 편집 모달 대상 스트리머 (null이면 닫힘)
   const [editGameNamesTarget, setEditGameNamesTarget] = useState<Streamer | null>(null);
 
   async function load() {
-    const [list, matches] = isFirebaseConfigured
-      ? await Promise.all([getStreamers(), getMatches()])
-      : [MOCK_STREAMERS, MOCK_MATCHES];
+    const list = isFirebaseConfigured ? await getStreamers() : MOCK_STREAMERS;
     setStreamers(list);
-    setStatsMap(new Map(calcPlayerStats(list, matches).map(p => [p.streamerId, p])));
     setLoading(false);
   }
 
@@ -494,8 +484,8 @@ export default function StreamersPage() {
         </p>
       </div>
 
-      {/* 검색 + 테두리 모드 토글 — 상단 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      {/* 검색 — 상단 */}
+      <div style={{ display: 'flex', alignItems: 'center',
         flexWrap: 'wrap', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>
         <div style={{ position: 'relative', width: 260 }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
@@ -506,27 +496,6 @@ export default function StreamersPage() {
             placeholder="스트리머 검색"
             style={{ ...INPUT, paddingLeft: 36 }}
           />
-        </div>
-
-        {/* 테두리: A) 티어색  B) 히오스 보라 */}
-        <div style={{ display: 'inline-flex', padding: 3, borderRadius: 'var(--r-pill)',
-          background: 'var(--surface-input)', border: '1px solid var(--border-line)' }}>
-          {([['tier', '티어색'], ['purple', '히오스 보라']] as [BorderMode, string][]).map(([mode, label]) => {
-            const on = borderMode === mode;
-            const accent = mode === 'purple' ? 'var(--hots-purple)' : 'var(--cheese-green)';
-            return (
-              <button key={mode} onClick={() => setBorderMode(mode)}
-                style={{
-                  height: 30, padding: '0 14px', borderRadius: 'var(--r-pill)', border: 'none',
-                  cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12.5,
-                  background: on ? `color-mix(in srgb, ${accent} 18%, transparent)` : 'transparent',
-                  color: on ? accent : 'var(--text-muted)',
-                  transition: 'all var(--dur-fast) var(--ease-out)',
-                }}>
-                {label}
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -546,8 +515,6 @@ export default function StreamersPage() {
             <StreamerCard
               key={s.id}
               streamer={s}
-              tier={statsMap.get(s.id)?.tier}
-              borderMode={borderMode}
               onOpen={() => router.push(`/streamers/${s.id}`)}
               onDelete={() => handleDelete(s)}
               onEditGameNames={() => setEditGameNamesTarget(s)}
