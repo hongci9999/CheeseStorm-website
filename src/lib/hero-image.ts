@@ -16,8 +16,8 @@ const HERO_SLUG: Record<string, string> = {
   '줄': 'xul', '첸': 'chen', 'D.Va': 'dva', '디바': 'dva',
 
   // ── 원거리 암살자 ──
-  '갈': 'gall', '겐지': 'genji', '굴단': 'guldan', '그레이메인': 'greymane',
-  '나지보': 'nazeebo', '노바': 'nova', '레이너': 'raynor', '루나라': 'lunara',
+  '갈': 'gall', '겐지': 'genji', '굴단': 'guldan', '그레이메인': 'graymane',
+  '나지보': 'nazeebo', '노바': 'nova', '레이너': 'rayner', '루나라': 'lunara',
   '리밍': 'liming', '메피스토': 'mephisto', '발라': 'valla', '실바나스': 'sylvanas',
   '아즈모단': 'azmodan', '오르피아': 'orphea', '자가라': 'zagara', '정크랫': 'junkrat',
   '제이나': 'jaina', '줄진': 'zuljin', '카시아': 'cassia', '캐시아': 'cassia',
