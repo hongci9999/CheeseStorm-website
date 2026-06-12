@@ -18,6 +18,8 @@ export interface ParsedMatch {
   map?: string;
   dur?: string;
   winner?: 'blue' | 'red';
+  blueLevel?: number;   // 우리 팀(초록) 최종 팀 레벨
+  redLevel?: number;    // 상대 팀 최종 팀 레벨
   blueTeam: ParsedPlayer[];
   redTeam: ParsedPlayer[];
 }
@@ -28,6 +30,8 @@ const PROMPT = `이 히어로즈 오브 더 스톰 경기 결과 스크린샷을
 - map: 화면 상단 제목에서 맵 이름만 (예: "저주받은 골짜기 승리" → "저주받은 골짜기")
 - dur: 하단 게임시간 (예: "31:52")
 - winner: 제목에 "승리"가 있으면 "blue", "패배"면 "red"
+- blueLevel: 우리 팀(초록) 최종 팀 레벨 (숫자만, 없으면 생략)
+- redLevel: 상대 팀 최종 팀 레벨 (숫자만, 없으면 생략)
 - blueTeam: 초록색으로 하이라이트된 팀(우리 팀) 플레이어 5명 (위→아래 순)
 - redTeam: 나머지 팀(상대 팀) 플레이어 5명 (위→아래 순)
 
@@ -48,7 +52,7 @@ const PROMPT = `이 히어로즈 오브 더 스톰 경기 결과 스크린샷을
 }
 
 JSON만 반환, 마크다운 코드블록 없이:
-{"map":"...","dur":"...","winner":"blue","blueTeam":[...],"redTeam":[...]}`;
+{"map":"...","dur":"...","winner":"blue","blueLevel":0,"redLevel":0,"blueTeam":[...],"redTeam":[...]}`;
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;

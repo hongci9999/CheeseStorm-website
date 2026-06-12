@@ -33,6 +33,8 @@ export interface Match {
   redStats?: PlayerMatchStat[];      // redTeam 인덱스 대응
   winner: 'blue' | 'red';
   leftTeam?: 'blue' | 'red';         // 인게임 좌측 진영 버킷 키 (미지정 = 모름)
+  blueLevel?: number;                // 경기 종료 시 blueTeam 버킷의 팀 최종 레벨 (HotS 공유 레벨)
+  redLevel?: number;                 // 경기 종료 시 redTeam 버킷의 팀 최종 레벨
   dur?: string;
   note?: string;
   createdAt: Date;

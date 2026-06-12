@@ -106,6 +106,9 @@ function generate(): Match[] {
       ...(withStats && {
         blueStats: blueTeam.map(([, hero], idx) => mkStat(i * 100 + idx, HEALERS.has(hero))),
         redStats: redTeam.map(([, hero], idx) => mkStat(i * 100 + 50 + idx, HEALERS.has(hero))),
+        // 팀 최종 레벨 — 16~25 결정적, 승팀이 약간 더 높은 경향
+        blueLevel: det(i, 7, 16) + (winner === 'blue' ? 3 : 0),
+        redLevel: det(i + 4, 7, 16) + (winner === 'red' ? 3 : 0),
       }),
       ...(i === 8 && { note: '역전 경기' }),
       createdAt: date,

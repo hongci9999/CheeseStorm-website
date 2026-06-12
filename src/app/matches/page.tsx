@@ -6,6 +6,36 @@ import { getMatches, getStreamers, deleteMatch, isFirebaseConfigured } from '@/l
 import { participants, statOf } from '@/lib/match';
 import type { Match, PlayerMatchStat } from '@/lib/types';
 import { MOCK_MATCHES, MOCK_STREAMERS } from '@/test/fixtures';
+import { HexAvatar } from '@/components/hexagon-avatar';
+
+// 영웅 육각 프로필 — 스트리머 프로필과 동일한 육각형, 보라 테두리. 사진 없으니 이니셜 폴백.
+function HeroHex({ hero, size = 30 }: { hero: string; size?: number }) {
+  return <HexAvatar name={hero} ring="var(--hots-purple)" size={size} ringWidth={1.5} />;
+}
+
+// 한 팀의 사용 영웅 육각 스택 — 승리 팀은 강조, 패배 팀은 디밍 (팀 색깔 없음)
+function HeroTeamStack({ heroes, won, size = 30 }: { heroes: string[]; won: boolean; size?: number }) {
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', flexShrink: 0,
+      padding: won ? '3px 9px 3px 5px' : '3px 5px',
+      borderRadius: 'var(--r-pill)',
+      background: won ? 'var(--win-soft)' : 'transparent',
+      border: `1px solid ${won ? 'color-mix(in srgb, var(--win) 35%, transparent)' : 'transparent'}`,
+      opacity: won ? 1 : 0.5,
+    }}>
+      {heroes.map((h, i) => (
+        <span key={i} title={h} style={{ marginLeft: i === 0 ? 0 : -7 }}>
+          <HeroHex hero={h} size={size} />
+        </span>
+      ))}
+      {won && (
+        <span style={{ marginLeft: 7, fontFamily: 'var(--font-display)', fontWeight: 800,
+          fontSize: 12, color: 'var(--win)', letterSpacing: '0.04em' }}>승</span>
+      )}
+    </div>
+  );
+}
 
 // ── 헬퍼 ─────────────────────────────────────────────────────
 function dateKey(d: Date): string {
@@ -38,23 +68,6 @@ function groupByDate(matches: Match[]): [string, Match[]][] {
 function fmtNum(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
-}
-
-// ── 소형 컴포넌트 ─────────────────────────────────────────────
-
-function Outcome({ result }: { result: 'W' | 'L' }) {
-  const win = result === 'W';
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: 28, height: 24, borderRadius: 'var(--r-xs)',
-      background: win ? 'var(--win-soft)' : 'var(--loss-soft)',
-      color: win ? 'var(--win)' : 'var(--loss)',
-      fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12,
-    }}>
-      {win ? '승' : '패'}
-    </span>
-  );
 }
 
 // ── MatchFilters ──────────────────────────────────────────────
@@ -103,51 +116,56 @@ function MatchFilters({
 // ── StatRow ────────────────────────────────────────────────────
 // 플레이어 한 줄 — 이름·영웅 + 개인 스탯 셀
 function StatRow({
-  id, hero, stat, won, accent, getName,
+  id, hero, stat, won, getName, gameName,
 }: {
   id: string; hero: string; stat: PlayerMatchStat | null;
-  won: boolean; accent: string;
+  won: boolean;
   getName: (id: string) => string;
+  gameName?: string;
 }) {
   return (
     <div style={{
       display: 'grid',
-      // 이름(flex)+영웅(flex) | K/A/D | 영웅딜 | 공성딜 | 힐
-      gridTemplateColumns: '1fr 1fr 72px 72px 72px 72px',
+      // 이름+배틀태그 | 영웅(육각+이름) | K/A/D | 영웅딜 | 공성딜 | 힐
+      gridTemplateColumns: '1.2fr 1.3fr 72px 72px 72px 72px',
       alignItems: 'center', gap: 0,
-      height: 46, padding: '0 12px',
+      minHeight: 52, padding: '0 12px',
       borderRadius: 'var(--r-sm)', background: 'var(--surface-card)',
-      borderLeft: `3px solid ${won ? accent : 'var(--ink-700)'}`,
+      // 팀 색깔 없음 — 이긴 행만 win 색 좌측바로 강조
+      borderLeft: `3px solid ${won ? 'var(--win)' : 'var(--border-line)'}`,
       fontSize: 12.5,
     }}>
-      {/* 이니셜 + 이름 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+      {/* 이름 + 배틀넷 아이디(흐릿하게) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden', paddingRight: 6 }}>
         <span style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 28, height: 28, borderRadius: 'var(--r-sm)',
-          background: 'var(--surface-raise)', flexShrink: 0,
-          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 11,
-          color: 'var(--text-muted)',
-        }}>
-          {getName(id).slice(0, 2)}
-        </span>
-        <span style={{
-          fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
+          fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
           color: 'var(--text-high)', overflow: 'hidden',
           textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {getName(id)}
         </span>
+        {gameName && (
+          <span style={{
+            fontFamily: 'var(--font-numeral)', fontSize: 10.5,
+            color: 'var(--text-faint)', overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {gameName}
+          </span>
+        )}
       </div>
 
-      {/* 영웅 — 중요 정보, 크고 뚜렷하게 */}
-      <span style={{
-        fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600,
-        color: 'var(--text-high)', whiteSpace: 'nowrap',
-        overflow: 'hidden', textOverflow: 'ellipsis',
-      }}>
-        {hero || '—'}
-      </span>
+      {/* 영웅 — 육각 프로필 + 이름 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, overflow: 'hidden', paddingRight: 6 }}>
+        <HeroHex hero={hero} size={26} />
+        <span style={{
+          fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 600,
+          color: 'var(--text-high)', whiteSpace: 'nowrap',
+          overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {hero || '—'}
+        </span>
+      </div>
 
       {/* K/A/D — 중요 정보 */}
       <span style={{
@@ -188,54 +206,43 @@ function StatRow({
 // ── TeamStatBlock ─────────────────────────────────────────────
 // 팀 한 블록: 헤더 + 컬럼 레이블 + StatRow 목록
 function TeamStatBlock({
-  side, roster, won, hasStats, getName, match,
+  roster, won, hasStats, level, getName, getGameName, match,
 }: {
-  side: 'blue' | 'red'; roster: [string, string][];
+  roster: [string, string][];
   won: boolean; hasStats: boolean;
+  level?: number;
   getName: (id: string) => string;
+  getGameName: (id: string) => string | undefined;
   match: Match;
 }) {
-  // 데이터 키(blueTeam/redTeam)는 내부 버킷 — UI에는 '팀 1/팀 2'로 표기
-  const label  = side === 'blue' ? '팀 1' : '팀 2';
-  const accent = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
-
+  // 팀 색깔(블루/레드) 없음 — 이긴 쪽만 win 색으로 강조, 진 쪽은 중립.
   return (
     <div style={{
       flex: 1, minWidth: 0,
-      // 승패에 따라 배경 틴트 — 승=파랑, 패=빨강
-      background: won
-        ? 'color-mix(in srgb, var(--cheese-blue) 10%, transparent)'
-        : 'color-mix(in srgb, var(--loss) 10%, transparent)',
+      background: won ? 'var(--win-soft)' : 'transparent',
       border: `1px solid ${won
-        ? 'color-mix(in srgb, var(--cheese-blue) 28%, transparent)'
-        : 'color-mix(in srgb, var(--loss) 28%, transparent)'}`,
+        ? 'color-mix(in srgb, var(--win) 32%, transparent)'
+        : 'var(--border-faint)'}`,
       borderRadius: 'var(--r-sm)', padding: 'var(--sp-3)',
     }}>
-      {/* 팀 헤더 */}
+      {/* 헤더: 승리/패배 강조 + 최종 레벨(크게) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 'var(--sp-2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 9, height: 9, borderRadius: 2, background: accent,
-            boxShadow: `0 0 8px ${accent}`, display: 'inline-block' }} />
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15,
-            color: 'var(--text-high)' }}>{label}</span>
-        </div>
-        {won ? (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', height: 22, padding: '0 8px',
-            borderRadius: 'var(--r-xs)',
-            background: side === 'blue'
-              ? 'color-mix(in srgb, var(--cheese-blue) 15%, transparent)'
-              : 'var(--loss-soft)',
-            border: `1px solid ${side === 'blue'
-              ? 'color-mix(in srgb, var(--cheese-blue) 40%, transparent)'
-              : 'color-mix(in srgb, var(--loss) 40%, transparent)'}`,
-            color: accent, fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
-            letterSpacing: '0.08em',
-          }}>승리</span>
-        ) : (
-          <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12, letterSpacing: '0.08em',
-            color: 'var(--text-faint)' }}>패배</span>
+        marginBottom: 'var(--sp-3)' }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 10px',
+          borderRadius: 'var(--r-xs)',
+          background: won ? 'color-mix(in srgb, var(--win) 16%, transparent)' : 'transparent',
+          border: `1px solid ${won ? 'color-mix(in srgb, var(--win) 40%, transparent)' : 'var(--border-line)'}`,
+          color: won ? 'var(--win)' : 'var(--text-faint)',
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 13, letterSpacing: '0.06em',
+        }}>{won ? '승리' : '패배'}</span>
+        {level != null && (
+          <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, letterSpacing: '0.08em',
+              color: 'var(--text-faint)', textTransform: 'uppercase' }}>최종 레벨</span>
+            <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 800, fontSize: 26,
+              color: 'var(--text-high)', lineHeight: 1 }}>{level}</span>
+          </span>
         )}
       </div>
 
@@ -243,7 +250,7 @@ function TeamStatBlock({
       {hasStats && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr 72px 72px 72px 72px',
+          gridTemplateColumns: '1.2fr 1.3fr 72px 72px 72px 72px',
           padding: '0 12px', marginBottom: 4,
         }}>
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, color: 'var(--text-faint)' }}>이름</span>
@@ -268,8 +275,8 @@ function TeamStatBlock({
             hero={hero}
             stat={statOf(match, id)}
             won={won}
-            accent={accent}
             getName={getName}
+            gameName={getGameName(id)}
           />
         ))}
       </div>
@@ -289,32 +296,36 @@ function TeamStatBlock({
 }
 
 // ── MatchDetail ───────────────────────────────────────────────
-function MatchDetail({ match, getName }: { match: Match; getName: (id: string) => string }) {
+function MatchDetail({ match, getName, getGameName }: {
+  match: Match; getName: (id: string) => string; getGameName: (id: string) => string | undefined;
+}) {
   // blueStats/redStats 중 하나라도 있으면 스탯 있음으로 판단
   const hasStats = !!(match.blueStats?.length || match.redStats?.length);
 
   return (
     <div style={{ padding: 'var(--sp-4) var(--sp-5) var(--sp-5)',
       borderTop: '1px solid var(--border-faint)' }}>
-      <div style={{ display: 'flex', gap: 'var(--sp-5)', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'flex-start' }}>
         <TeamStatBlock
-          side="blue"
           roster={match.blueTeam}
           won={match.winner === 'blue'}
           hasStats={hasStats}
+          level={match.blueLevel}
           getName={getName}
+          getGameName={getGameName}
           match={match}
         />
-        <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'stretch', paddingTop: 44 }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20,
+        <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'stretch', paddingTop: 18 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18,
             color: 'var(--text-faint)', letterSpacing: '0.06em' }}>VS</span>
         </div>
         <TeamStatBlock
-          side="red"
           roster={match.redTeam}
           won={match.winner === 'red'}
           hasStats={hasStats}
+          level={match.redLevel}
           getName={getName}
+          getGameName={getGameName}
           match={match}
         />
       </div>
@@ -331,17 +342,18 @@ function MatchDetail({ match, getName }: { match: Match; getName: (id: string) =
 
 // ── MatchRow (카드 헤더) ───────────────────────────────────────
 function MatchRow({
-  match, open, idx, getName, onClick, onDelete,
+  match, open, idx, onClick, onDelete,
 }: {
   match: Match; open: boolean; idx: number;
-  getName: (id: string) => string;
   onClick: () => void;
   onDelete: () => void;
 }) {
   const blueWon = match.winner === 'blue';
+  const blueHeroes = match.blueTeam.map(([, h]) => h);
+  const redHeroes  = match.redTeam.map(([, h]) => h);
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', height: 60,
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', minHeight: 68,
       padding: '0 var(--sp-4)', cursor: 'pointer',
       background: open ? 'var(--grad-sweep)' : 'transparent',
       transition: 'background var(--dur-fast) var(--ease-out)',
@@ -350,30 +362,21 @@ function MatchRow({
     >
       {/* 일련번호 */}
       <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11.5, color: 'var(--text-faint)',
-        width: 40, letterSpacing: '0.04em', flexShrink: 0 }}>
+        width: 32, letterSpacing: '0.04em', flexShrink: 0 }}>
         #{idx}
       </span>
 
-      {/* 승패 캡슐 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px',
-        borderRadius: 'var(--r-pill)', background: 'var(--surface-card)',
-        border: '1px solid var(--border-line)', flexShrink: 0 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--cheese-blue)',
-            display: 'inline-block' }} />
-          <Outcome result={blueWon ? 'W' : 'L'} />
-        </span>
-        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--text-faint)' }}>vs</span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <Outcome result={blueWon ? 'L' : 'W'} />
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--loss)',
-            display: 'inline-block' }} />
-        </span>
+      {/* 영웅 프로필 VS — 이긴 쪽 강조 (팀 색깔 없음) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <HeroTeamStack heroes={blueHeroes} won={blueWon} />
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12,
+          color: 'var(--text-faint)', letterSpacing: '0.06em' }}>VS</span>
+        <HeroTeamStack heroes={redHeroes} won={!blueWon} />
       </div>
 
-      {/* 맵 */}
+      {/* 맵 (전장) — VS 다음 */}
       <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
-        color: 'var(--text-high)', flex: 1, marginLeft: 4,
+        color: 'var(--text-high)', flex: 1, marginLeft: 'var(--sp-2)',
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {match.map ?? '—'}
       </span>
@@ -419,21 +422,19 @@ function MatchRow({
 export default function MatchesPage() {
   const [matches,   setMatches]   = useState<Match[]>([]);
   const [nameMap,   setNameMap]   = useState<Map<string, string>>(new Map());
+  const [gameMap,   setGameMap]   = useState<Map<string, string>>(new Map());
   const [loading,   setLoading]   = useState(true);
   const [openId,    setOpenId]    = useState<string | null>(null);
   const [search,    setSearch]    = useState('');
 
   useEffect(() => {
     async function load() {
-      if (!isFirebaseConfigured) {
-        setMatches(MOCK_MATCHES);
-        setNameMap(new Map(MOCK_STREAMERS.map(s => [s.id, s.name])));
-        setLoading(false);
-        return;
-      }
-      const [ml, sl] = await Promise.all([getMatches(), getStreamers()]);
+      const sl = isFirebaseConfigured ? await getStreamers() : MOCK_STREAMERS;
+      const ml = isFirebaseConfigured ? await getMatches() : MOCK_MATCHES;
       setMatches(ml);
       setNameMap(new Map(sl.map(s => [s.id, s.name])));
+      // 배틀태그(gameNames 첫 항목) — 펼침 스탯행 이름 밑에 흐릿하게 표시
+      setGameMap(new Map(sl.filter(s => s.gameNames?.length).map(s => [s.id, s.gameNames![0]])));
       setLoading(false);
     }
     load();
@@ -447,6 +448,7 @@ export default function MatchesPage() {
   }
 
   const getName = (id: string) => nameMap.get(id) ?? id.replace('__unknown__', '');
+  const getGameName = (id: string) => gameMap.get(id);
 
   // 검색 필터 (분류 탭 제거 — 검색만 유지)
   const filtered = matches.filter(m => {
@@ -537,11 +539,10 @@ export default function MatchesPage() {
                         match={m}
                         open={isOpen}
                         idx={matches.length - matches.indexOf(m)}
-                        getName={getName}
                         onClick={() => setOpenId(isOpen ? null : m.id)}
                         onDelete={() => handleDelete(m.id)}
                       />
-                      {isOpen && <MatchDetail match={m} getName={getName} />}
+                      {isOpen && <MatchDetail match={m} getName={getName} getGameName={getGameName} />}
                     </div>
                   );
                 })}
