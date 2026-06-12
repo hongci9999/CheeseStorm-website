@@ -27,11 +27,12 @@ export interface Match {
   id: string;
   date: Date;
   map?: string;
-  blueTeam: [string, string][];      // [streamerId, heroName]
-  redTeam: [string, string][];       // [streamerId, heroName]
+  blueTeam: [string, string][];      // [streamerId, heroName] — '팀 1' 버킷
+  redTeam: [string, string][];       // [streamerId, heroName] — '팀 2' 버킷
   blueStats?: PlayerMatchStat[];     // blueTeam 인덱스 대응
   redStats?: PlayerMatchStat[];      // redTeam 인덱스 대응
   winner: 'blue' | 'red';
+  leftTeam?: 'blue' | 'red';         // 인게임 좌측 진영 버킷 키 (미지정 = 모름)
   dur?: string;
   note?: string;
   createdAt: Date;

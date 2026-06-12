@@ -143,6 +143,8 @@ export default function NewMatchPage() {
   const [blueSlots, setBlueSlots] = useState<TeamSlot[]>(() => Array.from({ length: 5 }, emptySlot));
   const [redSlots,  setRedSlots]  = useState<TeamSlot[]>(() => Array.from({ length: 5 }, emptySlot));
   const [winner,   setWinner]   = useState<'blue' | 'red'>('blue');
+  // 인게임 좌측 진영 버킷 — 미지정 시 undefined로 저장 생략
+  const [leftTeam, setLeftTeam] = useState<'blue' | 'red' | ''>('');
   const [map,      setMap]      = useState('');
   const [dur,      setDur]      = useState('');
   const [date,     setDate]     = useState(new Date().toISOString().split('T')[0]);
@@ -238,7 +240,9 @@ export default function NewMatchPage() {
       await addMatch({
         date: new Date(date), blueTeam, redTeam,
         blueStats: toStats(blueSlots), redStats: toStats(redSlots),
-        winner, map: map || undefined, dur: dur || undefined, note: note || undefined,
+        winner,
+        leftTeam: leftTeam || undefined,
+        map: map || undefined, dur: dur || undefined, note: note || undefined,
       });
       router.push('/matches');
     } catch {
@@ -324,7 +328,8 @@ export default function NewMatchPage() {
           {(['blue', 'red'] as const).map(side => {
             const slots      = side === 'blue' ? blueSlots : redSlots;
             const accent     = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
-            const label      = side === 'blue' ? '블루팀' : '레드팀';
+            // 데이터 키(blueTeam/redTeam)는 내부 버킷 식별자 — UI에는 '팀 1/팀 2'로 표기
+            const label      = side === 'blue' ? '팀 1' : '팀 2';
             const filledCount = slots.filter(s => s.streamerId).length;
 
             return (
@@ -375,6 +380,8 @@ export default function NewMatchPage() {
             {(['blue', 'red'] as const).map(side => {
               const active = winner === side;
               const color  = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
+              // 데이터 키(blue/red)는 버킷 식별자 — 버튼 텍스트는 '팀 1/팀 2'로 표기
+              const teamLabel = side === 'blue' ? '팀 1' : '팀 2';
               return (
                 <button key={side} type="button" onClick={() => setWinner(side)} style={{
                   height: 48, borderRadius: 'var(--r-md)', fontFamily: 'var(--font-display)',
@@ -384,7 +391,40 @@ export default function NewMatchPage() {
                   color: active ? color : 'var(--text-muted)',
                   transition: 'all var(--dur-fast) var(--ease-out)',
                 }}>
-                  {active ? '🏆 ' : ''}{side === 'blue' ? '블루팀' : '레드팀'} 승리
+                  {active ? '🏆 ' : ''}{teamLabel} 승리
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── 인게임 진영 (선택) ── */}
+        <div>
+          <label style={LABEL}>인게임 진영 (선택)</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--sp-2)' }}>
+            {([
+              { value: '',     label: '모름' },
+              { value: 'blue', label: '팀 1이 좌측' },
+              { value: 'red',  label: '팀 2가 좌측' },
+            ] as { value: '' | 'blue' | 'red'; label: string }[]).map(opt => {
+              const active = leftTeam === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setLeftTeam(opt.value)}
+                  style={{
+                    height: 36, borderRadius: 'var(--r-sm)', fontFamily: 'var(--font-ui)',
+                    fontWeight: 600, fontSize: 12.5, cursor: 'pointer',
+                    border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+                    background: active
+                      ? 'color-mix(in srgb, var(--cheese-green) 12%, var(--surface-card))'
+                      : 'var(--surface-card)',
+                    color: active ? 'var(--cheese-green)' : 'var(--text-muted)',
+                    transition: 'all var(--dur-fast) var(--ease-out)',
+                  }}
+                >
+                  {opt.label}
                 </button>
               );
             })}

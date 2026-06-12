@@ -63,11 +63,16 @@ export async function getMatch(id: string): Promise<Match | null> {
 }
 
 export async function addMatch(data: Omit<Match, 'id' | 'createdAt'>): Promise<string> {
-  const ref = await addDoc(collection(db, 'matches'), {
-    ...data,
+  // Firestore는 undefined 값을 거부하므로 leftTeam이 없으면 필드 자체를 제외
+  const { leftTeam, ...rest } = data;
+  const payload: Record<string, unknown> = {
+    ...rest,
     date: Timestamp.fromDate(data.date),
     createdAt: Timestamp.now(),
-  });
+  };
+  if (leftTeam !== undefined) payload.leftTeam = leftTeam;
+
+  const ref = await addDoc(collection(db, 'matches'), payload);
   return ref.id;
 }
 

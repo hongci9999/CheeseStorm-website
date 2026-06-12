@@ -52,8 +52,8 @@ function Outcome({ result }: { result: 'W' | 'L' }) {
 }
 
 // ── MatchFilters ──────────────────────────────────────────────
-type Filter = '전체' | '블루팀 승' | '레드팀 승';
-const FILTERS: Filter[] = ['전체', '블루팀 승', '레드팀 승'];
+type Filter = '전체' | '팀1 승' | '팀2 승';
+const FILTERS: Filter[] = ['전체', '팀1 승', '팀2 승'];
 
 function MatchFilters({
   search, onSearch, filter, onFilter,
@@ -120,7 +120,8 @@ function TeamColumn({
 }) {
   const isBlue  = side === 'blue';
   const accent  = isBlue ? 'var(--cheese-blue)' : 'var(--loss)';
-  const label   = isBlue ? '블루팀' : '레드팀';
+  // 데이터 키(blueTeam/redTeam)는 내부 버킷 식별자 — UI에는 '팀 1/팀 2'로 표기
+  const label   = isBlue ? '팀 1' : '팀 2';
 
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
@@ -330,8 +331,8 @@ export default function MatchesPage() {
 
   // 필터 + 검색
   const filtered = matches.filter(m => {
-    if (filter === '블루팀 승' && m.winner !== 'blue') return false;
-    if (filter === '레드팀 승' && m.winner !== 'red') return false;
+    if (filter === '팀1 승' && m.winner !== 'blue') return false;
+    if (filter === '팀2 승' && m.winner !== 'red') return false;
     if (search) {
       const q = search.toLowerCase();
       const players = participants(m);
