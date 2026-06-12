@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, addMatch, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getMatches, addMatch, isFirebaseConfigured } from '@/lib/firestore';
 import { validateMatchForm } from '@/lib/match';
-import type { Streamer, PlayerMatchStat } from '@/lib/types';
+import { findDuplicateMatch } from '@/lib/dedupe';
+import type { Streamer, PlayerMatchStat, Match } from '@/lib/types';
 import { MOCK_STREAMERS } from '@/test/fixtures';
 import type { ParsedMatch } from '@/app/api/parse-screenshot/route';
 
@@ -151,6 +152,8 @@ export default function NewMatchPage() {
   const [parseError, setParseError] = useState('');
   const [dragOver,   setDragOver]   = useState(false);
   const [error,      setError]      = useState('');
+  // 중복 경고: level(strong/weak) + 기존 경기 참조. null이면 경고 없음
+  const [dupWarning, setDupWarning] = useState<{ level: 'strong' | 'weak'; match: Match } | null>(null);
 
   useEffect(() => {
     if (!isFirebaseConfigured) { setStreamers(MOCK_STREAMERS); return; }
@@ -210,13 +213,27 @@ export default function NewMatchPage() {
     return stats.length === active.length && stats.length > 0 ? stats : undefined;
   };
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, forceSubmit = false) {
     e.preventDefault();
     const blueTeam = toTeam(blueSlots);
     const redTeam  = toTeam(redSlots);
     const v = validateMatchForm(blueTeam, redTeam);
     if (!v.valid) { setError(v.error); return; }
-    setSubmitting(true); setError('');
+
+    // 중복 경고가 없는 첫 제출 시 탐지 수행
+    if (!forceSubmit) {
+      const existingMatches = isFirebaseConfigured ? await getMatches() : [];
+      const dup = findDuplicateMatch(
+        { date: new Date(date), blueTeam, redTeam, dur: dur || undefined },
+        existingMatches,
+      );
+      if (dup.level !== 'none' && dup.match) {
+        setDupWarning({ level: dup.level, match: dup.match });
+        return; // 경고 표시 후 중단 — 사용자가 계속 진행 선택 가능
+      }
+    }
+
+    setSubmitting(true); setError(''); setDupWarning(null);
     try {
       await addMatch({
         date: new Date(date), blueTeam, redTeam,
@@ -381,6 +398,51 @@ export default function NewMatchPage() {
             placeholder="경기에 대한 메모..." rows={2}
             style={{ ...INPUT, height: 'auto', padding: '8px 10px', resize: 'none' }} />
         </div>
+
+        {/* ── 중복 경고 배너 ── */}
+        {dupWarning && (
+          <div style={{
+            borderRadius: 'var(--r-md)',
+            border: `1px solid ${dupWarning.level === 'strong' ? 'var(--loss)' : 'color-mix(in srgb, var(--loss) 50%, var(--border-line))'}`,
+            background: dupWarning.level === 'strong'
+              ? 'color-mix(in srgb, var(--loss) 8%, var(--surface-card))'
+              : 'color-mix(in srgb, var(--loss) 4%, var(--surface-card))',
+            padding: 'var(--sp-3) var(--sp-4)',
+            display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)',
+          }}>
+            <p style={{ margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)', color: 'var(--loss)', fontWeight: 600 }}>
+              {dupWarning.level === 'strong'
+                ? '⚠ 동일한 경기가 이미 존재합니다 (날짜·멤버·경기시간 일치)'
+                : '⚠ 같은 날짜·멤버 구성의 경기가 있습니다 (경기시간 미입력으로 확인 불가)'}
+            </p>
+            <p style={{ margin: 0, fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-muted)' }}>
+              경기 날짜: {dupWarning.match.date instanceof Date
+                ? dupWarning.match.date.toLocaleDateString('ko-KR')
+                : new Date(dupWarning.match.date).toLocaleDateString('ko-KR')}
+              {dupWarning.match.dur ? ` · 경기시간: ${dupWarning.match.dur}` : ''}
+            </p>
+            <div style={{ display: 'flex', gap: 'var(--sp-2)', marginTop: 'var(--sp-1)' }}>
+              <button
+                type="button"
+                onClick={() => setDupWarning(null)}
+                style={{
+                  height: 32, padding: '0 14px', borderRadius: 'var(--r-sm)',
+                  border: '1px solid var(--border-line)', background: 'transparent',
+                  color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontSize: 12, cursor: 'pointer',
+                }}
+              >취소</button>
+              <button
+                type="button"
+                onClick={e => handleSubmit(e as unknown as React.FormEvent, true)}
+                style={{
+                  height: 32, padding: '0 14px', borderRadius: 'var(--r-sm)',
+                  border: '1px solid var(--loss)', background: 'transparent',
+                  color: 'var(--loss)', fontFamily: 'var(--font-ui)', fontSize: 12, cursor: 'pointer', fontWeight: 600,
+                }}
+              >중복 무시하고 저장</button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <p style={{ fontSize: 13, color: 'var(--loss)', fontFamily: 'var(--font-ui)' }}>{error}</p>
