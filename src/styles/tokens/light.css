@@ -58,6 +58,14 @@
   /* ---- 텍스트 선택 색 ------------------------------------------------ */
   --selection-bg:  rgba(46,139,196,0.25);
 
+  /* ---- Tier palette (deepened for white — neon/pastel fail contrast) -
+     색상 정체성(빨강→주황→금→초록→파랑 램프)은 유지하되 흰 배경서 읽히도록 명도↓ */
+  --tier-s:  #E03E5C;   /* rose red, deepened   */
+  --tier-a:  #D9760E;   /* amber-orange         */
+  --tier-b:  #B8890A;   /* legible gold         */
+  --tier-c:  #009E72;   /* deepened brand green */
+  --tier-d:  #2E8BC4;   /* heroic blue          */
+
   /* ---- Match outcomes (deepened for white) -------------------------- */
   --win:      #06A87A;
   --win-soft: rgba(6,168,122,0.14);
