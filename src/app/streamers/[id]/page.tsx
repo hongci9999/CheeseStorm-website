@@ -580,14 +580,17 @@ export default async function ProfilePage({
                       <div key={m.id} style={{
                         display: 'flex', alignItems: 'stretch',
                         borderRadius: 'var(--r-sm)',
-                        background: 'var(--surface-raise)',
+                        // 승패에 따라 배경 틴트 — 승=파랑, 패=빨강
+                        background: win
+                          ? 'color-mix(in srgb, var(--cheese-blue) 14%, var(--surface-raise))'
+                          : 'color-mix(in srgb, var(--loss) 14%, var(--surface-raise))',
                         overflow: 'hidden',
                         minHeight: 50,
                       }}>
-                        {/* 풀높이 좌측 바 — 승패 색으로만 전달, 칩 없음 */}
+                        {/* 풀높이 좌측 바 — 승=파랑, 패=빨강 (배경 틴트와 일치) */}
                         <span style={{
                           width: 4, flexShrink: 0,
-                          background: win ? 'var(--win)' : 'var(--loss)',
+                          background: win ? 'var(--cheese-blue)' : 'var(--loss)',
                         }} />
 
                         {/* 내용 영역 */}

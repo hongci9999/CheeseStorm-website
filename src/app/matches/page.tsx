@@ -200,7 +200,17 @@ function TeamStatBlock({
   const accent = side === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
 
   return (
-    <div style={{ flex: 1, minWidth: 0 }}>
+    <div style={{
+      flex: 1, minWidth: 0,
+      // 승패에 따라 배경 틴트 — 승=파랑, 패=빨강
+      background: won
+        ? 'color-mix(in srgb, var(--cheese-blue) 10%, transparent)'
+        : 'color-mix(in srgb, var(--loss) 10%, transparent)',
+      border: `1px solid ${won
+        ? 'color-mix(in srgb, var(--cheese-blue) 28%, transparent)'
+        : 'color-mix(in srgb, var(--loss) 28%, transparent)'}`,
+      borderRadius: 'var(--r-sm)', padding: 'var(--sp-3)',
+    }}>
       {/* 팀 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 'var(--sp-2)' }}>
