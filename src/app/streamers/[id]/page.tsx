@@ -7,7 +7,7 @@ import { outcomeFor, heroOf, statOf } from '@/lib/match';
 import { aggregateHeroStats } from '@/lib/hero-stats';
 import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
 import { MOCK_MATCHES } from '@/test/fixtures/matches';
-import HexAvatar from '@/components/hex-avatar';
+import { HexAvatar } from '@/components/hexagon-avatar';
 import type { HeroAggregate } from '@/lib/hero-stats';
 import type { HeroStat, Match, Tier } from '@/lib/types';
 
@@ -301,11 +301,10 @@ export default async function ProfilePage({
           {/* 아바타 104 — 육각형, 티어색 테두리 */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <HexAvatar
-              src={streamer.profileImageUrl}
-              initials={streamer.name.slice(0, 2)}
+              name={streamer.name}
+              imageUrl={streamer.profileImageUrl}
+              ring={tc}
               size={104}
-              borderColor={tc}
-              alt={streamer.name}
             />
           </div>
 
