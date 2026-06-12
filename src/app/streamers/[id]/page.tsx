@@ -406,7 +406,7 @@ export default async function ProfilePage({
                       background: 'var(--surface-raise)', overflow: 'hidden' }}>
                       <div style={{
                         width: `${(r.games / maxAff) * 100}%`, height: '100%', borderRadius: 999,
-                        background: i === 0 ? 'var(--cheese-green)' : 'var(--ink-600)',
+                        background: i === 0 ? 'var(--cheese-green)' : 'var(--text-muted)',
                         boxShadow: i === 0 ? 'var(--glow-green-soft)' : 'none',
                       }} />
                     </div>
@@ -601,12 +601,15 @@ export default async function ProfilePage({
                           flex: 1, display: 'flex', alignItems: 'center',
                           gap: 'var(--sp-3)', padding: '0 var(--sp-3)',
                         }}>
-                          <HeroAvatar name={hero} size={32} />
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 72 }}>
-                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
-                              color: 'var(--text-high)' }}>{hero}</span>
-                            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5,
-                              color: 'var(--text-faint)' }}>{m.map ?? '—'}</span>
+                          <HeroAvatar name={hero} size={36} />
+                          {/* 영웅 — 중요 */}
+                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
+                            color: 'var(--text-high)', minWidth: 72, whiteSpace: 'nowrap' }}>{hero}</span>
+                          {/* 전장 — 중요 정보로 승격: 라벨 + 큰 맵명 */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 96 }}>
+                            
+                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
+                              color: 'var(--text-high)', whiteSpace: 'nowrap' }}>{m.map ?? '—'}</span>
                           </div>
                           {kdaStr && (
                             <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 15, fontWeight: 700,
