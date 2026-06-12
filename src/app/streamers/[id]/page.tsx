@@ -6,6 +6,7 @@ import { roleAffinity, roleOfHero } from '@/lib/heroes';
 import { outcomeFor, heroOf, statOf } from '@/lib/match';
 import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
 import { MOCK_MATCHES } from '@/test/fixtures/matches';
+import HexAvatar from '@/components/hex-avatar';
 import type { HeroStat, Match, Tier } from '@/lib/types';
 
 // --- 색상 상수 ---
@@ -151,18 +152,15 @@ export default async function ProfilePage({
           boxShadow: profile.tier === 'S' ? 'var(--glow-green-soft)' : 'var(--shadow-sm)',
           padding: 'var(--sp-6)', textAlign: 'center',
         }}>
-          {/* 아바타 104 — 티어색 링 */}
+          {/* 아바타 104 — 육각형, 티어색 테두리 */}
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              width: 104, height: 104, borderRadius: '50%',
-              background: `color-mix(in srgb, ${tc} 10%, var(--surface-raise))`,
-              border: `3px solid color-mix(in srgb, ${tc} 45%, transparent)`,
-              fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 34,
-              color: tc,
-            }}>
-              {streamer.name.slice(0, 2)}
-            </span>
+            <HexAvatar
+              src={streamer.profileImageUrl}
+              initials={streamer.name.slice(0, 2)}
+              size={104}
+              borderColor={tc}
+              alt={streamer.name}
+            />
           </div>
 
           {/* 이름 + 티어 */}
@@ -174,6 +172,23 @@ export default async function ProfilePage({
             </span>
             <TierBadge tier={profile.tier} />
           </div>
+
+          {/* 계정레벨 — 주요 정보로 강조 */}
+          {streamer.accountLevel != null && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 5, marginTop: 8 }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                height: 22, padding: '0 10px', borderRadius: 'var(--r-pill)',
+                background: 'color-mix(in srgb, var(--cheese-blue) 14%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--cheese-blue) 35%, transparent)',
+                fontFamily: 'var(--font-numeral)', fontWeight: 800, fontSize: 12,
+                color: 'var(--cheese-blue)', letterSpacing: '0.02em',
+              }}>
+                Lv.{streamer.accountLevel}
+              </span>
+            </div>
+          )}
 
           {/* 연승 배지 + 메인 롤 · 랭킹 */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -218,13 +233,6 @@ export default async function ProfilePage({
             </div>
           </div>
 
-          {/* 계정레벨 */}
-          {streamer.accountLevel != null && (
-            <p style={{ marginTop: 'var(--sp-3)', fontFamily: 'var(--font-numeral)',
-              fontSize: 11.5, color: 'var(--text-faint)' }}>
-              계정레벨 {streamer.accountLevel}
-            </p>
-          )}
         </div>
 
         {/* 선호 포지션 */}
@@ -397,40 +405,44 @@ export default async function ProfilePage({
                 const hero = heroOf(m, id) ?? '—';
                 const kdaStr = kdaOfMatch(m, id);
                 return (
+                  // 풀높이 좌측 바 — overflow hidden으로 내부 바가 행을 꽉 채움
                   <div key={m.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', height: 50,
-                    padding: '0 var(--sp-3)', borderRadius: 'var(--r-sm)',
+                    display: 'flex', alignItems: 'stretch',
+                    borderRadius: 'var(--r-sm)',
                     background: 'var(--surface-raise)',
-                    borderLeft: `3px solid ${win ? 'var(--win)' : 'var(--loss)'}`,
+                    overflow: 'hidden',
+                    minHeight: 50,
                   }}>
-                    {/* 승패 칩 */}
+                    {/* 풀높이 좌측 바 — 승패 색으로만 전달, 칩 없음 */}
                     <span style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      width: 30, height: 22, borderRadius: 'var(--r-xs)', flexShrink: 0,
-                      background: win ? 'var(--win-soft)' : 'var(--loss-soft)',
-                      color: win ? 'var(--win)' : 'var(--loss)',
-                      fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 11,
+                      width: 4, flexShrink: 0,
+                      background: win ? 'var(--win)' : 'var(--loss)',
+                    }} />
+
+                    {/* 내용 영역 */}
+                    <div style={{
+                      flex: 1, display: 'flex', alignItems: 'center',
+                      gap: 'var(--sp-3)', padding: '0 var(--sp-3)',
                     }}>
-                      {win ? '승' : '패'}
-                    </span>
-                    <HeroAvatar name={hero} size={32} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 72 }}>
-                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
-                        color: 'var(--text-high)' }}>{hero}</span>
-                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5,
-                        color: 'var(--text-faint)' }}>{m.map ?? '—'}</span>
-                    </div>
-                    {kdaStr && (
-                      <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 13,
-                        color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums',
-                        whiteSpace: 'nowrap', marginLeft: 'var(--sp-2)' }}>
-                        {kdaStr}
+                      <HeroAvatar name={hero} size={32} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 72 }}>
+                        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
+                          color: 'var(--text-high)' }}>{hero}</span>
+                        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11.5,
+                          color: 'var(--text-faint)' }}>{m.map ?? '—'}</span>
+                      </div>
+                      {kdaStr && (
+                        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 13,
+                          color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums',
+                          whiteSpace: 'nowrap', marginLeft: 'var(--sp-2)' }}>
+                          {kdaStr}
+                        </span>
+                      )}
+                      <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-numeral)',
+                        fontSize: 11.5, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+                        {m.dur ? `${m.dur} · ` : ''}{fmtDate(m.date)}
                       </span>
-                    )}
-                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-numeral)',
-                      fontSize: 11.5, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
-                      {m.dur ? `${m.dur} · ` : ''}{fmtDate(m.date)}
-                    </span>
+                    </div>
                   </div>
                 );
               })}
