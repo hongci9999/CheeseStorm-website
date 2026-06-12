@@ -94,37 +94,34 @@ function StreamerCard({
         </>
       )}
 
-      {/* 육각형 프로필 — 사진 or 이니셜 + 하단 그라데이션 오버레이.
-          사진 없으면 히오스 보라로 채움(라이트모드서 흰 위 흰 육각 방지) */}
+      {/* 육각형 프로필 — 사진 or 이니셜 + 하단 그라데이션 오버레이 */}
       <HexAvatar
         name={streamer.name}
         imageUrl={streamer.profileImageUrl}
         ring={ring}
         ringWidth={6}
         size={CARD_HEX}
-        fill={streamer.profileImageUrl ? undefined : 'var(--hots-purple)'}
       >
-        {/* 하단 스크림 + 닉네임 + 계정레벨 — 사진/보라 위 모두 읽히도록
-            테마 무관 고정 다크 스크림 + 흰 글씨 (라이트모드도 안정) */}
+        {/* 하단 그라데이션 + 닉네임 + 계정레벨 */}
         <span style={{
           position: 'absolute', left: 0, right: 0, bottom: 0, height: '58%',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end',
           gap: 2, paddingBottom: CARD_HEX * 0.11, pointerEvents: 'none',
-          background: 'linear-gradient(to top, rgba(8,10,14,0.82) 26%, rgba(8,10,14,0.32) 52%, transparent)',
+          background: 'linear-gradient(to top, color-mix(in srgb, var(--bg-void) 92%, transparent) 28%, transparent)',
         }}>
           <span style={{
             fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
-            color: '#FFFFFF', maxWidth: '78%',
+            color: 'var(--text-strong)', maxWidth: '78%',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            textShadow: '0 1px 4px rgba(0,0,0,.7)',
+            textShadow: 'var(--hex-label-shadow)',
           }}>
             {streamer.name}
           </span>
           {streamer.accountLevel != null && (
             <span style={{
               fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 12.5,
-              letterSpacing: '0.04em', color: 'var(--cheese-green-hi)',
-              textShadow: '0 1px 4px rgba(0,0,0,.7)',
+              letterSpacing: '0.04em', color: 'var(--cheese-green)',
+              textShadow: 'var(--hex-label-shadow)',
             }}>
               Lv {streamer.accountLevel}
             </span>

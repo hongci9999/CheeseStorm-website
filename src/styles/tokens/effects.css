@@ -22,6 +22,9 @@
   --shadow-lg:  0 12px 32px rgba(0,0,0,0.55);
   --shadow-pop: 0 16px 48px rgba(0,0,0,0.6);
 
+  /* 벌집 카드 라벨 그림자 — 다크: 밝은 글자 띄우는 검정 헤일로 */
+  --hex-label-shadow: 0 1px 4px rgba(0,0,0,0.6);
+
   /* ---- Neon glows (signature) --------------------------------------- */
   --glow-green: 0 0 0 1px rgba(0,255,163,0.5), 0 0 18px rgba(0,255,163,0.35);
   --glow-green-soft: 0 0 24px rgba(0,255,163,0.22);

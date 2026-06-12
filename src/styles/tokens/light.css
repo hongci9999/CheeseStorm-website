@@ -79,6 +79,9 @@
   --shadow-lg:  0 12px 30px rgba(20,46,82,0.14);
   --shadow-pop: 0 18px 46px rgba(20,46,82,0.18);
 
+  /* 벌집 카드 라벨 그림자 — 라이트: 어두운 글자 띄우는 흰 헤일로 */
+  --hex-label-shadow: 0 1px 3px rgba(255,255,255,0.75);
+
   /* ---- Glows — toned to blue, much softer on light ------------------ */
   --glow-green:      0 0 0 1px rgba(0,158,114,0.4), 0 0 14px rgba(0,158,114,0.18);
   --glow-green-soft: 0 0 20px rgba(0,158,114,0.14);
