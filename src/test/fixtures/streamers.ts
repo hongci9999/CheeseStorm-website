@@ -1,12 +1,14 @@
 import type { Streamer } from '@/lib/types';
 
 // 판수 다양화: s1(최다) → s14(3판) → s15(2판, unranked)
+// s16(막내치즈)은 의도적으로 경기 0판 — 빈 프로필·unranked·롤없음 빈상태 검증용 (matches.ts 생성 대상 아님)
 // 롤은 저장하지 않음 — 내전 기록에서 파생 (CONTEXT.md 롤)
+// s4(치즈먹자)는 gameNames 2개 — 부캐/별칭 매칭(#8) 검증용
 export const MOCK_STREAMERS: Streamer[] = [
   { id: 's1',  name: '폭풍칼날',  chzzkId: 'storm1',  accountLevel: 1247, gameNames: ['Storm#3142'],  profileImageUrl: '/test/testpro.jpg', createdAt: new Date('2025-01-01') },
   { id: 's2',  name: '한빛',      chzzkId: 'hanbit',  accountLevel: 982,  gameNames: ['Hanbit#1191'], profileImageUrl: '/test/testpro.jpg', createdAt: new Date('2025-01-01') },
   { id: 's3',  name: '강철방패',  chzzkId: 'shield3', accountLevel: 876,                              createdAt: new Date('2025-01-02') },
-  { id: 's4',  name: '치즈먹자',                      accountLevel: 654,  gameNames: ['Cheese#5555'], createdAt: new Date('2025-01-02') },
+  { id: 's4',  name: '치즈먹자',                      accountLevel: 654,  gameNames: ['Cheese#5555', '치즈부캐#9090'], createdAt: new Date('2025-01-02') },
   { id: 's5',  name: '달빛소녀',  chzzkId: 'moongl',  accountLevel: 731,                              createdAt: new Date('2025-01-03') },
   { id: 's6',  name: '겐지러버',                      accountLevel: 445,                              createdAt: new Date('2025-01-03') },
   { id: 's7',  name: '조용한자',  chzzkId: 'quiet7',  accountLevel: 512,                              createdAt: new Date('2025-01-04') },
