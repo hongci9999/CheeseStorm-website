@@ -5,10 +5,15 @@ import { calcPlayerStats } from '@/lib/tier';
 import { roleAffinity, roleOfHero } from '@/lib/heroes';
 import { outcomeFor, heroOf, statOf } from '@/lib/match';
 import { aggregateHeroStats } from '@/lib/hero-stats';
+import { computeRelations } from '@/lib/relations';
+import { mapWinRates } from '@/lib/map-stats';
+import { INSUFFICIENT_DATA } from '@/lib/sample';
 import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
 import { MOCK_MATCHES } from '@/test/fixtures/matches';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import type { HeroAggregate } from '@/lib/hero-stats';
+import type { SynergyStat, NemesisStat } from '@/lib/relations';
+import type { MapWinRate } from '@/lib/map-stats';
 import type { HeroStat, Match, Tier } from '@/lib/types';
 
 // --- 색상 상수 ---
@@ -110,6 +115,22 @@ function HeroAvatar({ name, size = 32 }: { name: string; size?: number }) {
       color: 'var(--text-muted)',
     }}>
       {name.slice(0, 2)}
+    </span>
+  );
+}
+
+// --- 탭 카운트 뱃지 ---
+function TabCount({ n }: { n: number }) {
+  return (
+    <span style={{
+      marginLeft: 6,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      height: 18, minWidth: 18, padding: '0 5px', borderRadius: 999,
+      background: 'var(--surface-raise)',
+      fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 10.5,
+      color: 'var(--text-faint)',
+    }}>
+      {n}
     </span>
   );
 }
@@ -245,6 +266,144 @@ function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
   );
 }
 
+// --- 공통: 빈/데이터 부족 안내 (CONTEXT.md 데이터 부족) ---
+function EmptyHint({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ color: 'var(--text-faint)', fontSize: 13, fontFamily: 'var(--font-ui)', margin: 0 }}>
+      {children}
+    </p>
+  );
+}
+
+// --- 최근/전체 매치 공통 행 (#17 좌측바 스타일) ---
+// 클릭 시 경기 상세 페이지(/matches/[id])로 이동.
+function MatchRow({ m, streamerId }: { m: Match; streamerId: string }) {
+  const win = outcomeFor(m, streamerId) === 'win';
+  const hero = heroOf(m, streamerId) ?? '—';
+  const kdaStr = kdaOfMatch(m, streamerId);
+  return (
+    <a href={`/matches/${m.id}`} style={{
+      display: 'flex', alignItems: 'stretch',
+      borderRadius: 'var(--r-sm)',
+      background: win
+        ? 'color-mix(in srgb, var(--cheese-blue) 14%, var(--surface-raise))'
+        : 'color-mix(in srgb, var(--loss) 14%, var(--surface-raise))',
+      overflow: 'hidden',
+      minHeight: 50,
+      textDecoration: 'none',
+    }}>
+      <span style={{
+        width: 4, flexShrink: 0,
+        background: win ? 'var(--cheese-blue)' : 'var(--loss)',
+      }} />
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'center',
+        gap: 'var(--sp-3)', padding: '0 var(--sp-3)',
+      }}>
+        <HeroAvatar name={hero} size={36} />
+        <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
+          color: 'var(--text-high)', minWidth: 72, whiteSpace: 'nowrap' }}>{hero}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 96 }}>
+          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
+            color: 'var(--text-high)', whiteSpace: 'nowrap' }}>{m.map ?? '—'}</span>
+        </div>
+        {kdaStr && (
+          <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 15, fontWeight: 700,
+            color: 'var(--text-high)', fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap', marginLeft: 'var(--sp-2)' }}>
+            {kdaStr}
+          </span>
+        )}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <span style={{ fontFamily: 'var(--font-numeral)',
+            fontSize: 11.5, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+            {m.dur ? `${m.dur} · ` : ''}{fmtDate(m.date)}
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>›</span>
+        </span>
+      </div>
+    </a>
+  );
+}
+
+// --- 시너지/천적 목록 (#23) ---
+function RelationList({ rows, tone }: {
+  rows: { streamerId: string; streamerName: string; games: number; rate: number }[];
+  tone: 'win' | 'loss';
+}) {
+  if (rows.length === 0) {
+    return <EmptyHint>{INSUFFICIENT_DATA} — 3경기 이상 함께/맞서야 집계됩니다.</EmptyHint>;
+  }
+  const color = tone === 'win' ? 'var(--win)' : 'var(--loss)';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+      {rows.map((r) => (
+        <a key={r.streamerId} href={`/streamers/${r.streamerId}`} style={{
+          display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
+          textDecoration: 'none',
+        }}>
+          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
+            color: 'var(--text-high)', flex: 1, overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {r.streamerName}
+          </span>
+          <div style={{ width: 64, height: 8, borderRadius: 999,
+            background: 'var(--surface-raise)', overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ width: `${Math.round(r.rate * 100)}%`, height: '100%',
+              borderRadius: 999, background: color }} />
+          </div>
+          <span style={{ width: 64, textAlign: 'right', fontFamily: 'var(--font-numeral)',
+            fontSize: 12, color, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            {Math.round(r.rate * 100)}%
+          </span>
+          <span style={{ width: 30, textAlign: 'right', fontFamily: 'var(--font-numeral)',
+            fontSize: 11, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+            {r.games}판
+          </span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
+// --- 맵별 승률 목록 (#24) ---
+function MapWinRateList({ rows }: { rows: MapWinRate[] }) {
+  if (rows.length === 0) {
+    return <EmptyHint>맵 기록이 있는 경기가 없습니다.</EmptyHint>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+      {rows.map((r) => {
+        const enough = r.winRate !== null;
+        const winColor = enough && r.winRate! >= 0.5 ? 'var(--win)' : 'var(--loss)';
+        return (
+          <div key={r.map} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+            <span style={{ width: 96, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
+              color: enough ? 'var(--text-high)' : 'var(--text-faint)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {r.map}
+            </span>
+            <div style={{ flex: 1, height: 8, borderRadius: 999,
+              background: 'var(--surface-raise)', overflow: 'hidden' }}>
+              {enough && (
+                <div style={{ width: `${Math.round(r.winRate! * 100)}%`, height: '100%',
+                  borderRadius: 999, background: winColor }} />
+              )}
+            </div>
+            <span style={{ width: 110, textAlign: 'right', fontFamily: 'var(--font-numeral)',
+              fontSize: 12, whiteSpace: 'nowrap',
+              color: enough ? winColor : 'var(--text-faint)', fontWeight: enough ? 700 : 400 }}>
+              {enough
+                ? `${Math.round(r.winRate! * 100)}% · ${r.wins}승 ${r.losses}패`
+                : `${INSUFFICIENT_DATA} (${r.games}판)`}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // --- 메인 페이지 ---
 export default async function ProfilePage({
   params,
@@ -255,8 +414,9 @@ export default async function ProfilePage({
 }) {
   const [{ id }, { tab }] = await Promise.all([params, searchParams]);
 
-  // 탭 상태: 'overview'(기본) 또는 'heroes'
-  const activeTab: 'overview' | 'heroes' = tab === 'heroes' ? 'heroes' : 'overview';
+  // 탭 상태: 'overview'(기본) · 'heroes' · 'matches'(전체 매치)
+  const activeTab: 'overview' | 'heroes' | 'matches' =
+    tab === 'heroes' ? 'heroes' : tab === 'matches' ? 'matches' : 'overview';
 
   const [streamers, matches] = isFirebaseConfigured
     ? await Promise.all([getStreamers(), getMatches()])
@@ -273,6 +433,7 @@ export default async function ProfilePage({
   const affinity = roleAffinity(matches, id);
   const maxAff   = affinity.length > 0 ? affinity[0].games : 1;
   const recent   = getRecentMatches(id, matches, 6);
+  const allMatches = getRecentMatches(id, matches, Infinity);
   const top3     = profile.heroStats.slice(0, 3);
   const rest     = profile.heroStats.slice(3, 10);
   const tc       = TIER_COLOR[profile.tier];
@@ -280,9 +441,15 @@ export default async function ProfilePage({
   // 영웅 탭용 집계
   const heroAggregates = aggregateHeroStats(id, matches);
 
+  // 개요 탭: 시너지/천적(#23), 맵별 승률(#24)
+  const { synergy, nemesis } = computeRelations(id, streamers, matches);
+  const maps = mapWinRates(id, matches);
+  const TOP_N = 5;
+
   // 탭 링크 URL 생성
   const overviewHref = `?tab=overview`;
   const heroesHref   = `?tab=heroes`;
+  const matchesHref  = `?tab=matches`;
 
   return (
     <div style={{
@@ -445,16 +612,11 @@ export default async function ProfilePage({
           <TabLink href={overviewHref} active={activeTab === 'overview'}>개요</TabLink>
           <TabLink href={heroesHref}   active={activeTab === 'heroes'}>
             영웅
-            <span style={{
-              marginLeft: 6,
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              height: 18, minWidth: 18, padding: '0 5px', borderRadius: 999,
-              background: 'var(--surface-raise)',
-              fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 10.5,
-              color: 'var(--text-faint)',
-            }}>
-              {heroAggregates.length}
-            </span>
+            <TabCount n={heroAggregates.length} />
+          </TabLink>
+          <TabLink href={matchesHref}  active={activeTab === 'matches'}>
+            전체 매치
+            <TabCount n={allMatches.length} />
           </TabLink>
         </div>
 
@@ -559,77 +721,104 @@ export default async function ProfilePage({
               )}
             </div>
 
-            {/* 최근 매치 */}
+            {/* 맵별 승률 (#24) */}
             <div style={{
               background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
               border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
             }}>
-              <SectionHead ko="최근 매치" en="Recent matches"
+              <SectionHead ko="맵별 승률" en="Map win rate"
                 right={<span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12,
-                  color: 'var(--text-faint)' }}>최근 {recent.length}경기</span>} />
+                  color: 'var(--text-faint)' }}>맵당 최소 3경기</span>} />
+              <MapWinRateList rows={maps} />
+            </div>
+
+            {/* 시너지 팀원 / 천적 (#23) */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-5)',
+            }}>
+              <div style={{
+                background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+                border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+              }}>
+                <SectionHead ko="시너지 팀원" en="Synergy" />
+                <RelationList
+                  tone="win"
+                  rows={synergy.slice(0, TOP_N).map((s: SynergyStat) => ({
+                    streamerId: s.streamerId, streamerName: s.streamerName,
+                    games: s.games, rate: s.winRate,
+                  }))}
+                />
+              </div>
+              <div style={{
+                background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+                border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+              }}>
+                <SectionHead ko="천적" en="Nemesis" />
+                <RelationList
+                  tone="loss"
+                  rows={nemesis.slice(0, TOP_N).map((n: NemesisStat) => ({
+                    streamerId: n.streamerId, streamerName: n.streamerName,
+                    games: n.games, rate: n.lossRate,
+                  }))}
+                />
+              </div>
+            </div>
+
+            {/* 최근 매치 — 전체는 별도 '전체 매치' 탭으로 (#22) */}
+            <div style={{
+              background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+              border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+            }}>
+              <SectionHead
+                ko="최근 매치"
+                en="Recent matches"
+                right={
+                  allMatches.length > recent.length ? (
+                    <a href={matchesHref} style={{
+                      fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12.5,
+                      color: 'var(--cheese-green)', textDecoration: 'none',
+                    }}>
+                      전체 매치 ({allMatches.length}) ›
+                    </a>
+                  ) : (
+                    <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12,
+                      color: 'var(--text-faint)' }}>{recent.length}경기</span>
+                  )
+                }
+              />
 
               {recent.length === 0 ? (
-                <p style={{ color: 'var(--text-faint)', fontSize: 13, fontFamily: 'var(--font-ui)', margin: 0 }}>
-                  경기 기록이 없습니다.
-                </p>
+                <EmptyHint>경기 기록이 없습니다.</EmptyHint>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {recent.map(m => {
-                    const win = outcomeFor(m, id) === 'win';
-                    const hero = heroOf(m, id) ?? '—';
-                    const kdaStr = kdaOfMatch(m, id);
-                    return (
-                      // 풀높이 좌측 바 — overflow hidden으로 내부 바가 행을 꽉 채움
-                      <div key={m.id} style={{
-                        display: 'flex', alignItems: 'stretch',
-                        borderRadius: 'var(--r-sm)',
-                        // 승패에 따라 배경 틴트 — 승=파랑, 패=빨강
-                        background: win
-                          ? 'color-mix(in srgb, var(--cheese-blue) 14%, var(--surface-raise))'
-                          : 'color-mix(in srgb, var(--loss) 14%, var(--surface-raise))',
-                        overflow: 'hidden',
-                        minHeight: 50,
-                      }}>
-                        {/* 풀높이 좌측 바 — 승=파랑, 패=빨강 (배경 틴트와 일치) */}
-                        <span style={{
-                          width: 4, flexShrink: 0,
-                          background: win ? 'var(--cheese-blue)' : 'var(--loss)',
-                        }} />
-
-                        {/* 내용 영역 */}
-                        <div style={{
-                          flex: 1, display: 'flex', alignItems: 'center',
-                          gap: 'var(--sp-3)', padding: '0 var(--sp-3)',
-                        }}>
-                          <HeroAvatar name={hero} size={36} />
-                          {/* 영웅 — 중요 */}
-                          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
-                            color: 'var(--text-high)', minWidth: 72, whiteSpace: 'nowrap' }}>{hero}</span>
-                          {/* 전장 — 중요 정보로 승격: 라벨 + 큰 맵명 */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 96 }}>
-                            
-                            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
-                              color: 'var(--text-high)', whiteSpace: 'nowrap' }}>{m.map ?? '—'}</span>
-                          </div>
-                          {kdaStr && (
-                            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 15, fontWeight: 700,
-                              color: 'var(--text-high)', fontVariantNumeric: 'tabular-nums',
-                              whiteSpace: 'nowrap', marginLeft: 'var(--sp-2)' }}>
-                              {kdaStr}
-                            </span>
-                          )}
-                          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-numeral)',
-                            fontSize: 11.5, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
-                            {m.dur ? `${m.dur} · ` : ''}{fmtDate(m.date)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {recent.map(m => (
+                    <MatchRow key={m.id} m={m} streamerId={id} />
+                  ))}
                 </div>
               )}
             </div>
           </>
+        )}
+
+        {/* ── 전체 매치 탭 (#22) ── */}
+        {activeTab === 'matches' && (
+          <div style={{
+            background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+            border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+          }}>
+            <SectionHead ko="전체 매치" en="All matches"
+              right={<span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12,
+                color: 'var(--text-faint)' }}>{allMatches.length}경기 · 최신순</span>} />
+            {allMatches.length === 0 ? (
+              <EmptyHint>경기 기록이 없습니다.</EmptyHint>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {allMatches.map(m => (
+                  <MatchRow key={m.id} m={m} streamerId={id} />
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* ── 영웅 탭 ── */}
