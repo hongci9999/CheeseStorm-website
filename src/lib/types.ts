@@ -71,7 +71,8 @@ export interface PlayerStats {
   tier: Tier;
   fineRole?: FineRole;    // 세분 주 역할군 (암살자 원거리/근접 구별) — 역할 필터용
   heroStats: HeroStat[];  // 경기수 내림차순 정렬
-  recentWinRate: number;  // 최근 5경기 승률 (5경기 미만이면 전체 승률)
-  streak: number;          // 양수=연승, 음수=연패 (예: +3=3연승, -2=2연패, 0=없음)
-  topHero?: string;        // 가장 많이 플레이한 영웅 (heroStats[0]?.hero)
+  recentWinRate: number;   // 최근 5경기 승률 (5경기 미만이면 전체 승률)
+  streak: number;           // 양수=연승, 음수=연패 (예: +3=3연승, -2=2연패, 0=없음)
+  topHero?: string;         // 가장 많이 플레이한 영웅 (heroStats[0]?.hero)
+  statCoverage?: number;    // 스탯 기록된 경기 비율 (0~1)
 }

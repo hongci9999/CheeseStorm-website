@@ -1,6 +1,8 @@
 import type { Match, Streamer } from './types';
 import { outcomeFor } from './match';
-import { MIN_SAMPLE } from './sample';
+
+// 시너지/천적 집계 최소 공동 출현 경기 수 (티어 MIN_SAMPLE과 별개)
+const MIN_RELATION = 3;
 
 // 시너지 팀원 = 같은 팀으로 함께 뛴 경기의 승률이 높은 스트리머 (CONTEXT.md)
 export interface SynergyStat {
@@ -62,7 +64,7 @@ export function computeRelations(
   }
 
   const synergy: SynergyStat[] = Array.from(teammate.entries())
-    .filter(([, e]) => e.games >= MIN_SAMPLE)
+    .filter(([, e]) => e.games >= MIN_RELATION)
     .map(([id, e]) => ({
       streamerId: id,
       streamerName: nameOf.get(id) ?? id,
@@ -75,7 +77,7 @@ export function computeRelations(
     );
 
   const nemesis: NemesisStat[] = Array.from(opponent.entries())
-    .filter(([, e]) => e.games >= MIN_SAMPLE)
+    .filter(([, e]) => e.games >= MIN_RELATION)
     .map(([id, e]) => ({
       streamerId: id,
       streamerName: nameOf.get(id) ?? id,

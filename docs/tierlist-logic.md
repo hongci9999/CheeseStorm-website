@@ -132,30 +132,27 @@ bayesWinRate = (wins + 1.5) / (games + 3)
 
 ```
 src/lib/
-├── sample.ts        # MIN_SAMPLE = 5 (최소 경기 수)
+├── sample.ts        # MIN_SAMPLE = 5 (티어 최소 경기 수)
 ├── tier.ts          # calcTier, calcPlayerStats, groupStatsByTier
 ├── hero-tier.ts     # calcHeroTiers, groupHeroesByTier (베이지안)
-├── stat-score.ts    # (미구현) 역할별 가중치 + 경기별 스탯 점수
+├── stat-score.ts    # 역할별 가중치 + 경기별 스탯 점수 (구현 완료)
 └── types.ts         # PlayerStats (recentWinRate, streak, topHero, statCoverage)
 ```
 
-### `stat-score.ts` 예정 API
+### `stat-score.ts` 실제 API
 
 ```typescript
-// 역할별 스탯 가중치
-const ROLE_STAT_WEIGHTS: Record<Role, StatWeights>
+// 전체 스트리머의 스탯 점수(0~1) + 커버리지(스탯 기록 경기 비율) 반환
+export function calcAllStatScores(
+  matches: Match[],
+  streamerIds: string[],
+): Map<string, { score: number; coverage: number }>
 
-// 경기 하나의 스탯 점수 (영웅 역할 기반)
-function calcMatchStatScore(stat: PlayerMatchStat, hero: string, dur?: string): number
+// coverage → α (winRate 가중치). 스탯 신뢰도 낮을수록 승률 비중 높임.
+export function statAlpha(coverage: number): number
 
-// 스트리머 전체 스탯 점수 + 커버리지
-function calcStreamerStatScore(matches: Match[], streamerId: string): {
-  score: number;       // 0~1 정규화 전 raw 점수
-  coverage: number;    // 스탯 기록된 경기 비율 (0~1)
-}
-
-// 플레이어 목록 내 역할별 정규화
-function normalizeStatScores(entries: { streamerId: string; role?: Role; score: number }[]): Map<string, number>
+// stat score(0~1) → 가상 승률(0.3~0.7)
+export function statToWinRate(statScore: number): number
 ```
 
 ---
@@ -183,7 +180,7 @@ matches: { ..., season: '2025-s1' }
 
 ## 6. 미구현 / 향후 과제
 
-- [ ] `stat-score.ts` 구현 및 `calcPlayerStats` 연동
+- [x] `stat-score.ts` 구현 및 `calcPlayerStats` 연동
 - [ ] 치지직 OAuth 인증 + 권한 기반 큐레이션 편집 UI
 - [ ] 큐레이션 티어 드래그앤드롭 배정
 - [ ] 대회 운영 보조 기능 (미확정)

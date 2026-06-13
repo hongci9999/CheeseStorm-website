@@ -2,6 +2,7 @@ import type { HeroStat, Match, PlayerStats, Streamer, Tier } from './types';
 import { winningTeam, losingTeam } from './match';
 import { deriveRole, deriveFineRole } from './heroes';
 import { MIN_SAMPLE } from './sample';
+import { calcAllStatScores, statAlpha, statToWinRate } from './stat-score';
 
 const TIER_THRESHOLDS: { tier: Tier; min: number }[] = [
   { tier: 'S', min: 0.65 },
@@ -75,6 +76,9 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
     }
   }
 
+  // 전체 스트리머 스탯 점수 (역할 내 정규화 — 한 번에 계산)
+  const statScores = calcAllStatScores(matches, Array.from(statsMap.keys()));
+
   return Array.from(statsMap.entries())
     .map(([streamerId, { wins, losses, name, img, role, fineRole, heroes }]) => {
       const totalGames = wins + losses;
@@ -104,6 +108,13 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
 
       const topHero = heroStats[0]?.hero;
 
+      // 승률 + 스탯 혼합 점수 → 티어 (docs/tierlist-logic.md)
+      const { score: statScore, coverage: statCoverage } = statScores.get(streamerId) ?? { score: 0.5, coverage: 0 };
+      const alpha     = statAlpha(statCoverage);
+      const statWR    = statToWinRate(statScore);
+      const bayesWR   = calcBayesianWinRate(wins, totalGames);
+      const finalScore = alpha * bayesWR + (1 - alpha) * statWR;
+
       return {
         streamerId,
         streamerName: name,
@@ -114,12 +125,12 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
         losses,
         totalGames,
         winRate,
-        // 티어는 베이지안 보정 승률 기준으로 계산 (소규모 표본 극단값 완화)
-        tier: calcTier(calcBayesianWinRate(wins, totalGames), totalGames),
+        tier: calcTier(finalScore, totalGames),
         heroStats,
         recentWinRate,
         streak,
         topHero,
+        statCoverage,
       };
     })
     .sort((a, b) => {

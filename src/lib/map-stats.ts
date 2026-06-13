@@ -1,6 +1,8 @@
 import type { Match } from './types';
 import { outcomeFor } from './match';
-import { MIN_SAMPLE } from './sample';
+
+// 맵별 승률 집계 최소 경기 수 (티어 MIN_SAMPLE과 별개)
+const MIN_MAP_SAMPLE = 3;
 
 // 맵별 승률 (CONTEXT.md 맵별 승률) — 인게임 진영 승률과는 별개.
 export interface MapWinRate {
@@ -36,7 +38,7 @@ export function mapWinRates(streamerId: string, matches: Match[]): MapWinRate[] 
   return Array.from(byMap.entries())
     .map(([map, e]) => {
       const games = e.wins + e.losses;
-      const sufficient = games >= MIN_SAMPLE;
+      const sufficient = games >= MIN_MAP_SAMPLE;
       return { map, games, wins: e.wins, losses: e.losses, winRate: sufficient ? e.wins / games : null };
     })
     .sort((a, b) => {
