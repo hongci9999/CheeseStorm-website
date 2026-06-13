@@ -224,7 +224,7 @@ function AutoTierNotice() {
         margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
         color: 'var(--tier-b)', fontWeight: 600, lineHeight: 1.55,
       }}>
-        본 티어표는 승률과 스탯 전반적인 수치를 종합하여 자동으로 설정된 티어표입니다. 스트리머 티어표 탭에서 정확한 티어를 매겨주세요
+        본 티어표는 승률과 스탯 전반적인 수치를 종합하여 자동으로 설정된 티어표입니다. 스트리머 티어표 탭에서 티어표를 만들어주세요
       </p>
     </div>
   );
@@ -430,7 +430,7 @@ export default function HomePage() {
           티어리스트
         </h1>
         <p style={{ fontFamily: 'var(--font-ui)', fontSize: 15, color: 'var(--text-muted)', marginTop: 6 }}>
-          승률 기준 · 최소 3경기 이상 시 티어 부여
+          TIER LIST
         </p>
       </div>
 

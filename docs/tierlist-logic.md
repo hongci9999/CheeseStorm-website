@@ -226,7 +226,7 @@ return 0.35; // 스탯 충분 → 스탯 비중 높임
 #### 티어 기준선 (`TIER_THRESHOLDS`)
 
 ```ts
-{ tier: 'S', min: 0.65 },
+{ tier: 'S', min: 0.60 },
 { tier: 'A', min: 0.55 },
 { tier: 'B', min: 0.45 },
 { tier: 'C', min: 0.35 },
@@ -241,6 +241,6 @@ return 0.35; // 스탯 충분 → 스탯 비중 높임
 ## 7. 미구현 / 향후 과제
 
 - [x] `stat-score.ts` 구현 및 `calcPlayerStats` 연동
-- [ ] 치지직 OAuth 인증 + 권한 기반 큐레이션 편집 UI
-- [ ] 큐레이션 티어 드래그앤드롭 배정
+- [x] 치지직 OAuth 인증 + 권한 기반 큐레이션 편집 UI
+- [x] 큐레이션 티어 드래그앤드롭 배정 (`curation-tier-tab.tsx`)
 - [ ] 대회 운영 보조 기능 (미확정)

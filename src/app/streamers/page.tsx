@@ -11,6 +11,7 @@ import { HexAvatar } from '@/components/hexagon-avatar';
 import { LevelBadge } from '@/components/level-badge';
 import { ProSticker } from '@/components/pro-sticker';
 import { isProStreamer } from '@/lib/pro-streamers';
+import { useAuth } from '@/hooks/use-auth';
 
 const INPUT: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px',
@@ -30,12 +31,14 @@ const LABEL: React.CSSProperties = {
 const CARD_HEX = 200;
 
 function StreamerCard({
-  streamer, onOpen, onDelete, onEditGameNames,
+  streamer, onOpen, onDelete, onEditGameNames, canEdit, canDelete,
 }: {
   streamer: Streamer;
   onOpen: () => void;
   onDelete: () => void;
   onEditGameNames: () => void;
+  canEdit: boolean;
+  canDelete: boolean;
 }) {
   const [hover, setHover] = useState(false);
   // 테두리는 히오스 보라로 통일 (티어색 미사용)
@@ -54,10 +57,10 @@ function StreamerCard({
         filter: hover ? `drop-shadow(0 0 12px color-mix(in srgb, ${ring} 45%, transparent))` : 'none',
       }}
     >
-      {/* 삭제 + 배틀태그 편집 — hover 시만 */}
-      {hover && (
+      {/* 삭제 + 배틀태그 편집 — hover 시 + 권한 있을 때만 */}
+      {hover && (canEdit || canDelete) && (
         <>
-          <button
+          {canDelete && <button
             onClick={e => { e.stopPropagation(); onDelete(); }}
             aria-label="삭제"
             style={{
@@ -71,9 +74,9 @@ function StreamerCard({
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
           >
             ✕
-          </button>
+          </button>}
           {/* 배틀태그(gameNames) 편집 버튼 */}
-          <button
+          {canEdit && <button
             onClick={e => { e.stopPropagation(); onEditGameNames(); }}
             aria-label="배틀태그 편집"
             title="배틀태그(인게임 이름) 편집"
@@ -88,7 +91,7 @@ function StreamerCard({
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
           >
             ✎
-          </button>
+          </button>}
         </>
       )}
 
@@ -465,6 +468,7 @@ function AddModal({
 // ── 페이지 ────────────────────────────────────────────────────
 export default function StreamersPage() {
   const router = useRouter();
+  const { isStreamer, isAdmin } = useAuth();
   // 캐시가 있으면 첫 렌더부터 데이터로 그려 스피너·재요청을 건너뛴다 (SPA 재방문 시)
   const cachedStreamers = getCachedStreamers();
   const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
@@ -507,7 +511,7 @@ export default function StreamersPage() {
   useEffect(() => { load(); }, []);
 
   async function handleDelete(s: Streamer) {
-    if (!confirm(`"${s.name}"을(를) 삭제하시겠습니까?`)) return;
+    if (!confirm(`"${s.name}"을(를) 삭제하시겠습니까?\n\n경기 기록은 유지되지만 해당 스트리머와의 연동이 끊깁니다. 다시 추가해도 기존 전적이 자동으로 복구되지 않습니다.`)) return;
     await deleteStreamer(s.id);
     setStreamers(prev => prev.filter(x => x.id !== s.id));
   }
@@ -564,13 +568,15 @@ export default function StreamersPage() {
               onOpen={() => router.push(`/streamers/${s.id}`)}
               onDelete={() => handleDelete(s)}
               onEditGameNames={() => setEditGameNamesTarget(s)}
+              canEdit={isStreamer}
+              canDelete={isAdmin}
             />
           ))}
         </Honeycomb>
       )}
 
-      {/* FAB — 하단 우측 */}
-      <button
+      {/* FAB — 하단 우측, streamer 이상만 */}
+      {isStreamer && <button
         onClick={() => setShowModal(true)}
         aria-label="스트리머 추가"
         style={{
@@ -585,7 +591,7 @@ export default function StreamersPage() {
         onMouseLeave={e => (e.currentTarget.style.transform = 'none')}
       >
         ＋
-      </button>
+      </button>}
 
       {showModal && (
         <AddModal onClose={() => setShowModal(false)} onAdded={load} />

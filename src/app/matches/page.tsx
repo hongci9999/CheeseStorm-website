@@ -7,6 +7,7 @@ import { getMatches, getStreamers, getCachedMatches, getCachedStreamers, deleteM
 import { participants, displaySides } from '@/lib/match';
 import type { Match, Streamer } from '@/lib/types';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
+import { useAuth } from '@/hooks/use-auth';
 
 // ── 헬퍼 ─────────────────────────────────────────────────────
 function dateKey(d: Date): string {
@@ -39,9 +40,9 @@ function groupByDate(matches: Match[]): [string, Match[]][] {
 // 분류 탭(팀1 승/팀2 승)은 제거됨 — 검색창만 유지
 
 function MatchFilters({
-  search, onSearch,
+  search, onSearch, isStreamer,
 }: {
-  search: string; onSearch: (v: string) => void;
+  search: string; onSearch: (v: string) => void; isStreamer: boolean;
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
@@ -63,17 +64,19 @@ function MatchFilters({
         />
       </div>
 
-      {/* 전적 등록 버튼 */}
-      <Link href="/matches/new" style={{
-        marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6,
-        height: 40, padding: '0 var(--sp-4)',
-        borderRadius: 'var(--r-sm)', background: 'var(--cheese-green)',
-        color: 'var(--text-on-green)', fontFamily: 'var(--font-ui)',
-        fontWeight: 700, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap',
-        transition: `background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out)`,
-      }}>
-        ＋ 전적 등록
-      </Link>
+      {/* 경기 입력 버튼 — streamer 이상만 */}
+      {isStreamer && (
+        <Link href="/matches/new" style={{
+          marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6,
+          height: 40, padding: '0 var(--sp-4)',
+          borderRadius: 'var(--r-sm)', background: 'var(--cheese-green)',
+          color: 'var(--text-on-green)', fontFamily: 'var(--font-ui)',
+          fontWeight: 700, fontSize: 13, textDecoration: 'none', whiteSpace: 'nowrap',
+          transition: `background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out)`,
+        }}>
+          ＋ 경기 입력
+        </Link>
+      )}
     </div>
   );
 }
@@ -93,12 +96,13 @@ function LevelChip({ level, won }: { level: number; won: boolean }) {
 
 // ── MatchRow (카드 헤더) ───────────────────────────────────────
 function MatchRow({
-  match, open, idx, onClick, onDelete, onEdit,
+  match, open, idx, onClick, onDelete, onEdit, canEdit,
 }: {
   match: Match; open: boolean; idx: number;
   onClick: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  canEdit: boolean;
 }) {
   const { left, right } = displaySides(match);
   const leftHeroes = left.roster.map(([, h]) => h);
@@ -151,32 +155,31 @@ function MatchRow({
         {relativeDate(match.date)}
       </span>
 
-      {/* 수정 */}
-      <button
-        type="button"
-        onClick={e => { e.stopPropagation(); onEdit(); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
-          borderRadius: 'var(--r-xs)', color: 'var(--text-faint)', fontSize: 11,
-          flexShrink: 0, transition: 'color var(--dur-fast) var(--ease-out)',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'var(--cheese-green)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
-        title="경기 수정"
-      >✎</button>
-
-      {/* 삭제 */}
-      <button
-        type="button"
-        onClick={e => { e.stopPropagation(); onDelete(); }}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
-          borderRadius: 'var(--r-xs)', color: 'var(--text-faint)', fontSize: 11,
-          flexShrink: 0, transition: 'color var(--dur-fast) var(--ease-out)',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.color = 'var(--loss)')}
-        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
-      >
-        ✕
-      </button>
+      {/* 수정 · 삭제 — streamer 이상만 */}
+      {canEdit && <>
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onEdit(); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
+            borderRadius: 'var(--r-xs)', color: 'var(--text-faint)', fontSize: 11,
+            flexShrink: 0, transition: 'color var(--dur-fast) var(--ease-out)',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--cheese-green)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+          title="경기 수정"
+        >✎</button>
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
+            borderRadius: 'var(--r-xs)', color: 'var(--text-faint)', fontSize: 11,
+            flexShrink: 0, transition: 'color var(--dur-fast) var(--ease-out)',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--loss)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+          title="경기 삭제"
+        >✕</button>
+      </>}
 
       {/* 펼침 화살표 */}
       <span style={{ fontSize: 11, color: 'var(--text-faint)', flexShrink: 0,
@@ -190,6 +193,7 @@ function MatchRow({
 // ── 메인 페이지 ──────────────────────────────────────────────
 export default function MatchesPage() {
   const router = useRouter();
+  const { isStreamer } = useAuth();
   // 캐시가 있으면 첫 렌더부터 데이터로 그려 스피너·재요청을 건너뛴다 (SPA 재방문 시)
   const cachedMatches = getCachedMatches();
   const cachedStreamers = getCachedStreamers();
@@ -209,8 +213,8 @@ export default function MatchesPage() {
     load();
   }, []);
 
-  async function handleDelete(id: string) {
-    if (!confirm('이 경기를 삭제하시겠습니까?')) return;
+  async function handleDelete(id: string, idx: number) {
+    if (!confirm(`#${idx} 경기를 삭제하시겠습니까?\n\n삭제된 경기는 복구할 수 없습니다.`)) return;
     await deleteMatch(id);
     setMatches(prev => prev.filter(m => m.id !== id));
     if (openId === id) setOpenId(null);
@@ -266,7 +270,7 @@ export default function MatchesPage() {
       </div>
 
       <MatchFilters
-        search={search} onSearch={setSearch}
+        search={search} onSearch={setSearch} isStreamer={isStreamer}
       />
 
       {filtered.length === 0 ? (
@@ -320,8 +324,9 @@ export default function MatchesPage() {
                         open={isOpen}
                         idx={numberById.get(m.id) ?? 0}
                         onClick={() => setOpenId(isOpen ? null : m.id)}
-                        onDelete={() => handleDelete(m.id)}
+                        onDelete={() => handleDelete(m.id, numberById.get(m.id) ?? 0)}
                         onEdit={() => router.push(`/matches/new?edit=${m.id}`)}
+                        canEdit={isStreamer}
                       />
                       {isOpen && <MatchDetail match={m} streamers={streamers} />}
                     </div>

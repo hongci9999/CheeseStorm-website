@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { resolveTheme, type Theme } from '@/lib/theme';
 import { isFirebaseConfigured } from '@/lib/firestore';
+import { useAuth, invalidateAuthCache } from '@/hooks/use-auth';
 
 const STORAGE_KEY = 'cs-theme';
 
@@ -13,12 +14,14 @@ const NAV_ITEMS = [
   { href: '/',         ko: '티어리스트',   en: 'Tier List'    },
   { href: '/matches',  ko: '내전기록실',   en: 'Match Room'   },
   { href: '/streamers',ko: '스트리머',     en: 'Roster'       },
+  { href: '/guide',    ko: '사용방법',     en: 'How To Use'   },
 ] as const;
 
 export default function SiteHeader() {
   const pathname = usePathname();
   const [theme, setTheme] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
+  const { session, loading, isStreamer } = useAuth();
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -32,6 +35,12 @@ export default function SiteHeader() {
     setTheme(next);
     localStorage.setItem(STORAGE_KEY, next);
     document.documentElement.setAttribute('data-theme', next === 'light' ? 'light' : '');
+  }
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    invalidateAuthCache();
+    window.location.href = '/';
   }
 
   // 활성 네비 판별: /matches/new → /matches 활성, / 는 정확히 일치
@@ -124,20 +133,72 @@ export default function SiteHeader() {
           </span>
         )}
 
-        {/* + 경기 입력 CTA */}
-        <Link href="/matches/new" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          height: 'var(--control-sm)', padding: '0 var(--sp-4)',
-          borderRadius: 'var(--r-sm)',
-          background: 'var(--cheese-green)',
-          color: 'var(--text-on-green)',
-          fontFamily: 'var(--font-ui)', fontWeight: 700,
-          fontSize: 'var(--fs-xs)', letterSpacing: 'var(--ls-wide)',
-          textTransform: 'uppercase', textDecoration: 'none',
-          transition: 'background var(--dur-fast) var(--ease-out)',
-        }}>
-          + 경기 입력
-        </Link>
+        {/* + 경기 입력 CTA — streamer 이상만 */}
+        {isStreamer && (
+          <Link href="/matches/new" style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            height: 'var(--control-sm)', padding: '0 var(--sp-4)',
+            borderRadius: 'var(--r-sm)',
+            background: 'var(--cheese-green)',
+            color: 'var(--text-on-green)',
+            fontFamily: 'var(--font-ui)', fontWeight: 700,
+            fontSize: 'var(--fs-xs)', letterSpacing: 'var(--ls-wide)',
+            textTransform: 'uppercase', textDecoration: 'none',
+            transition: 'background var(--dur-fast) var(--ease-out)',
+          }}>
+            + 경기 입력
+          </Link>
+        )}
+
+        {/* 로그인 / 유저 정보 */}
+        {!loading && (
+          session ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+              <span style={{
+                fontFamily: 'var(--font-ui)', fontSize: 13,
+                color: 'var(--text-muted)', maxWidth: 100,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {session.name}
+              </span>
+              <button
+                onClick={handleLogout}
+                style={{
+                  height: 28, padding: '0 10px', borderRadius: 'var(--r-sm)',
+                  border: '1px solid var(--border-line)', background: 'transparent',
+                  color: 'var(--text-faint)', fontFamily: 'var(--font-ui)',
+                  fontSize: 12, cursor: 'pointer',
+                  transition: 'color var(--dur-fast)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-high)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <a
+              href="/api/auth/login"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                height: 'var(--control-sm)', padding: '0 var(--sp-4)',
+                borderRadius: 'var(--r-sm)',
+                border: '1px solid var(--border-line)',
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                fontFamily: 'var(--font-ui)', fontWeight: 700,
+                fontSize: 'var(--fs-xs)', letterSpacing: 'var(--ls-wide)',
+                textTransform: 'uppercase', textDecoration: 'none',
+                transition: 'color var(--dur-fast)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-high)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+            >
+              <Image src="/assets/chzzk-logo.png" alt="치지직" width={16} height={16} style={{ borderRadius: 4 }} />
+              치지직 로그인
+            </a>
+          )
+        )}
 
         {/* 테마 토글 */}
         {mounted && (

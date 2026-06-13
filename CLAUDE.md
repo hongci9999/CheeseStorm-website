@@ -21,8 +21,18 @@ src/
 │   ├── layout.tsx              # 글로벌 레이아웃 (SiteHeader 포함)
 │   ├── page.tsx                # 메인 (티어리스트)
 │   ├── api/
+│   │   ├── auth/               # 인증 엔드포인트
+│   │   │   ├── login/route.ts        # 로그인 시작
+│   │   │   ├── callback/chzzk/route.ts # OAuth 콜백 (치지직)
+│   │   │   ├── logout/route.ts       # 로그아웃
+│   │   │   ├── me/route.ts           # 현재 세션 조회
+│   │   │   └── dev-login/route.ts    # 개발용 임시 로그인
 │   │   └── parse-screenshot/
 │   │       └── route.ts        # Gemini API 스크린샷 파싱 엔드포인트
+│   ├── dev-login/
+│   │   └── page.tsx            # 개발용 임시 로그인 페이지
+│   ├── guide/
+│   │   └── page.tsx            # 사용방법 안내 페이지
 │   ├── matches/
 │   │   ├── page.tsx            # 경기 결과 목록 (타임라인)
 │   │   └── new/page.tsx        # 경기 결과 입력 (슬롯 기반 + OCR)
@@ -31,6 +41,8 @@ src/
 │       └── [id]/page.tsx       # 개인 전적 프로필
 ├── components/
 │   └── site-header.tsx         # 클라이언트 헤더 (네비 + 테마 토글)
+├── hooks/
+│   └── use-auth.ts             # 클라이언트 인증 상태 훅
 ├── lib/
 │   ├── firebase.ts             # Firebase 초기화
 │   ├── firestore.ts            # Firestore CRUD
@@ -40,7 +52,11 @@ src/
 │   ├── profile.ts              # getStreamerProfile, getRecentMatches, currentStreak, kdaFor
 │   ├── streamer.ts             # validateStreamerForm, parseChzzkId
 │   ├── theme.ts                # resolveTheme (다크/라이트)
+│   ├── auth-permissions.ts     # 권한 레벨 정의 (viewer/streamer/admin)
+│   ├── chzzk-auth.ts           # 치지직 OAuth 2.0 클라이언트
+│   ├── session.ts              # JWT 세션 관리 (jose 기반)
 │   └── types.ts                # TypeScript 타입
+├── middleware.ts               # 인증 미들웨어 (보호된 라우트)
 ├── styles/tokens/              # DS 토큰 CSS 파일 모음
 └── test/fixtures/              # Vitest용 목 데이터
 ```
@@ -108,6 +124,8 @@ npm run build
 - **일반 시청자**: 읽기 전용 (인증 불필요)
 - **권한 있는 스트리머**: 경기 입력 + 큐레이션 티어 편집 가능
 
+> 인증 구현 완료 (치지직 OAuth 2.0 + jose JWT, NextAuth 미사용)
+
 ### 프로필 페이지 핵심 정보
 
 팀 편성 관점에서 중요한 두 가지:
@@ -127,16 +145,20 @@ npm run build
 
 ---
 
-## 티어 기준 (승률)
+## 티어 기준 (혼합 점수)
 
-| 티어 | 승률 | 최소 경기 |
-|------|------|---------|
+승률과 스탯 점수를 가중 평균한 **혼합 점수**로 티어를 결정한다.  
+`finalScore = α × winRate + (1-α) × statWinRate` (α는 스탯 커버리지에 따라 0.35~0.80 동적 조정)  
+상세 공식·파라미터 튜닝: [`docs/tierlist-logic.md`](docs/tierlist-logic.md)
+
+| 티어 | 혼합 점수 | 최소 경기 |
+|------|---------|---------|
 | S | 65%+ | 5경기 |
 | A | 55~65% | 5경기 |
 | B | 45~55% | 5경기 |
 | C | 35~45% | 5경기 |
 | D | ~35% | 5경기 |
-| ? | - | 5경기 미만 |
+| ? | — | 5경기 미만 |
 
 ## 코딩 컨벤션
 

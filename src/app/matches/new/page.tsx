@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getStreamers, getMatches, getMatch, addMatch, updateMatch, getOcrCorrections, upsertOcrCorrection, isFirebaseConfigured } from '@/lib/firestore';
@@ -307,7 +307,16 @@ function Slot({
 }
 
 // ── 페이지 ─────────────────────────────────────────────────────
+// useSearchParams() → Suspense 경계 필요 (Next.js 빌드 요구사항)
 export default function NewMatchPage() {
+  return (
+    <Suspense>
+      <NewMatchPageInner />
+    </Suspense>
+  );
+}
+
+function NewMatchPageInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const editId       = searchParams.get('edit');

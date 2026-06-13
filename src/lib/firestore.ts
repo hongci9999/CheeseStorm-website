@@ -8,6 +8,8 @@ import {
   deleteDoc,
   orderBy,
   query,
+  where,
+  limit,
   arrayUnion,
   setDoc,
   Timestamp,
@@ -63,6 +65,22 @@ export async function addStreamer(data: Omit<Streamer, 'id' | 'createdAt'>): Pro
   });
   streamersCache = null; // 변경됨 → 다음 조회 시 새로고침
   return ref.id;
+}
+
+// chzzkId로 스트리머 단건 조회 (권한 해석에 사용)
+export async function getStreamerByChzzkId(chzzkId: string): Promise<Streamer | null> {
+  const q = query(collection(db, 'streamers'), where('chzzkId', '==', chzzkId), limit(1));
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  const data = d.data();
+  const updatedAt = data.profileImageUpdatedAt as Timestamp | undefined;
+  return {
+    id: d.id,
+    ...data,
+    createdAt: (data.createdAt as Timestamp).toDate(),
+    ...(updatedAt ? { profileImageUpdatedAt: updatedAt.toDate() } : {}),
+  } as Streamer;
 }
 
 export async function deleteStreamer(id: string): Promise<void> {

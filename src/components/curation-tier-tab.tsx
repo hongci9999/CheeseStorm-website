@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/use-auth';
 import { getCuratedTierLists, getStreamers, getMatches, saveCuratedTierLists } from '@/lib/firestore';
 import {
   buildCuratedPlayers,
@@ -365,6 +366,7 @@ export function CurationTierTab({
   streamers: Streamer[];
   matches: Match[];
 }) {
+  const { isStreamer } = useAuth();
   const [roster, setRoster] = useState<Streamer[]>(streamersProp);
   const [matchList, setMatchList] = useState<Match[]>(matchesProp);
   const [lists, setLists] = useState<CuratedTierLists>(emptyTierLists());
@@ -480,7 +482,7 @@ export function CurationTierTab({
         }}>
           <FilterBar role={role} onRole={setRole} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-            <button
+            {isStreamer && <button
               onClick={() => setEditMode((v) => !v)}
               style={{
                 height: 36, padding: '0 16px', borderRadius: 'var(--r-sm)',
@@ -494,7 +496,7 @@ export function CurationTierTab({
               }}
             >
               {editMode ? '편집 완료' : '티어 편집'}
-            </button>
+            </button>}
             {saving && (
               <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12, color: 'var(--text-faint)' }}>
                 저장 중...
