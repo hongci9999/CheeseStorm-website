@@ -5,7 +5,7 @@ import { MIN_SAMPLE } from './sample';
 import { calcAllStatScores, statAlpha, statToWinRate } from './stat-score';
 
 const TIER_THRESHOLDS: { tier: Tier; min: number }[] = [
-  { tier: 'S', min: 0.65 },
+  { tier: 'S', min: 0.6 },
   { tier: 'A', min: 0.55 },
   { tier: 'B', min: 0.45 },
   { tier: 'C', min: 0.35 },
@@ -114,6 +114,8 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
       const statWR    = statToWinRate(statScore);
       const bayesWR   = calcBayesianWinRate(wins, totalGames);
       const finalScore = alpha * bayesWR + (1 - alpha) * statWR;
+
+      console.log(`[tier] ${name} | ${wins}W${losses}L | bayesWR=${bayesWR.toFixed(3)} | cov=${(statCoverage*100).toFixed(0)}% | α=${alpha} | statScore=${statScore.toFixed(3)} | statWR=${statWR.toFixed(3)} | final=${finalScore.toFixed(3)} → ${calcTier(finalScore, totalGames)}`);
 
       return {
         streamerId,
