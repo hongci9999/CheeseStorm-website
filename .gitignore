@@ -44,3 +44,12 @@ node_modules
 claudecode-design
 .claude/settings.local.json
 .omc/
+
+# graphify — 재생성 가능 파일 제외, graph.json/GRAPH_REPORT.md는 커밋
+graphify-out/graph.html
+graphify-out/cost.json
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/.graphify_*.json
+graphify-out/.graphify_*.txt
+graphify-out/_*.py

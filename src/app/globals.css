@@ -64,3 +64,15 @@
 @media (prefers-reduced-motion: reduce) {
   .lvl-legendary { animation: none; }
 }
+
+@keyframes emblem-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+.emblem-spinning {
+  animation: emblem-spin 1.2s linear infinite;
+  display: inline-flex;
+}
+@media (prefers-reduced-motion: reduce) {
+  .emblem-spinning { animation: none; }
+}

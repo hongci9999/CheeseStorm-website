@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getMatches, getStreamers, getCachedMatches, getCachedStreamers, deleteMatch, isFirebaseConfigured } from '@/lib/firestore';
 import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
 import { participants } from '@/lib/match';
@@ -94,11 +95,12 @@ function LevelChip({ level, won }: { level: number; won: boolean }) {
 
 // ── MatchRow (카드 헤더) ───────────────────────────────────────
 function MatchRow({
-  match, open, idx, onClick, onDelete,
+  match, open, idx, onClick, onDelete, onEdit,
 }: {
   match: Match; open: boolean; idx: number;
   onClick: () => void;
   onDelete: () => void;
+  onEdit: () => void;
 }) {
   const blueWon = match.winner === 'blue';
   const blueHeroes = match.blueTeam.map(([, h]) => h);
@@ -146,10 +148,23 @@ function MatchRow({
       )}
 
       {/* 날짜 */}
-      <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11.5, color: 'var(--text-faint)',
-        width: 44, textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap' }}>
+      <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11.5,
+        color: 'var(--text-faint)', whiteSpace: 'nowrap', flexShrink: 0 }}>
         {relativeDate(match.date)}
       </span>
+
+      {/* 수정 */}
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onEdit(); }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px',
+          borderRadius: 'var(--r-xs)', color: 'var(--text-faint)', fontSize: 11,
+          flexShrink: 0, transition: 'color var(--dur-fast) var(--ease-out)',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = 'var(--cheese-green)')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+        title="경기 수정"
+      >✎</button>
 
       {/* 삭제 */}
       <button
@@ -176,6 +191,7 @@ function MatchRow({
 
 // ── 메인 페이지 ──────────────────────────────────────────────
 export default function MatchesPage() {
+  const router = useRouter();
   // 캐시가 있으면 첫 렌더부터 데이터로 그려 스피너·재요청을 건너뛴다 (SPA 재방문 시)
   const cachedMatches = getCachedMatches();
   const cachedStreamers = getCachedStreamers();
@@ -309,6 +325,7 @@ export default function MatchesPage() {
                         idx={numberById.get(m.id) ?? 0}
                         onClick={() => setOpenId(isOpen ? null : m.id)}
                         onDelete={() => handleDelete(m.id)}
+                        onEdit={() => router.push(`/matches/new?edit=${m.id}`)}
                       />
                       {isOpen && <MatchDetail match={m} streamers={streamers} />}
                     </div>

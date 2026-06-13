@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { getStreamers, getMatches, addMatch, appendGameName, isFirebaseConfigured } from '@/lib/firestore';
+import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { getStreamers, getMatches, getMatch, addMatch, updateMatch, appendGameName, isFirebaseConfigured } from '@/lib/firestore';
 import { validateMatchForm } from '@/lib/match';
 import { matchName } from '@/lib/streamer';
 import { isKnownHero, KNOWN_HEROES } from '@/lib/heroes';
@@ -141,7 +142,9 @@ function Slot({
 
 // ── 페이지 ─────────────────────────────────────────────────────
 export default function NewMatchPage() {
-  const router     = useRouter();
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const editId       = searchParams.get('edit');
   const fileRef    = useRef<HTMLInputElement>(null);
   const [streamers, setStreamers] = useState<Streamer[]>([]);
   const [blueSlots, setBlueSlots] = useState<TeamSlot[]>(() => Array.from({ length: 5 }, emptySlot));
@@ -168,6 +171,34 @@ export default function NewMatchPage() {
     if (!isFirebaseConfigured) { setStreamers(MOCK_STREAMERS); return; }
     getStreamers().then(setStreamers);
   }, []);
+
+  // 편집 모드: 기존 경기 데이터를 모든 폼 필드에 프리필
+  useEffect(() => {
+    if (!editId || !isFirebaseConfigured) return;
+    getMatch(editId).then(m => {
+      if (!m) return;
+      setDate(m.date.toISOString().split('T')[0]);
+      setMap(m.map ?? '');
+      setDur(m.dur ?? '');
+      setWinner(m.winner);
+      setLeftTeam(m.leftTeam ?? '');
+      setBlueLevel(m.blueLevel != null ? String(m.blueLevel) : '');
+      setRedLevel(m.redLevel != null ? String(m.redLevel) : '');
+      setNote(m.note ?? '');
+      function toSlots(team: [string, string][], stats?: PlayerMatchStat[]): TeamSlot[] {
+        const slots: TeamSlot[] = team.map(([streamerId, hero], i) => ({
+          extractedName: '',
+          streamerId,
+          hero,
+          ...(stats?.[i] ? { stat: stats[i] } : {}),
+        }));
+        while (slots.length < 5) slots.push(emptySlot());
+        return slots;
+      }
+      setBlueSlots(toSlots(m.blueTeam, m.blueStats));
+      setRedSlots(toSlots(m.redTeam, m.redStats));
+    });
+  }, [editId]);
 
   async function processImage(file: File) {
     setParsing(true);
@@ -222,17 +253,23 @@ export default function NewMatchPage() {
       current.extractedName &&
       isFirebaseConfigured
     ) {
-      appendGameName(patch.streamerId, current.extractedName).catch(() => {
-        // 자가학습 실패는 무시 — 경기 저장에 영향 없음
-      });
-      // 로컬 state도 즉시 반영 (다음 matchName 호출 시 바로 매칭되도록)
-      setStreamers(prev =>
-        prev.map(s =>
-          s.id === patch.streamerId
-            ? { ...s, gameNames: [...(s.gameNames ?? []), current.extractedName] }
-            : s,
-        ),
+      // AI가 배틀태그 대신 스트리머 표시명을 반환한 경우 gameNames 오염 방지
+      const isDisplayName = streamers.some(
+        s => s.name.toLowerCase() === current.extractedName.toLowerCase()
       );
+      if (!isDisplayName) {
+        appendGameName(patch.streamerId, current.extractedName).catch(() => {
+          // 자가학습 실패는 무시 — 경기 저장에 영향 없음
+        });
+        // 로컬 state도 즉시 반영 (다음 matchName 호출 시 바로 매칭되도록)
+        setStreamers(prev =>
+          prev.map(s =>
+            s.id === patch.streamerId
+              ? { ...s, gameNames: [...(s.gameNames ?? []), current.extractedName] }
+              : s,
+          ),
+        );
+      }
     }
 
     (side === 'blue' ? setBlueSlots : setRedSlots)(
@@ -256,8 +293,8 @@ export default function NewMatchPage() {
     const v = validateMatchForm(blueTeam, redTeam);
     if (!v.valid) { setError(v.error); return; }
 
-    // 중복 경고가 없는 첫 제출 시 탐지 수행
-    if (!forceSubmit) {
+    // 편집 모드에서는 중복 체크 생략 (자기 자신이 중복으로 감지됨)
+    if (!forceSubmit && !editId) {
       const existingMatches = isFirebaseConfigured ? await getMatches() : [];
       const dup = findDuplicateMatch(
         { date: new Date(date), blueTeam, redTeam, dur: dur || undefined },
@@ -275,14 +312,19 @@ export default function NewMatchPage() {
         const n = Number(s);
         return s.trim() !== '' && Number.isInteger(n) && n >= 0 ? n : undefined;
       };
-      await addMatch({
+      const data = {
         date: new Date(date), blueTeam, redTeam,
         blueStats: toStats(blueSlots), redStats: toStats(redSlots),
         winner,
         leftTeam: leftTeam || undefined,
         blueLevel: parseLevel(blueLevel), redLevel: parseLevel(redLevel),
         map: map || undefined, dur: dur || undefined, note: note || undefined,
-      });
+      };
+      if (editId) {
+        await updateMatch(editId, data);
+      } else {
+        await addMatch(data);
+      }
       router.push('/matches');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -296,7 +338,7 @@ export default function NewMatchPage() {
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
       <div style={{ padding: 'var(--sp-7) 0 var(--sp-5)' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22,
-          color: 'var(--text-strong)', margin: 0 }}>경기 결과 입력</h1>
+          color: 'var(--text-strong)', margin: 0 }}>{editId ? '경기 결과 수정' : '경기 결과 입력'}</h1>
       </div>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
@@ -327,16 +369,17 @@ export default function NewMatchPage() {
         >
           {parsing ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 30, opacity: 0.6 }}>⏳</span>
+              <div className="animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.2s' }}>
+                <Image src="/assets/logo-emblem.png" alt="" width={48} height={48} style={{ opacity: 0.85 }} />
+              </div>
               <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14, color: 'var(--text-muted)' }}>
-                Gemini가 스크린샷을 분석 중...
+                AI가 스크린샷을 분석 중...
               </span>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 30 }}>📷</span>
               <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14, color: 'var(--text-high)' }}>
-                경기 결과 스크린샷 업로드
+                경기 결과 스크린샷 AI 분석
               </span>
               <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-faint)' }}>
                 클릭하거나 파일을 드래그 · 팀 구성·영웅·스탯이 아래 슬롯에 자동으로 채워집니다
@@ -395,21 +438,30 @@ export default function NewMatchPage() {
                   <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: accent }}>
                     {label}
                   </span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {/* 팀 최종 레벨 (선택) */}
-                    <input
-                      value={side === 'blue' ? blueLevel : redLevel}
-                      onChange={e => (side === 'blue' ? setBlueLevel : setRedLevel)(e.target.value)}
-                      placeholder="Lv"
-                      inputMode="numeric"
-                      title="팀 최종 레벨 (선택)"
-                      style={{
-                        width: 52, height: 28, padding: '0 8px',
-                        borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
-                        background: 'var(--surface-input)', color: 'var(--text-high)',
-                        fontFamily: 'var(--font-numeral)', fontSize: 12, textAlign: 'center', outline: 'none',
-                      }}
-                    />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {/* 팀 최종 레벨 */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{
+                        fontFamily: 'var(--font-numeral)', fontSize: 11,
+                        letterSpacing: '0.06em', color: 'var(--text-faint)',
+                        textTransform: 'uppercase',
+                      }}>최종 Lv</span>
+                      <input
+                        value={side === 'blue' ? blueLevel : redLevel}
+                        onChange={e => (side === 'blue' ? setBlueLevel : setRedLevel)(e.target.value)}
+                        placeholder="—"
+                        inputMode="numeric"
+                        style={{
+                          width: 58, height: 32, padding: '0 8px',
+                          borderRadius: 'var(--r-sm)',
+                          border: `1.5px solid ${(side === 'blue' ? blueLevel : redLevel) ? accent : 'var(--border-line)'}`,
+                          background: 'var(--surface-input)', color: 'var(--text-high)',
+                          fontFamily: 'var(--font-numeral)', fontSize: 24,
+                          fontWeight: 700, textAlign: 'center', outline: 'none',
+                          transition: 'border-color 0.15s',
+                        }}
+                      />
+                    </label>
                     <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11,
                       color: filledCount === 5 ? accent : 'var(--text-faint)' }}>
                       {filledCount} / 5
@@ -453,7 +505,7 @@ export default function NewMatchPage() {
                   color: active ? color : 'var(--text-muted)',
                   transition: 'all var(--dur-fast) var(--ease-out)',
                 }}>
-                  {active ? '🏆 ' : ''}{teamLabel} 승리
+                  {teamLabel} 승리
                 </button>
               );
             })}
@@ -563,7 +615,7 @@ export default function NewMatchPage() {
             color: 'var(--text-on-green)', fontFamily: 'var(--font-display)',
             fontWeight: 700, fontSize: 14, cursor: submitting ? 'not-allowed' : 'pointer',
           }}>
-            {submitting ? '저장 중...' : '저장'}
+            {submitting ? (editId ? '수정 중...' : '저장 중...') : (editId ? '수정' : '저장')}
           </button>
         </div>
       </form>

@@ -170,3 +170,22 @@ export async function deleteMatch(id: string): Promise<void> {
   await deleteDoc(doc(db, 'matches', id));
   matchesCache = null;
 }
+
+export async function updateMatchDate(id: string, date: Date): Promise<void> {
+  await updateDoc(doc(db, 'matches', id), { date: Timestamp.fromDate(date) });
+  matchesCache = null;
+}
+
+export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdAt'>): Promise<void> {
+  const payload: Record<string, unknown> = {
+    ...data,
+    blueTeam: packTeam(data.blueTeam),
+    redTeam: packTeam(data.redTeam),
+    date: Timestamp.fromDate(data.date),
+  };
+  for (const k of Object.keys(payload)) {
+    if (payload[k] === undefined) delete payload[k];
+  }
+  await updateDoc(doc(db, 'matches', id), payload);
+  matchesCache = null;
+}
