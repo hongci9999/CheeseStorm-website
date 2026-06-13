@@ -23,17 +23,6 @@ const ROLE_STAT_WEIGHTS: Record<Role, StatWeights> = {
 type StatKey = keyof StatWeights;
 const STAT_KEYS: StatKey[] = ['kda', 'xpPerMin', 'heroDmgPerMin', 'siegeDmgPerMin', 'healingPerMin', 'selfHealPerMin'];
 
-interface MatchStatEntry {
-  streamerId: string;
-  role: Role;
-  kda: number;
-  xpPerMin: number;
-  heroDmgPerMin: number;
-  siegeDmgPerMin: number;
-  healingPerMin: number;
-  selfHealPerMin: number;
-}
-
 // "M:SS" / "MM:SS" → 분 (소수). 파싱 실패 시 null.
 function durToMins(dur: string | undefined): number | null {
   if (!dur) return null;
@@ -43,60 +32,100 @@ function durToMins(dur: string | undefined): number | null {
   return mins > 0 ? mins : null;
 }
 
-// 모든 경기에서 스탯 기록된 항목 수집. 영웅 역할 기반으로 분류.
-function collectEntries(matches: Match[]): MatchStatEntry[] {
-  const entries: MatchStatEntry[] = [];
+interface RoleAccum {
+  sums: Record<StatKey, number>;
+  count: number;
+}
+
+// 플레이어별 역할별 raw 스탯 누적
+function collectPlayerAccum(
+  matches: Match[],
+): Map<string, Map<Role, RoleAccum>> {
+  const playerMap = new Map<string, Map<Role, RoleAccum>>();
+
   for (const m of matches) {
-    const scale = durToMins(m.dur) ?? 1; // dur 없으면 raw 값 그대로 (단위 일관성 유지)
+    const scale = durToMins(m.dur) ?? 1;
     for (const [streamerId, hero] of participants(m)) {
       const role = roleOfHero(hero);
       if (!role) continue;
       const stat = statOf(m, streamerId);
       if (!stat) continue;
-      entries.push({
-        streamerId, role,
-        kda:            (stat.kills + stat.assists) / Math.max(1, stat.deaths),
-        xpPerMin:       stat.xp       / scale,
-        heroDmgPerMin:  stat.heroDmg  / scale,
-        siegeDmgPerMin: stat.siegeDmg / scale,
-        healingPerMin:  stat.healing  / scale,
-        selfHealPerMin: stat.selfHeal / scale,
+
+      if (!playerMap.has(streamerId)) playerMap.set(streamerId, new Map());
+      const roleMap = playerMap.get(streamerId)!;
+      if (!roleMap.has(role)) {
+        roleMap.set(role, {
+          sums: Object.fromEntries(STAT_KEYS.map(k => [k, 0])) as Record<StatKey, number>,
+          count: 0,
+        });
+      }
+      const a = roleMap.get(role)!;
+      a.sums.kda            += (stat.kills + stat.assists) / Math.max(1, stat.deaths);
+      a.sums.xpPerMin       += stat.xp       / scale;
+      a.sums.heroDmgPerMin  += stat.heroDmg  / scale;
+      a.sums.siegeDmgPerMin += stat.siegeDmg / scale;
+      a.sums.healingPerMin  += stat.healing  / scale;
+      a.sums.selfHealPerMin += stat.selfHeal / scale;
+      a.count++;
+    }
+  }
+  return playerMap;
+}
+
+type PlayerAvgMap = Map<string, Map<Role, { avgs: Record<StatKey, number>; count: number }>>;
+
+// 플레이어별 역할별 경기 평균 계산 (개별 경기 집계 → 평균)
+function buildPlayerAvgMap(
+  playerAccum: Map<string, Map<Role, RoleAccum>>,
+): PlayerAvgMap {
+  const out: PlayerAvgMap = new Map();
+  for (const [streamerId, roleMap] of playerAccum) {
+    const entry = new Map<Role, { avgs: Record<StatKey, number>; count: number }>();
+    for (const [role, { sums, count }] of roleMap) {
+      entry.set(role, {
+        avgs: Object.fromEntries(STAT_KEYS.map(k => [k, sums[k] / count])) as Record<StatKey, number>,
+        count,
       });
     }
+    out.set(streamerId, entry);
   }
-  return entries;
+  return out;
 }
 
-// 역할별 각 stat 차원의 min/max (정규화 기준 범위)
+// 역할별 각 스탯 차원의 min/max — 플레이어 평균값 기준으로 계산
+// (개별 경기 극단값이 아닌 플레이어 간 실제 차이를 반영)
 function calcRanges(
-  entries: MatchStatEntry[],
+  playerAvgMap: PlayerAvgMap,
 ): Map<Role, Record<StatKey, { min: number; max: number }>> {
-  const map = new Map<Role, Record<StatKey, { min: number; max: number }>>();
-  for (const e of entries) {
-    if (!map.has(e.role)) {
-      map.set(e.role, Object.fromEntries(
-        STAT_KEYS.map(k => [k, { min: Infinity, max: -Infinity }]),
-      ) as Record<StatKey, { min: number; max: number }>);
-    }
-    const r = map.get(e.role)!;
-    for (const k of STAT_KEYS) {
-      if (e[k] < r[k].min) r[k].min = e[k];
-      if (e[k] > r[k].max) r[k].max = e[k];
+  const ranges = new Map<Role, Record<StatKey, { min: number; max: number }>>();
+  for (const roleMap of playerAvgMap.values()) {
+    for (const [role, { avgs }] of roleMap) {
+      if (!ranges.has(role)) {
+        ranges.set(role, Object.fromEntries(
+          STAT_KEYS.map(k => [k, { min: Infinity, max: -Infinity }]),
+        ) as Record<StatKey, { min: number; max: number }>);
+      }
+      const r = ranges.get(role)!;
+      for (const k of STAT_KEYS) {
+        if (avgs[k] < r[k].min) r[k].min = avgs[k];
+        if (avgs[k] > r[k].max) r[k].max = avgs[k];
+      }
     }
   }
-  return map;
+  return ranges;
 }
 
-// 단일 항목을 역할 범위 기준으로 정규화 후 가중합 → 0~1
-function scoreEntry(
-  e: MatchStatEntry,
+// 정규화된 가중합 점수 (0~1)
+function scoreAvg(
+  avgs: Record<StatKey, number>,
+  role: Role,
   ranges: Record<StatKey, { min: number; max: number }>,
 ): number {
-  const w = ROLE_STAT_WEIGHTS[e.role];
+  const w = ROLE_STAT_WEIGHTS[role];
   let score = 0;
   for (const k of STAT_KEYS) {
     const { min, max } = ranges[k];
-    const norm = max > min ? (e[k] - min) / (max - min) : 0.5;
+    const norm = max > min ? (avgs[k] - min) / (max - min) : 0.5;
     score += w[k] * norm;
   }
   return score;
@@ -107,7 +136,6 @@ export function calcAllStatScores(
   matches: Match[],
   streamerIds: string[],
 ): Map<string, { score: number; coverage: number }> {
-  // 스트리머별 총 참가 경기 수
   const totalGames = new Map<string, number>(streamerIds.map(id => [id, 0]));
   for (const m of matches) {
     for (const [id] of participants(m)) {
@@ -115,30 +143,35 @@ export function calcAllStatScores(
     }
   }
 
-  const entries = collectEntries(matches);
-  const ranges = calcRanges(entries);
-  const accum = new Map<string, { sum: number; count: number }>(
-    streamerIds.map(id => [id, { sum: 0, count: 0 }]),
-  );
-
-  for (const e of entries) {
-    if (!accum.has(e.streamerId)) continue;
-    const roleRanges = ranges.get(e.role);
-    if (!roleRanges) continue;
-    const a = accum.get(e.streamerId)!;
-    a.sum += scoreEntry(e, roleRanges);
-    a.count++;
-  }
+  const playerAccum  = collectPlayerAccum(matches);
+  const playerAvgMap = buildPlayerAvgMap(playerAccum);
+  const ranges       = calcRanges(playerAvgMap);
 
   const result = new Map<string, { score: number; coverage: number }>();
+
   for (const id of streamerIds) {
-    const total = totalGames.get(id) ?? 0;
-    const a = accum.get(id) ?? { sum: 0, count: 0 };
-    result.set(id, {
-      score:    a.count > 0 ? a.sum / a.count : 0.5,
-      coverage: total  > 0 ? a.count / total  : 0,
-    });
+    const roleMap = playerAvgMap.get(id);
+    if (!roleMap || roleMap.size === 0) {
+      result.set(id, { score: 0.5, coverage: 0 });
+      continue;
+    }
+
+    // 여러 역할을 플레이한 경우 게임 수 가중 평균
+    let totalStatGames = 0;
+    let weightedScore  = 0;
+    for (const [role, { avgs, count }] of roleMap) {
+      const roleRanges = ranges.get(role);
+      if (!roleRanges) continue;
+      weightedScore  += scoreAvg(avgs, role, roleRanges) * count;
+      totalStatGames += count;
+    }
+
+    const score    = totalStatGames > 0 ? weightedScore / totalStatGames : 0.5;
+    const total    = totalGames.get(id) ?? 0;
+    const coverage = total > 0 ? totalStatGames / total : 0;
+    result.set(id, { score, coverage });
   }
+
   return result;
 }
 

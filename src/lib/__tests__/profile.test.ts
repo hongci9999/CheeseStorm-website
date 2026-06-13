@@ -31,12 +31,12 @@ describe('getStreamerProfile', () => {
   });
 
   it('s1의 승/패/티어를 정확히 계산한다', () => {
-    // 생성기 기준: s1 25경기 11승 14패 → winRate 0.44 → Tier C
+    // 생성기 기준: s1 25경기 11승 14패. 스탯 반영 후 final≈0.469 → Tier B
     const result = getStreamerProfile('s1', MOCK_STREAMERS, MOCK_MATCHES);
     expect(result).not.toBeNull();
     expect(result!.wins).toBe(11);
     expect(result!.losses).toBe(14);
     expect(result!.totalGames).toBe(25);
-    expect(result!.tier).toBe('C');
+    expect(result!.tier).toBe('B');
   });
 });
