@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getStreamers, getMatches, getCachedStreamers, getCachedMatches } from '@/lib/firestore';
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
@@ -8,7 +8,9 @@ import { calcHeroTiers, groupHeroesByTier } from '@/lib/hero-tier';
 import type { HeroTierStat } from '@/lib/hero-tier';
 import type { PlayerStats, FineRole, Tier } from '@/lib/types';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
+import { CurationTierTab } from '@/components/curation-tier-tab';
 import { heroImageUrl } from '@/lib/hero-image';
+import type { Match, Streamer } from '@/lib/types';
 
 // 상위 탭 종류
 type MainTab = 'auto' | 'curation' | 'hero';
@@ -59,16 +61,14 @@ function PlayerCell({ p, tier }: { p: PlayerStats; tier: Tier }) {
         textDecoration: 'none',
       }}
     >
-      {/* 아바타 + S티어 순위 뱃지 */}
-      <div style={{ position: 'relative' }}>
-        <HexAvatar
-          name={p.streamerName}
-          imageUrl={p.profileImageUrl}
-          ring={`var(${TIER_COLOR_VAR[tier]})`}
-          ringWidth={tier !== 'unranked' ? 2 : 1.5}
-          size={54}
-        />
-      </div>
+      {/* 아바타 */}
+      <HexAvatar
+        name={p.streamerName}
+        imageUrl={p.profileImageUrl}
+        ring={`var(${TIER_COLOR_VAR[tier]})`}
+        ringWidth={tier !== 'unranked' ? 2 : 1.5}
+        size={54}
+      />
 
       {/* 이름 */}
       <span style={{
@@ -110,12 +110,21 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
         <TierBadge tier={tier} size="lg" />
+        {tier === 'unranked' && (
+          <span style={{
+            fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.1em',
+            color: 'var(--text-faint)', textAlign: 'center',
+          }}>
+            미배정
+          </span>
+        )}
       </div>
 
-      {/* 아바타 플로우 */}
+      {/* 아바타 플로우 — 큐레이션 티어행과 동일한 최소 높이 */}
       <div style={{
         flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
         alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)',
+        minHeight: 88,
       }}>
         {players.map((p, i) => (
           <PlayerCell key={p.streamerId} p={p} tier={tier} />
@@ -158,7 +167,7 @@ function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void
 // ── 상위 탭 바 — FilterBar와 계층이 명확히 다른 스타일 ────────────
 const MAIN_TAB_LABELS: Record<MainTab, string> = {
   auto:     '스트리머 자동',
-  curation: '스트리머 큐레이션',
+  curation: '스트리머 티어표',
   hero:     '영웅',
 };
 
@@ -201,19 +210,40 @@ function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void 
   );
 }
 
+// ── 자동 티어 안내 ─────────────────────────────────────────────
+function AutoTierNotice() {
+  return (
+    <div style={{
+      borderRadius: 'var(--r-md)',
+      border: '1px solid color-mix(in srgb, var(--tier-b) 55%, var(--border-line))',
+      background: 'color-mix(in srgb, var(--tier-b) 14%, var(--surface-card))',
+      padding: 'var(--sp-3) var(--sp-4)',
+      marginBottom: 'var(--sp-5)',
+    }}>
+      <p style={{
+        margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
+        color: 'var(--tier-b)', fontWeight: 600, lineHeight: 1.55,
+      }}>
+        본 티어표는 승률과 스탯 전반적인 수치를 종합하여 자동으로 설정된 티어표입니다. 스트리머 티어표 탭에서 정확한 티어를 매겨주세요
+      </p>
+    </div>
+  );
+}
+
 // ── 자동 티어리스트 탭 콘텐츠 ───────────────────────────────────
 function AutoTierTab({ stats }: { stats: PlayerStats[] }) {
   const [role, setRole] = useState('전체');
 
-  const filtered = stats.filter(p => {
-    if (role !== '전체' && p.fineRole !== role) return false;
-    return true;
-  });
+  const filtered = useMemo(
+    () => stats.filter(p => role === '전체' || p.fineRole === role),
+    [stats, role],
+  );
 
-  const groups = groupStatsByTier(filtered);
+  const groups = useMemo(() => groupStatsByTier(filtered), [filtered]);
 
   return (
     <div>
+      <AutoTierNotice />
       <FilterBar role={role} onRole={setRole} />
       {groups.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
@@ -323,8 +353,12 @@ function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
 function HeroTierTab({ heroTiers }: { heroTiers: HeroTierStat[] }) {
   const [role, setRole] = useState('전체');
 
-  const filtered = heroTiers.filter((h) => role === '전체' || h.fineRole === role);
-  const groups = groupHeroesByTier(filtered);
+  const filtered = useMemo(
+    () => heroTiers.filter((h) => role === '전체' || h.fineRole === role),
+    [heroTiers, role],
+  );
+
+  const groups = useMemo(() => groupHeroesByTier(filtered), [filtered]);
 
   return (
     <div>
@@ -344,22 +378,6 @@ function HeroTierTab({ heroTiers }: { heroTiers: HeroTierStat[] }) {
   );
 }
 
-// ── 준비 중 플레이스홀더 탭 ────────────────────────────────────
-function PlaceholderTab({ label }: { label: string }) {
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      minHeight: 240, gap: 'var(--sp-3)',
-      color: 'var(--text-faint)',
-    }}>
-      <span style={{ fontSize: 32 }}>🚧</span>
-      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 15 }}>
-        {label} — 준비 중
-      </span>
-    </div>
-  );
-}
-
 function computeHome(streamers: Parameters<typeof calcPlayerStats>[0], matches: Parameters<typeof calcHeroTiers>[0]) {
   return {
     stats: calcPlayerStats(streamers, matches),
@@ -372,17 +390,24 @@ export default function HomePage() {
   // 캐시가 있으면 첫 렌더에서 바로 계산해 스피너·재요청을 건너뛴다 (SPA 재방문 시)
   const cachedStreamers = getCachedStreamers();
   const cachedMatches = getCachedMatches();
-  const initial = cachedStreamers && cachedMatches
+  const initial = cachedStreamers !== null && cachedMatches !== null
     ? computeHome(cachedStreamers, cachedMatches) : null;
   const [stats, setStats] = useState<PlayerStats[]>(initial?.stats ?? []);
   const [heroTiers, setHeroTiers] = useState<HeroTierStat[]>(initial?.heroTiers ?? []);
+  const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
+  const [matches, setMatches] = useState<Match[]>(cachedMatches ?? []);
   const [loading, setLoading] = useState(initial === null);
   const [mainTab, setMainTab] = useState<MainTab>('auto');
 
   useEffect(() => {
     async function load() {
-      const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
+      const [streamers, matches] = await Promise.all([
+        getStreamers({ fresh: true }),
+        getMatches(),
+      ]);
       const next = computeHome(streamers, matches);
+      setStreamers(streamers);
+      setMatches(matches);
       setStats(next.stats);
       setHeroTiers(next.heroTiers);
       setLoading(false);
@@ -414,7 +439,9 @@ export default function HomePage() {
 
       {/* 탭 패널 */}
       {mainTab === 'auto' && <AutoTierTab stats={stats} />}
-      {mainTab === 'curation' && <PlaceholderTab label="스트리머 큐레이션" />}
+      {mainTab === 'curation' && (
+        <CurationTierTab streamers={streamers} matches={matches} />
+      )}
       {mainTab === 'hero' && <HeroTierTab heroTiers={heroTiers} />}
 
       <div style={{ height: 'var(--sp-20)' }} />

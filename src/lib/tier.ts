@@ -37,19 +37,21 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   // 스트리머별 경기 결과 타임라인 (날짜 오름차순)
   const timelineMap = new Map<string, ('win' | 'loss')[]>();
 
+  // 날짜 내림차순 정렬 1회 — deriveRole/deriveFineRole 내부 정렬 중복 방지
+  const sortedDesc = [...matches].sort((a, b) => b.date.getTime() - a.date.getTime());
+  // 오름차순은 내림차순을 뒤집어 재사용 (추가 sort 불필요)
+  const sortedMatches = [...sortedDesc].reverse();
+
   for (const s of streamers) {
     // 롤은 수동 입력이 아닌 내전 기록에서 파생 (CONTEXT.md 롤 참조)
     statsMap.set(s.id, {
       wins: 0, losses: 0, name: s.name, img: s.profileImageUrl,
-      role: deriveRole(matches, s.id),
-      fineRole: deriveFineRole(matches, s.id),
+      role: deriveRole(sortedDesc, s.id, true),
+      fineRole: deriveFineRole(sortedDesc, s.id, true),
       heroes: new Map(),
     });
     timelineMap.set(s.id, []);
   }
-
-  // 날짜 오름차순 정렬 후 처리 (연승/연패 및 최근 승률 계산용)
-  const sortedMatches = [...matches].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   for (const match of sortedMatches) {
     const winners = winningTeam(match);
@@ -114,8 +116,6 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
       const statWR    = statToWinRate(statScore);
       const bayesWR   = calcBayesianWinRate(wins, totalGames);
       const finalScore = alpha * bayesWR + (1 - alpha) * statWR;
-
-      console.log(`[tier] ${name} | ${wins}W${losses}L | bayesWR=${bayesWR.toFixed(3)} | cov=${(statCoverage*100).toFixed(0)}% | α=${alpha} | statScore=${statScore.toFixed(3)} | statWR=${statWR.toFixed(3)} | final=${finalScore.toFixed(3)} → ${calcTier(finalScore, totalGames)}`);
 
       return {
         streamerId,

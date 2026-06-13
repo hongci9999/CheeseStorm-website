@@ -95,8 +95,9 @@ export function roleAffinity(
 
 // 내전 기록에서 스트리머의 롤 파생: 가장 많이 플레이한 역할군.
 // 동률이면 최근 경기의 역할군 우선.
-export function deriveRole(matches: Match[], streamerId: string): Role | undefined {
-  const recentFirst = [...matches].sort((a, b) => b.date.getTime() - a.date.getTime());
+// alreadySortedDesc=true 이면 내부 정렬을 생략 (호출자가 이미 내림차순 정렬해서 넘긴 경우).
+export function deriveRole(matches: Match[], streamerId: string, alreadySortedDesc = false): Role | undefined {
+  const recentFirst = alreadySortedDesc ? matches : [...matches].sort((a, b) => b.date.getTime() - a.date.getTime());
   // Map 삽입 순서 = 최근 경기 순 → 동률 시 먼저 삽입된(최근) 역할이 이김
   const counts = new Map<Role, number>();
   for (const m of recentFirst) {
@@ -135,8 +136,9 @@ export function fineRoleAffinity(
 }
 
 // 세분 주 역할군 파생 — deriveRole의 fine 버전. 동률이면 최근 경기 우선.
-export function deriveFineRole(matches: Match[], streamerId: string): FineRole | undefined {
-  const recentFirst = [...matches].sort((a, b) => b.date.getTime() - a.date.getTime());
+// alreadySortedDesc=true 이면 내부 정렬 생략.
+export function deriveFineRole(matches: Match[], streamerId: string, alreadySortedDesc = false): FineRole | undefined {
+  const recentFirst = alreadySortedDesc ? matches : [...matches].sort((a, b) => b.date.getTime() - a.date.getTime());
   const counts = new Map<FineRole, number>();
   for (const m of recentFirst) {
     const hero = heroOf(m, streamerId);
