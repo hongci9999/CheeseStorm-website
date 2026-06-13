@@ -4,11 +4,9 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStreamers, getCachedStreamers, addStreamer, deleteStreamer, updateStreamerGameNames, updateStreamerInfo, updateStreamerProfileImage, isFirebaseConfigured } from '@/lib/firestore';
-import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
 import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '@/lib/streamer';
 import { fetchChzzkProfiles, isProfileStale } from '@/lib/chzzk-profile';
 import type { Streamer } from '@/lib/types';
-import { MOCK_STREAMERS } from '@/test/fixtures';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { LevelBadge } from '@/components/level-badge';
 
@@ -472,13 +470,10 @@ export default function StreamersPage() {
   const [editGameNamesTarget, setEditGameNamesTarget] = useState<Streamer | null>(null);
 
   async function load() {
-    const useMock = resolveUseMock(readDataSourceCookieClient(), isFirebaseConfigured);
-    const list = useMock ? MOCK_STREAMERS : await getStreamers();
+    const list = await getStreamers();
     setStreamers(list);
     setLoading(false);
-    // 실 데이터일 때만 치지직 프로필 사진을 백그라운드로 주기 갱신.
-    // 새로 추가된 스트리머(갱신시각 없음)도 stale로 잡혀 함께 처리된다.
-    if (!useMock) void refreshStaleProfiles(list);
+    void refreshStaleProfiles(list);
   }
 
   // chzzkId가 있고 TTL이 지난(또는 한 번도 안 받은) 스트리머의 프로필 사진을

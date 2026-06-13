@@ -1,7 +1,5 @@
 import { notFound } from 'next/navigation';
-import { cookies } from 'next/headers';
-import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
-import { DATA_SOURCE_COOKIE, parseDataSource, resolveUseMock } from '@/lib/data-source';
+import { getStreamers, getMatches } from '@/lib/firestore';
 import { getStreamerProfile, getRecentMatches, kdaFor } from '@/lib/profile';
 import { fineRoleAffinity, fineRoleOfHero } from '@/lib/heroes';
 import { outcomeFor, heroOf, statOf } from '@/lib/match';
@@ -9,8 +7,6 @@ import { aggregateHeroStats } from '@/lib/hero-stats';
 import { computeRelations } from '@/lib/relations';
 import { mapWinRates } from '@/lib/map-stats';
 import { INSUFFICIENT_DATA } from '@/lib/sample';
-import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
-import { MOCK_MATCHES } from '@/test/fixtures/matches';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { LevelBadge } from '@/components/level-badge';
 import { heroImageUrl } from '@/lib/hero-image';
@@ -321,41 +317,56 @@ function MatchRow({ m, streamerId }: { m: Match; streamerId: string }) {
 }
 
 // --- 시너지/천적 목록 (#23) ---
-function RelationList({ rows, tone }: {
+function RelationList({ rows, tone, streamers }: {
   rows: { streamerId: string; streamerName: string; games: number; rate: number }[];
   tone: 'win' | 'loss';
+  streamers: { id: string; name: string; profileImageUrl?: string }[];
 }) {
   if (rows.length === 0) {
     return <EmptyHint>{INSUFFICIENT_DATA} — 3경기 이상 함께/맞서야 집계됩니다.</EmptyHint>;
   }
   const color = tone === 'win' ? 'var(--win)' : 'var(--loss)';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-      {rows.map((r) => (
-        <a key={r.streamerId} href={`/streamers/${r.streamerId}`} style={{
-          display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
-          textDecoration: 'none',
-        }}>
-          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
-            color: 'var(--text-high)', flex: 1, overflow: 'hidden',
-            textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {r.streamerName}
-          </span>
-          <div style={{ width: 64, height: 8, borderRadius: 999,
-            background: 'var(--surface-raise)', overflow: 'hidden', flexShrink: 0 }}>
-            <div style={{ width: `${Math.round(r.rate * 100)}%`, height: '100%',
-              borderRadius: 999, background: color }} />
-          </div>
-          <span style={{ width: 64, textAlign: 'right', fontFamily: 'var(--font-numeral)',
-            fontSize: 12, color, fontWeight: 700, whiteSpace: 'nowrap' }}>
-            {Math.round(r.rate * 100)}%
-          </span>
-          <span style={{ width: 30, textAlign: 'right', fontFamily: 'var(--font-numeral)',
-            fontSize: 11, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
-            {r.games}판
-          </span>
-        </a>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+      {rows.map((r) => {
+        const s = streamers.find(x => x.id === r.streamerId);
+        return (
+          <a key={r.streamerId} href={`/streamers/${r.streamerId}`} style={{
+            display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
+            textDecoration: 'none', padding: '4px 0',
+          }}>
+            <HexAvatar name={r.streamerName} imageUrl={s?.profileImageUrl} ring={color} size={32} ringWidth={1.5} />
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
+                color: 'var(--text-high)', overflow: 'hidden',
+                textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r.streamerName}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, height: 4, borderRadius: 999,
+                  background: 'var(--surface-raise)', overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.round(r.rate * 100)}%`, height: '100%',
+                    borderRadius: 999, background: color }} />
+                </div>
+                <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12,
+                  color, fontWeight: 800, whiteSpace: 'nowrap' }}>
+                  {Math.round(r.rate * 100)}%
+                </span>
+              </div>
+            </div>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              height: 20, padding: '0 7px', borderRadius: 'var(--r-pill)',
+              background: `color-mix(in srgb, ${color} 12%, var(--surface-raise))`,
+              border: `1px solid color-mix(in srgb, ${color} 30%, transparent)`,
+              fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 11,
+              color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+              {r.games}판
+            </span>
+          </a>
+        );
+      })}
     </div>
   );
 }
@@ -459,11 +470,7 @@ export default async function ProfilePage({
   const activeTab: 'overview' | 'heroes' | 'matches' =
     tab === 'heroes' ? 'heroes' : tab === 'matches' ? 'matches' : 'overview';
 
-  const override = parseDataSource((await cookies()).get(DATA_SOURCE_COOKIE)?.value);
-  const useMock = resolveUseMock(override, isFirebaseConfigured);
-  const [streamers, matches] = useMock
-    ? [MOCK_STREAMERS, MOCK_MATCHES]
-    : await Promise.all([getStreamers(), getMatches()]);
+  const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
 
   const profile = getStreamerProfile(id, streamers, matches);
   if (!profile) notFound();
@@ -475,7 +482,7 @@ export default async function ProfilePage({
   const recent   = getRecentMatches(id, matches, 6);
   const allMatches = getRecentMatches(id, matches, Infinity);
   const top3     = profile.heroStats.slice(0, 3);
-  const rest     = profile.heroStats.slice(3, 10);
+  const rest     = profile.heroStats.slice(3, 5);
   const tc       = TIER_COLOR[profile.tier];
 
   // 영웅 탭용 집계
@@ -773,6 +780,7 @@ export default async function ProfilePage({
                 <SectionHead ko="시너지 팀원" en="Synergy" />
                 <RelationList
                   tone="win"
+                  streamers={streamers}
                   rows={synergy.slice(0, TOP_N).map((s: SynergyStat) => ({
                     streamerId: s.streamerId, streamerName: s.streamerName,
                     games: s.games, rate: s.winRate,
@@ -786,6 +794,7 @@ export default async function ProfilePage({
                 <SectionHead ko="천적" en="Nemesis" />
                 <RelationList
                   tone="loss"
+                  streamers={streamers}
                   rows={nemesis.slice(0, TOP_N).map((n: NemesisStat) => ({
                     streamerId: n.streamerId, streamerName: n.streamerName,
                     games: n.games, rate: n.lossRate,

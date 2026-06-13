@@ -102,4 +102,13 @@ describe('findDuplicateMatch', () => {
     // 신규 dur 없으면 weak (기존 dur 유무 무관)
     expect(result.level).toBe('weak');
   });
+
+  it('dur 정규화 — 21:4와 21:04는 strong 중복', () => {
+    const existing = [makeMatch({ dur: '21:04' })];
+    const result = findDuplicateMatch(
+      { date: new Date('2025-06-01'), blueTeam: BASE_BLUE, redTeam: BASE_RED, dur: '21:4' },
+      existing,
+    );
+    expect(result.level).toBe('strong');
+  });
 });

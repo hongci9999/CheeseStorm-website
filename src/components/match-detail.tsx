@@ -1,4 +1,4 @@
-import { statOf } from '@/lib/match';
+import { statOf, displaySides } from '@/lib/match';
 import type { Match, PlayerMatchStat, Streamer } from '@/lib/types';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
@@ -99,17 +99,17 @@ function StatRow({
   return (
     <div style={{
       display: 'grid',
-      // 프사 | 이름+배틀태그 | 영웅(육각+이름) | K/A/D | 영웅딜 | 공성딜 | 힐 | 경험치
-      gridTemplateColumns: '52px 1fr 1fr 60px 58px 58px 58px 58px',
+      // 프사 | 이름+배틀태그 | 영웅(육각+이름) | K/A/D | 영웅딜 | 공성딜 | 힐/자힐 | 경험치
+      gridTemplateColumns: '52px 1fr 1fr 60px 58px 58px 66px 58px',
       alignItems: 'center', gap: 0,
       minHeight: 56, padding: '0 12px',
       borderRadius: 'var(--r-sm)', background: 'var(--surface-card)',
       // 팀 색깔 없음 — 이긴 행만 win 색 좌측바로 강조
       borderLeft: `3px solid ${won ? 'var(--win)' : 'var(--border-line)'}`,
     }}>
-      {/* 스트리머 육각 프사 — 상하 거의 꽉 차게 */}
+      {/* 스트리머 육각 프사 — Nexus 보라 테두리 */}
       <span style={{ display: 'flex', alignItems: 'center' }}>
-        <HexAvatar name={getName(id)} imageUrl={imageUrl} ring="var(--ink-500)" size={48} ringWidth={1.5} />
+        <HexAvatar name={getName(id)} imageUrl={imageUrl} ring="var(--hots-purple)" size={48} ringWidth={1.5} />
       </span>
 
       {/* 이름 + 배틀넷 아이디(흐릿하게) */}
@@ -156,9 +156,17 @@ function StatRow({
       {/* 공성딜 — 비율 막대 + 팀 최고 강조 */}
       <StatBarCell value={stat ? stat.siegeDmg : null} max={tops.siegeDmg} highlight={isTop('siegeDmg')} />
 
-      {/* 힐 — 막대 없이 일반 숫자 (왼쪽 정렬) */}
-      <StatNumCell align="left" color={stat && stat.healing > 0 ? 'var(--text-high)' : 'var(--text-faint)'}
-        display={stat ? fmtNum(stat.healing) : '—'} />
+      {/* 힐 / 자힐 — 힐을 크게, 자힐을 아래 작게 표시 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 6 }}>
+        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 16, fontWeight: 700, lineHeight: 1,
+          color: stat && stat.healing > 0 ? 'var(--text-high)' : 'var(--text-faint)' }}>
+          {stat ? fmtNum(stat.healing) : '—'}
+        </span>
+        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10, lineHeight: 1, whiteSpace: 'nowrap',
+          color: stat && stat.selfHeal > 0 ? 'var(--text-muted)' : 'var(--text-faint)' }}>
+          {stat && stat.selfHeal > 0 ? `자힐 ${fmtNum(stat.selfHeal)}` : ''}
+        </span>
+      </div>
 
       {/* 경험치 — 비율 막대 + 팀 최고 강조 */}
       <StatBarCell value={stat ? stat.xp : null} max={tops.xp} highlight={isTop('xp')} />
@@ -223,7 +231,7 @@ function TeamStatBlock({
       {hasStats && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '52px 1fr 1fr 60px 58px 58px 58px 58px',
+          gridTemplateColumns: '52px 1fr 1fr 60px 58px 58px 66px 58px',
           padding: '0 12px', marginBottom: 4,
         }}>
           <span />
@@ -238,7 +246,7 @@ function TeamStatBlock({
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, color: 'var(--text-faint)',
             textAlign: 'left', paddingLeft: 6 }}>공성딜</span>
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, color: 'var(--text-faint)',
-            textAlign: 'left', paddingLeft: 6 }}>힐</span>
+            textAlign: 'left', paddingLeft: 6 }}>힐 / 자힐</span>
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, color: 'var(--text-faint)',
             textAlign: 'left', paddingLeft: 6 }}>경험치</span>
         </div>
@@ -291,16 +299,17 @@ export function MatchDetail({ match, streamers }: { match: Match; streamers: Str
   const getName = (id: string) => nameMap.get(id) ?? id.replace('__unknown__', '');
   const getGameName = (id: string) => gameMap.get(id);
   const getImage = (id: string) => imageMap.get(id);
+  const { left, right } = displaySides(match);
 
   return (
     <div style={{ padding: 'var(--sp-4) var(--sp-5) var(--sp-5)',
       borderTop: '1px solid var(--border-faint)' }}>
       <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'flex-start' }}>
         <TeamStatBlock
-          roster={match.blueTeam}
-          won={match.winner === 'blue'}
+          roster={left.roster}
+          won={left.won}
           hasStats={hasStats}
-          level={match.blueLevel}
+          level={left.level}
           getName={getName}
           getGameName={getGameName}
           getImage={getImage}
@@ -312,10 +321,10 @@ export function MatchDetail({ match, streamers }: { match: Match; streamers: Str
             color: 'var(--text-faint)', letterSpacing: '0.06em' }}>VS</span>
         </div>
         <TeamStatBlock
-          roster={match.redTeam}
-          won={match.winner === 'red'}
+          roster={right.roster}
+          won={right.won}
           hasStats={hasStats}
-          level={match.redLevel}
+          level={right.level}
           getName={getName}
           getGameName={getGameName}
           getImage={getImage}

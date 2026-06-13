@@ -1,10 +1,7 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { getStreamers, getMatches, isFirebaseConfigured } from '@/lib/firestore';
-import { DATA_SOURCE_COOKIE, parseDataSource, resolveUseMock } from '@/lib/data-source';
-import { MOCK_STREAMERS } from '@/test/fixtures/streamers';
-import { MOCK_MATCHES } from '@/test/fixtures/matches';
+import { getStreamers, getMatches } from '@/lib/firestore';
+import { displaySides } from '@/lib/match';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
 
 function fmtFullDate(d: Date): string {
@@ -21,18 +18,14 @@ export default async function MatchDetailPage({
 }) {
   const { id } = await params;
 
-  const override = parseDataSource((await cookies()).get(DATA_SOURCE_COOKIE)?.value);
-  const useMock = resolveUseMock(override, isFirebaseConfigured);
-  const [streamers, matches] = useMock
-    ? [MOCK_STREAMERS, MOCK_MATCHES]
-    : await Promise.all([getStreamers(), getMatches()]);
+  const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
 
   const match = matches.find((m) => m.id === id);
   if (!match) notFound();
 
-  const blueWon = match.winner === 'blue';
-  const blueHeroes = match.blueTeam.map(([, h]) => h);
-  const redHeroes = match.redTeam.map(([, h]) => h);
+  const { left, right } = displaySides(match);
+  const leftHeroes = left.roster.map(([, h]) => h);
+  const rightHeroes = right.roster.map(([, h]) => h);
 
   return (
     <div style={{ padding: 'var(--sp-7) 0 var(--sp-20)' }}>
@@ -66,10 +59,10 @@ export default async function MatchDetailPage({
 
           {/* 영웅 VS — 이긴 쪽 강조 (팀 색깔 없음) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
-            <HeroTeamStack heroes={blueHeroes} won={blueWon} />
+            <HeroTeamStack heroes={leftHeroes} won={left.won} />
             <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 14,
               color: 'var(--text-faint)', letterSpacing: '0.06em' }}>VS</span>
-            <HeroTeamStack heroes={redHeroes} won={!blueWon} />
+            <HeroTeamStack heroes={rightHeroes} won={right.won} />
           </div>
         </div>
 

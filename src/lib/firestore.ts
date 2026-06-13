@@ -9,11 +9,14 @@ import {
   orderBy,
   query,
   arrayUnion,
+  setDoc,
   Timestamp,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 export { isFirebaseConfigured };
-import type { Match, Streamer } from './types';
+import type { Match, OcrCorrections, Streamer } from './types';
+import { EMPTY_OCR_CORRECTIONS, normalizeOcrKey } from './ocr-corrections';
+import { normalizeMatchDur } from './match';
 
 // --- 클라이언트 세션 캐시 ---
 // SPA 내비게이션마다 같은 데이터를 다시 요청하고 로딩 스피너를 띄우는 걸 막는다.
@@ -102,6 +105,41 @@ export async function updateStreamerProfileImage(streamerId: string, imageUrl: s
   streamersCache = null;
 }
 
+// --- OCR 교정맵 (AI 오답 → 정답) ---
+
+let ocrCorrectionsCache: OcrCorrections | null = null;
+
+export async function getOcrCorrections(): Promise<OcrCorrections> {
+  if (isClient && ocrCorrectionsCache) return ocrCorrectionsCache;
+  const d = await getDoc(doc(db, 'ocrCorrections', 'global'));
+  if (!d.exists()) {
+    if (isClient) ocrCorrectionsCache = EMPTY_OCR_CORRECTIONS;
+    return EMPTY_OCR_CORRECTIONS;
+  }
+  const data = d.data();
+  const list: OcrCorrections = {
+    streamers: (data.streamers as Record<string, string>) ?? {},
+    heroes: (data.heroes as Record<string, string>) ?? {},
+  };
+  if (isClient) ocrCorrectionsCache = list;
+  return list;
+}
+
+export async function upsertOcrCorrection(
+  kind: 'streamer' | 'hero',
+  wrong: string,
+  correct: string,
+): Promise<void> {
+  const key = normalizeOcrKey(wrong);
+  if (!key || !correct.trim()) return;
+  const field = kind === 'streamer' ? 'streamers' : 'heroes';
+  await setDoc(doc(db, 'ocrCorrections', 'global'), {
+    [`${field}.${key}`]: correct.trim(),
+    updatedAt: Timestamp.now(),
+  }, { merge: true });
+  ocrCorrectionsCache = null;
+}
+
 // --- Matches ---
 
 // Firestore는 중첩 배열([[id,hero],...])을 금지하므로 팀을 객체 배열({id,hero})로 직렬화.
@@ -121,6 +159,7 @@ function unpackTeam(raw: unknown): [string, string][] {
 
 // Firestore 문서 → Match (팀 복원 + Timestamp 변환)
 function toMatch(id: string, data: Record<string, unknown>): Match {
+  const rawDur = typeof data.dur === 'string' ? data.dur : undefined;
   return {
     ...data,
     id,
@@ -128,6 +167,8 @@ function toMatch(id: string, data: Record<string, unknown>): Match {
     redTeam: unpackTeam(data.redTeam),
     date: (data.date as Timestamp).toDate(),
     createdAt: (data.createdAt as Timestamp).toDate(),
+    // 읽기 시 파싱 가능한 dur는 정규화 (DB 마이그레이션 없이 표시·중복 비교 개선)
+    ...(rawDur !== undefined ? { dur: normalizeMatchDur(rawDur) } : {}),
   } as Match;
 }
 

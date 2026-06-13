@@ -47,6 +47,12 @@ export interface Match {
 
 export type Tier = 'S' | 'A' | 'B' | 'C' | 'D' | 'unranked';
 
+// AI OCR 오답 → 정답 매핑 (스트리머 ID / 영웅명). 키는 normalizeOcrKey 적용값.
+export interface OcrCorrections {
+  streamers: Record<string, string>;
+  heroes: Record<string, string>;
+}
+
 export interface HeroStat {
   hero: string;
   wins: number;
@@ -65,4 +71,7 @@ export interface PlayerStats {
   tier: Tier;
   fineRole?: FineRole;    // 세분 주 역할군 (암살자 원거리/근접 구별) — 역할 필터용
   heroStats: HeroStat[];  // 경기수 내림차순 정렬
+  recentWinRate: number;  // 최근 5경기 승률 (5경기 미만이면 전체 승률)
+  streak: number;          // 양수=연승, 음수=연패 (예: +3=3연승, -2=2연패, 0=없음)
+  topHero?: string;        // 가장 많이 플레이한 영웅 (heroStats[0]?.hero)
 }

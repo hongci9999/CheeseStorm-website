@@ -18,6 +18,10 @@ const sairaCondensed = Saira_Condensed({
 export const metadata: Metadata = {
   title: 'Cheesestorm — HOTS 내전 전적',
   description: '치지직 스트리머들의 히어로즈 오브 더 스톰 내전 결과 및 티어리스트',
+  icons: {
+    icon: '/assets/logo-emblem.png',
+    apple: '/assets/logo-emblem.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -45,11 +49,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         style={{ fontFamily: 'var(--font-ui)' }}
       >
         <SiteHeader />
+        <div style={{
+          background: 'color-mix(in srgb, var(--hots-purple) 10%, var(--surface-raise))',
+          borderBottom: '1px solid color-mix(in srgb, var(--hots-purple) 25%, transparent)',
+          padding: '7px var(--sp-6)',
+          textAlign: 'center',
+        }}>
+          <span style={{
+            fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--text-muted)',
+            lineHeight: 1.5,
+          }}>
+            치지직에서 진행한 히어로즈 오브 더 스톰 내전만을 이용한 통계입니다.{' '}
+            <span style={{ color: 'var(--text-faint)' }}>표본수가 적기에 정확하지 않을 수 있습니다.</span>
+          </span>
+        </div>
         <main
           style={{
             maxWidth: 'var(--container)',
             margin: '0 auto',
-            padding: 'var(--sp-8) var(--sp-6)',
+            padding: 'var(--sp-3) var(--sp-6)',
           }}
         >
           {children}

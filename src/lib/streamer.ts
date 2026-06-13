@@ -40,3 +40,11 @@ export function matchName(name: string, streamers: Streamer[]): string {
     ''
   );
 }
+
+// OCR 자동 매칭 전용 — 등록된 gameNames(배틀태그)만 사용.
+// AI가 표시명·영웅명 등을 반환해도 gameNames에 없으면 매칭하지 않는다.
+export function matchBattleTag(name: string, streamers: Streamer[]): string {
+  const l = name.trim().toLowerCase();
+  if (!l) return '';
+  return streamers.find(s => s.gameNames?.some(g => g.toLowerCase() === l))?.id ?? '';
+}

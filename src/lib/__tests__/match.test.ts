@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateMatchForm, outcomeFor, heroOf, winningTeam, losingTeam, participants } from '../match';
+import { validateMatchForm, outcomeFor, heroOf, winningTeam, losingTeam, participants, displaySides, parseMatchDur, normalizeMatchDur } from '../match';
 import type { Match } from '../types';
 
 const team5 = (prefix: string): [string, string][] =>
@@ -95,5 +95,54 @@ describe('participants', () => {
     expect(all).toHaveLength(10);
     expect(all.map(([id]) => id)).toContain('s1');
     expect(all.map(([id]) => id)).toContain('s10');
+  });
+});
+
+describe('parseMatchDur', () => {
+  it('빈 값은 valid + undefined', () => {
+    expect(parseMatchDur('')).toEqual({ valid: true, value: undefined });
+    expect(parseMatchDur('   ')).toEqual({ valid: true, value: undefined });
+  });
+
+  it('M:SS를 정규화한다', () => {
+    expect(parseMatchDur('21:04')).toEqual({ valid: true, value: '21:04' });
+    expect(parseMatchDur('21:4')).toEqual({ valid: true, value: '21:04' });
+    expect(parseMatchDur('9:05')).toEqual({ valid: true, value: '9:05' });
+  });
+
+  it('잘못된 형식은 거부한다', () => {
+    expect(parseMatchDur('abc').valid).toBe(false);
+    expect(parseMatchDur('31.52').valid).toBe(false);
+    expect(parseMatchDur('21:60').valid).toBe(false);
+  });
+
+  it('normalizeMatchDur는 파싱 가능하면 정규화한다', () => {
+    expect(normalizeMatchDur('21:4')).toBe('21:04');
+    expect(normalizeMatchDur(undefined)).toBeUndefined();
+    expect(normalizeMatchDur('bad')).toBe('bad');
+  });
+});
+
+describe('displaySides', () => {
+  it('leftTeam 미지정이면 팀1(blue)이 왼쪽이다', () => {
+    const { left, right } = displaySides(blueWinMatch);
+    expect(left.bucket).toBe('blue');
+    expect(right.bucket).toBe('red');
+    expect(left.roster).toEqual(blueWinMatch.blueTeam);
+    expect(left.won).toBe(true);
+  });
+
+  it('leftTeam이 blue이면 팀1(blue)이 왼쪽이다', () => {
+    const { left, right } = displaySides({ ...blueWinMatch, leftTeam: 'blue' });
+    expect(left.bucket).toBe('blue');
+    expect(right.bucket).toBe('red');
+  });
+
+  it('leftTeam이 red이면 팀2(red)가 왼쪽이다', () => {
+    const { left, right } = displaySides({ ...blueWinMatch, leftTeam: 'red' });
+    expect(left.bucket).toBe('red');
+    expect(right.bucket).toBe('blue');
+    expect(left.roster).toEqual(blueWinMatch.redTeam);
+    expect(right.won).toBe(true);
   });
 });

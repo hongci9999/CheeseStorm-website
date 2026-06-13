@@ -18,6 +18,12 @@ export function calcTier(winRate: number, totalGames: number): Tier {
   return TIER_THRESHOLDS.find((t) => winRate >= t.min)?.tier ?? 'D';
 }
 
+// 베이지안 승률: 소규모 표본의 극단값을 50%로 당겨줌
+// prior = 50%, weight = 3경기. (wins+1.5)/(total+3)
+export function calcBayesianWinRate(wins: number, total: number): number {
+  return (wins + 1.5) / (total + 3);
+}
+
 // 티어 정렬·그룹화 공통 순서
 export const TIER_ORDER: Tier[] = ['S', 'A', 'B', 'C', 'D', 'unranked'];
 
@@ -27,6 +33,9 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
     { wins: number; losses: number; name: string; img?: string; role?: import('./types').Role; fineRole?: import('./types').FineRole; heroes: Map<string, { wins: number; losses: number }> }
   >();
 
+  // 스트리머별 경기 결과 타임라인 (날짜 오름차순)
+  const timelineMap = new Map<string, ('win' | 'loss')[]>();
+
   for (const s of streamers) {
     // 롤은 수동 입력이 아닌 내전 기록에서 파생 (CONTEXT.md 롤 참조)
     statsMap.set(s.id, {
@@ -35,9 +44,13 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
       fineRole: deriveFineRole(matches, s.id),
       heroes: new Map(),
     });
+    timelineMap.set(s.id, []);
   }
 
-  for (const match of matches) {
+  // 날짜 오름차순 정렬 후 처리 (연승/연패 및 최근 승률 계산용)
+  const sortedMatches = [...matches].sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  for (const match of sortedMatches) {
     const winners = winningTeam(match);
     const losers  = losingTeam(match);
 
@@ -48,6 +61,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
       const h = entry.heroes.get(hero) ?? { wins: 0, losses: 0 };
       h.wins++;
       entry.heroes.set(hero, h);
+      timelineMap.get(id)?.push('win');
     }
 
     for (const [id, hero] of losers) {
@@ -57,6 +71,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
       const h = entry.heroes.get(hero) ?? { wins: 0, losses: 0 };
       h.losses++;
       entry.heroes.set(hero, h);
+      timelineMap.get(id)?.push('loss');
     }
   }
 
@@ -69,7 +84,43 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
         .map(([hero, s]) => ({ hero, wins: s.wins, losses: s.losses }))
         .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses));
 
-      return { streamerId, streamerName: name, profileImageUrl: img, role, fineRole, wins, losses, totalGames, winRate, tier: calcTier(winRate, totalGames), heroStats };
+      const timeline = timelineMap.get(streamerId) ?? [];
+
+      // 최근 5경기 승률 (5경기 미만이면 전체 승률 사용)
+      const recentSlice = timeline.slice(-5);
+      const recentWinRate = recentSlice.length > 0
+        ? recentSlice.filter(r => r === 'win').length / recentSlice.length
+        : winRate;
+
+      // 연승/연패: 타임라인 끝에서 같은 결과가 연속된 횟수
+      let streak = 0;
+      if (timeline.length > 0) {
+        const last = timeline[timeline.length - 1];
+        for (let i = timeline.length - 1; i >= 0; i--) {
+          if (timeline[i] === last) streak += (last === 'win' ? 1 : -1);
+          else break;
+        }
+      }
+
+      const topHero = heroStats[0]?.hero;
+
+      return {
+        streamerId,
+        streamerName: name,
+        profileImageUrl: img,
+        role,
+        fineRole,
+        wins,
+        losses,
+        totalGames,
+        winRate,
+        // 티어는 베이지안 보정 승률 기준으로 계산 (소규모 표본 극단값 완화)
+        tier: calcTier(calcBayesianWinRate(wins, totalGames), totalGames),
+        heroStats,
+        recentWinRate,
+        streak,
+        topHero,
+      };
     })
     .sort((a, b) => {
       const diff = TIER_ORDER.indexOf(a.tier) - TIER_ORDER.indexOf(b.tier);

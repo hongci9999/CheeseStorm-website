@@ -1,4 +1,5 @@
 import type { Match } from './types';
+import { normalizeMatchDur } from './match';
 
 // 중복 탐지 결과 타입
 export type DuplicateLevel =
@@ -60,9 +61,9 @@ export function findDuplicateMatch(
     // 멤버셋 불일치 → 스킵
     if (!isSameMemberSet(candidateMembers, existingMembers)) continue;
 
-    // 날짜 + 멤버셋 일치 구간
-    const candidateDur = candidate.dur?.trim() ?? '';
-    const existingDur  = m.dur?.trim() ?? '';
+    // 날짜 + 멤버셋 일치 구간 — 정규화 후 비교 (21:4 ↔ 21:04 통일)
+    const candidateDur = normalizeMatchDur(candidate.dur) ?? '';
+    const existingDur  = normalizeMatchDur(m.dur) ?? '';
 
     if (candidateDur && existingDur) {
       // 둘 다 dur 있음 → dur까지 일치하면 strong 중복

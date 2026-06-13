@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateStreamerForm, parseChzzkId, sortStreamersByName, matchName } from '../streamer';
+import { validateStreamerForm, parseChzzkId, sortStreamersByName, matchName, matchBattleTag } from '../streamer';
 import type { Streamer } from '../types';
 
 // 테스트용 최소 Streamer 픽스처 생성 헬퍼
@@ -154,5 +154,34 @@ describe('matchName', () => {
 
   it('빈 스트리머 목록이면 빈 문자열을 반환한다', () => {
     expect(matchName('Storm#3142', [])).toBe('');
+  });
+});
+
+describe('matchBattleTag', () => {
+  const streamers: Streamer[] = [
+    {
+      id: 's1', name: '폭풍칼날', chzzkId: 'storm1',
+      gameNames: ['Storm#3142'],
+      createdAt: new Date(),
+    },
+    {
+      id: 's5', name: '달빛소녀', chzzkId: 'moongl',
+      createdAt: new Date(),
+    },
+  ];
+
+  it('등록된 gameNames로만 매칭한다', () => {
+    expect(matchBattleTag('Storm#3142', streamers)).toBe('s1');
+    expect(matchBattleTag('storm#3142', streamers)).toBe('s1');
+  });
+
+  it('표시명·chzzkId로는 매칭하지 않는다', () => {
+    expect(matchBattleTag('폭풍칼날', streamers)).toBe('');
+    expect(matchBattleTag('moongl', streamers)).toBe('');
+  });
+
+  it('빈 입력이면 빈 문자열을 반환한다', () => {
+    expect(matchBattleTag('', streamers)).toBe('');
+    expect(matchBattleTag('   ', streamers)).toBe('');
   });
 });

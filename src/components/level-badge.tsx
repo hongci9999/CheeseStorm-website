@@ -13,6 +13,29 @@ const BASE: CSSProperties = {
   letterSpacing: '0.02em', whiteSpace: 'nowrap',
 };
 
+// 구간별 이산 색상 테이블 — min 이상이면 해당 색상 적용, 마지막 매칭값 사용.
+// 0~100: 50 단위 컬러(2단계), 100~600: 100 단위, 600~1000: 200 단위.
+const LEVEL_STOPS: { min: number; color: string }[] = [
+  { min: 0,   color: 'hsl(220, 25%, 55%)' }, // 슬레이트 블루
+  { min: 50,  color: 'hsl(190, 55%, 52%)' }, // 청록
+  { min: 100, color: 'hsl(48, 75%, 55%)' },  // 노랑
+  { min: 200, color: 'hsl(210, 72%, 62%)' }, // 파랑
+  { min: 300, color: 'hsl(130, 55%, 50%)' }, // 초록
+  { min: 400, color: 'hsl(270, 65%, 65%)' }, // 보라
+  { min: 500, color: 'hsl(320, 68%, 62%)' }, // 핑크
+  { min: 600, color: 'hsl(25, 82%, 58%)' },  // 주황
+  { min: 800, color: 'hsl(5, 82%, 58%)' },   // 빨강
+];
+
+function levelColor(level: number): string {
+  let color = LEVEL_STOPS[0].color;
+  for (const stop of LEVEL_STOPS) {
+    if (level >= stop.min) color = stop.color;
+    else break;
+  }
+  return color;
+}
+
 // 무지개 그라데이션 — 양 끝을 같은 금색으로 맞춰 이음매 없이 흐르게.
 // LEGENDARY_ALPHA(0~100)로 알약 배경 투명도를 한 곳에서 조절. 100=불투명, 낮을수록 투명.
 const LEGENDARY_ALPHA = 80;
@@ -44,13 +67,9 @@ export function LevelBadge({ level, style }: { level: number; style?: CSSPropert
     );
   }
 
-  // 0~1000: 티어표처럼 무채색 → 여러 색 → 빨강으로 스윕.
-  // 색조는 보라(240)에서 시작해 파랑·청록·초록·노랑·주황을 지나 빨강(0)으로,
-  // 채도는 0%(회색)에서 80%로 끌어올려 낮은 레벨은 무채색에 가깝게.
-  const t = Math.max(0, Math.min(level / LEGENDARY_THRESHOLD, 1));
-  const hue = Math.round(240 * (1 - t));
-  const sat = Math.round(Math.min(t * 1.3, 1) * 80);
-  const color = `hsl(${hue}, ${sat}%, 56%)`;
+  // 0~1000: 구간별 이산 색상.
+  // 0~100은 20 단위 무채색, 100~600은 100 단위 컬러, 600~1000은 200 단위 붉은 계열.
+  const color = levelColor(level);
   return (
     <span style={{
       ...BASE,

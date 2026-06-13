@@ -3,11 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getMatches, getStreamers, getCachedMatches, getCachedStreamers, deleteMatch, isFirebaseConfigured } from '@/lib/firestore';
-import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
-import { participants } from '@/lib/match';
+import { getMatches, getStreamers, getCachedMatches, getCachedStreamers, deleteMatch } from '@/lib/firestore';
+import { participants, displaySides } from '@/lib/match';
 import type { Match, Streamer } from '@/lib/types';
-import { MOCK_MATCHES, MOCK_STREAMERS } from '@/test/fixtures';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
 
 // ── 헬퍼 ─────────────────────────────────────────────────────
@@ -102,9 +100,9 @@ function MatchRow({
   onDelete: () => void;
   onEdit: () => void;
 }) {
-  const blueWon = match.winner === 'blue';
-  const blueHeroes = match.blueTeam.map(([, h]) => h);
-  const redHeroes  = match.redTeam.map(([, h]) => h);
+  const { left, right } = displaySides(match);
+  const leftHeroes = left.roster.map(([, h]) => h);
+  const rightHeroes = right.roster.map(([, h]) => h);
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', minHeight: 68,
@@ -123,12 +121,12 @@ function MatchRow({
       {/* 영웅 프로필 VS — 이긴 쪽은 초록 블러 글로우로 강조 (승 글자 없음),
           최종 레벨은 VS 양옆에 배치 (오른쪽 팀 레벨은 VS 오른쪽) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <HeroTeamStack heroes={blueHeroes} won={blueWon} glow />
-        {match.blueLevel != null && <LevelChip level={match.blueLevel} won={blueWon} />}
+        <HeroTeamStack heroes={leftHeroes} won={left.won} glow />
+        {left.level != null && <LevelChip level={left.level} won={left.won} />}
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
           color: 'var(--text-faint)', letterSpacing: '0.06em' }}>VS</span>
-        {match.redLevel != null && <LevelChip level={match.redLevel} won={!blueWon} />}
-        <HeroTeamStack heroes={redHeroes} won={!blueWon} glow />
+        {right.level != null && <LevelChip level={right.level} won={right.won} />}
+        <HeroTeamStack heroes={rightHeroes} won={right.won} glow />
       </div>
 
       {/* 맵 (전장) — VS 다음 */}
@@ -203,9 +201,7 @@ export default function MatchesPage() {
 
   useEffect(() => {
     async function load() {
-      const useMock = resolveUseMock(readDataSourceCookieClient(), isFirebaseConfigured);
-      const sl = useMock ? MOCK_STREAMERS : await getStreamers();
-      const ml = useMock ? MOCK_MATCHES : await getMatches();
+      const [sl, ml] = await Promise.all([getStreamers(), getMatches()]);
       setMatches(ml);
       setStreamers(sl);
       setLoading(false);

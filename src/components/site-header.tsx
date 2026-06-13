@@ -6,7 +6,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { resolveTheme, type Theme } from '@/lib/theme';
 import { isFirebaseConfigured } from '@/lib/firestore';
-import DataSourceToggle from '@/components/data-source-toggle';
 
 const STORAGE_KEY = 'cs-theme';
 
@@ -109,9 +108,6 @@ export default function SiteHeader() {
 
         {/* 스페이서 */}
         <div style={{ flex: 1 }} />
-
-        {/* 테스트용 데이터 소스 토글 (더미/DB) */}
-        <DataSourceToggle />
 
         {/* 오프라인 뱃지 */}
         {!isFirebaseConfigured && (

@@ -3,13 +3,19 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getStreamers, getMatches, getMatch, addMatch, updateMatch, appendGameName, isFirebaseConfigured } from '@/lib/firestore';
-import { validateMatchForm } from '@/lib/match';
-import { matchName } from '@/lib/streamer';
+import { getStreamers, getMatches, getMatch, addMatch, updateMatch, getOcrCorrections, upsertOcrCorrection, isFirebaseConfigured } from '@/lib/firestore';
+import { validateMatchForm, parseMatchDur } from '@/lib/match';
+import {
+  resolveStreamerId,
+  resolveHeroName,
+  shouldRecordStreamerCorrection,
+  shouldRecordHeroCorrection,
+  EMPTY_OCR_CORRECTIONS,
+  normalizeOcrKey,
+} from '@/lib/ocr-corrections';
 import { isKnownHero, KNOWN_HEROES } from '@/lib/heroes';
 import { findDuplicateMatch } from '@/lib/dedupe';
 import type { Streamer, PlayerMatchStat, Match } from '@/lib/types';
-import { MOCK_STREAMERS } from '@/test/fixtures';
 import type { ParsedMatch } from '@/app/api/parse-screenshot/route';
 
 // 히어로즈 오브 더 스톰 전장 15종 — 최근 출시일 순(최신 → 오래된 순)
@@ -33,14 +39,126 @@ const LABEL: React.CSSProperties = {
 
 interface TeamSlot {
   extractedName: string;
+  extractedHero: string;
   streamerId: string;
   hero: string;
   stat?: PlayerMatchStat;
 }
 
-const emptySlot = (): TeamSlot => ({ extractedName: '', streamerId: '', hero: '' });
+const emptySlot = (): TeamSlot => ({ extractedName: '', extractedHero: '', streamerId: '', hero: '' });
 
-function fmtK(n: number) { return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n); }
+const emptyStat = (): PlayerMatchStat => ({
+  kills: 0, assists: 0, deaths: 0, siegeDmg: 0, heroDmg: 0, healing: 0, selfHeal: 0, xp: 0,
+});
+
+// 세부 스탯 수동 입력 필드 정의 (입력 그리드 순서)
+const STAT_FIELDS: { key: keyof PlayerMatchStat; label: string }[] = [
+  { key: 'kills',    label: '킬' },
+  { key: 'assists',  label: '어시' },
+  { key: 'deaths',   label: '데스' },
+  { key: 'xp',       label: '경험치' },
+  { key: 'heroDmg',  label: '영웅딜' },
+  { key: 'siegeDmg', label: '공성딜' },
+  { key: 'healing',  label: '힐' },
+  { key: 'selfHeal', label: '자힐' },
+];
+
+function fmtStat(n: number) { return n.toLocaleString('ko-KR'); }
+
+// 세부 스탯 요약 — OCR 검토용, 라벨·값 인라인, k 축약 없음
+function StatChip({ label, value, accent }: { label: string; value: string; accent?: 'dmg' | 'heal' }) {
+  const color = accent === 'heal' ? 'var(--cheese-green)'
+    : accent === 'dmg' ? 'var(--cheese-blue)' : 'var(--text-high)';
+  return (
+    <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, width: '100%', minWidth: 0, paddingRight: 6 }}>
+      <span style={{
+        flexShrink: 0, fontSize: 9, fontFamily: 'var(--font-numeral)', letterSpacing: '0.04em',
+        color: 'var(--text-faint)',
+      }}>{label}</span>
+      <span style={{
+        flex: 1, textAlign: 'right',
+        fontFamily: 'var(--font-numeral)', fontSize: 11.5, fontWeight: 700,
+        color, lineHeight: 1, minWidth: 0,
+      }}>{value}</span>
+    </span>
+  );
+}
+
+// 그리드 열 구분 — 2·3열에 흐릿한 세로선
+function StatCell({ divider, children }: { divider?: boolean; children: React.ReactNode }) {
+  return (
+    <div style={{
+      borderLeft: divider ? '1px solid color-mix(in srgb, var(--border-line) 75%, var(--cheese-blue))' : undefined,
+      paddingLeft: divider ? 8 : 0,
+      minWidth: 0,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// 세부 스탯 3×2 그리드 — 열 단위 배치 + 세로 구분선
+function StatSummaryGrid({ stat }: { stat: PlayerMatchStat }) {
+  const cols = [
+    [
+      { label: 'K/A/D', value: `${stat.kills}/${stat.assists}/${stat.deaths}` as string },
+      { label: '힐', value: fmtStat(stat.healing), accent: 'heal' as const },
+    ],
+    [
+      { label: '영웅딜', value: fmtStat(stat.heroDmg), accent: 'dmg' as const },
+      { label: '자힐', value: fmtStat(stat.selfHeal), accent: 'heal' as const },
+    ],
+    [
+      { label: '공성', value: fmtStat(stat.siegeDmg), accent: 'dmg' as const },
+      { label: 'XP', value: fmtStat(stat.xp) },
+    ],
+  ];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', flex: 1, minWidth: 0 }}>
+      {cols.map((col, ci) => (
+        <StatCell key={ci} divider={ci !== 0}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {col.map(({ label, value, accent }) => (
+              <StatChip key={label} label={label} value={value} accent={accent} />
+            ))}
+          </div>
+        </StatCell>
+      ))}
+    </div>
+  );
+}
+
+function StatBar({
+  statOpen, onToggle, isActive, children,
+}: {
+  statOpen: boolean; onToggle: () => void; isActive: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 4,
+      padding: '3px 6px', borderRadius: 'var(--r-sm)',
+      background: 'color-mix(in srgb, var(--cheese-blue) 10%, var(--surface-raise))',
+      border: '1px solid color-mix(in srgb, var(--cheese-blue) 30%, var(--border-line))',
+    }}>
+      {children}
+      {isActive && (
+        <button
+          type="button"
+          onClick={onToggle}
+          style={{
+            flexShrink: 0, alignSelf: 'center', height: 18, padding: '0 5px', borderRadius: 2,
+            border: '1px solid var(--border-line)', background: 'transparent',
+            color: statOpen ? 'var(--cheese-green)' : 'var(--text-faint)',
+            fontFamily: 'var(--font-ui)', fontSize: 9.5, cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+        >
+          {statOpen ? '접기' : '수정'}
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ── 슬롯 컴포넌트 ─────────────────────────────────────────────
 function Slot({
@@ -53,6 +171,15 @@ function Slot({
   const isUnmatched = !!(slot.extractedName && !slot.streamerId);
   // 영웅명이 입력됐는데 알려진 영웅 목록에 없으면 경고 (OCR 오타 등)
   const heroUnknown = !!slot.hero.trim() && !isKnownHero(slot.hero);
+  // 세부 스탯 수동 입력 패널 펼침 상태
+  const [statOpen, setStatOpen] = useState(false);
+
+  // 스탯 단일 필드 갱신 — 없으면 0으로 초기화한 뒤 해당 값만 교체
+  const updateStat = (key: keyof PlayerMatchStat, raw: string) => {
+    const n = Math.max(0, Math.floor(Number(raw)));
+    const base = slot.stat ?? emptyStat();
+    onUpdate({ stat: { ...base, [key]: Number.isFinite(n) ? n : 0 } });
+  };
 
   return (
     <div style={{
@@ -104,34 +231,73 @@ function Slot({
           </span>
         )}
 
-        {/* 스탯 행 */}
+        {/* 세부 스탯 — 3×2 그리드 */}
         {slot.stat ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px',
-            fontFamily: 'var(--font-numeral)', fontSize: 10.5 }}>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
-              {slot.stat.kills}K/{slot.stat.assists}A/{slot.stat.deaths}D
-            </span>
-            <span style={{ color: 'var(--text-faint)' }}>·</span>
-            <span style={{ color: 'var(--text-faint)' }}>딜 {fmtK(slot.stat.heroDmg)}</span>
-            <span style={{ color: 'var(--text-faint)' }}>공성 {fmtK(slot.stat.siegeDmg)}</span>
-            {slot.stat.healing > 0 && (
-              <span style={{ color: 'var(--text-faint)' }}>힐 {fmtK(slot.stat.healing)}</span>
-            )}
-            {slot.stat.selfHeal > 0 && (
-              <span style={{ color: 'var(--text-faint)' }}>자힐 {fmtK(slot.stat.selfHeal)}</span>
-            )}
-            <span style={{ color: 'var(--text-faint)' }}>·</span>
-            <span style={{ color: 'var(--text-faint)' }}>XP {fmtK(slot.stat.xp)}</span>
-          </div>
+          <StatBar statOpen={statOpen} onToggle={() => setStatOpen(o => !o)} isActive={isActive}>
+            <StatSummaryGrid stat={slot.stat} />
+          </StatBar>
         ) : (
-          /* 스탯 플레이스홀더 칩 */
-          <div style={{ display: 'flex', gap: 4 }}>
-            {['K/A/D', '딜', '공성', 'XP'].map(lbl => (
-              <span key={lbl} style={{
-                padding: '1px 7px', borderRadius: 3, fontSize: 10,
-                fontFamily: 'var(--font-numeral)', color: 'var(--text-faint)',
-                border: '1px dashed var(--border-faint)',
-              }}>{lbl}</span>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '3px 6px', borderRadius: 'var(--r-sm)',
+            border: '1px dashed var(--border-faint)',
+          }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', flex: 1, minWidth: 0 }}>
+              {[
+                ['K/A/D', '힐'],
+                ['영웅딜', '자힐'],
+                ['공성', 'XP'],
+              ].map((col, ci) => (
+                <StatCell key={ci} divider={ci !== 0}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {col.map(lbl => (
+                      <span key={lbl} style={{
+                        padding: '0 5px', borderRadius: 2, fontSize: 9.5,
+                        fontFamily: 'var(--font-numeral)', color: 'var(--text-faint)',
+                        border: '1px dashed var(--border-faint)',
+                      }}>{lbl}</span>
+                    ))}
+                  </div>
+                </StatCell>
+              ))}
+            </div>
+            {isActive && (
+              <button
+                type="button"
+                onClick={() => setStatOpen(o => !o)}
+                style={{
+                  flexShrink: 0, height: 18, padding: '0 5px', borderRadius: 2,
+                  border: '1px solid var(--border-line)', background: 'transparent',
+                  color: statOpen ? 'var(--cheese-green)' : 'var(--text-faint)',
+                  fontFamily: 'var(--font-ui)', fontSize: 9.5, cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                {statOpen ? '접기' : '입력'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* 세부 스탯 수동 입력 그리드 */}
+        {isActive && statOpen && (
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4,
+            paddingTop: 4, borderTop: '1px dashed var(--border-faint)',
+          }}>
+            {STAT_FIELDS.map(({ key, label }) => (
+              <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{
+                  fontSize: 9, fontFamily: 'var(--font-numeral)', letterSpacing: '0.04em',
+                  color: 'var(--text-faint)', textTransform: 'uppercase',
+                }}>{label}</span>
+                <input
+                  inputMode="numeric"
+                  value={slot.stat ? String(slot.stat[key]) : ''}
+                  onChange={e => updateStat(key, e.target.value)}
+                  placeholder="0"
+                  style={{ ...INPUT, height: 26, fontSize: 11, padding: '0 8px 0 5px', textAlign: 'right' }}
+                />
+              </label>
             ))}
           </div>
         )}
@@ -147,6 +313,7 @@ export default function NewMatchPage() {
   const editId       = searchParams.get('edit');
   const fileRef    = useRef<HTMLInputElement>(null);
   const [streamers, setStreamers] = useState<Streamer[]>([]);
+  const [ocrCorrections, setOcrCorrections] = useState(EMPTY_OCR_CORRECTIONS);
   const [blueSlots, setBlueSlots] = useState<TeamSlot[]>(() => Array.from({ length: 5 }, emptySlot));
   const [redSlots,  setRedSlots]  = useState<TeamSlot[]>(() => Array.from({ length: 5 }, emptySlot));
   const [winner,   setWinner]   = useState<'blue' | 'red'>('blue');
@@ -164,12 +331,14 @@ export default function NewMatchPage() {
   const [parseError, setParseError] = useState('');
   const [dragOver,   setDragOver]   = useState(false);
   const [error,      setError]      = useState('');
+  // AI 분석 완료 후 확인 안내 배너 표시
+  const [showAiVerifyNotice, setShowAiVerifyNotice] = useState(false);
   // 중복 경고: level(strong/weak) + 기존 경기 참조. null이면 경고 없음
   const [dupWarning, setDupWarning] = useState<{ level: 'strong' | 'weak'; match: Match } | null>(null);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) { setStreamers(MOCK_STREAMERS); return; }
     getStreamers().then(setStreamers);
+    getOcrCorrections().then(setOcrCorrections);
   }, []);
 
   // 편집 모드: 기존 경기 데이터를 모든 폼 필드에 프리필
@@ -188,6 +357,7 @@ export default function NewMatchPage() {
       function toSlots(team: [string, string][], stats?: PlayerMatchStat[]): TeamSlot[] {
         const slots: TeamSlot[] = team.map(([streamerId, hero], i) => ({
           extractedName: '',
+          extractedHero: '',
           streamerId,
           hero,
           ...(stats?.[i] ? { stat: stats[i] } : {}),
@@ -203,6 +373,7 @@ export default function NewMatchPage() {
   async function processImage(file: File) {
     setParsing(true);
     setParseError('');
+    setShowAiVerifyNotice(false);
     try {
       const fd = new FormData();
       fd.append('image', file);
@@ -211,7 +382,10 @@ export default function NewMatchPage() {
       const parsed: ParsedMatch = await res.json();
 
       if (parsed.map)    setMap(parsed.map);
-      if (parsed.dur)    setDur(parsed.dur);
+      if (parsed.dur) {
+        const d = parseMatchDur(parsed.dur);
+        setDur(d.valid ? (d.value ?? '') : parsed.dur);
+      }
       if (parsed.winner) setWinner(parsed.winner);
       if (parsed.blueLevel != null) setBlueLevel(String(parsed.blueLevel));
       if (parsed.redLevel != null)  setRedLevel(String(parsed.redLevel));
@@ -219,9 +393,9 @@ export default function NewMatchPage() {
       function buildSlots(players: ParsedMatch['blueTeam']): TeamSlot[] {
         const slots: TeamSlot[] = players.map(p => ({
           extractedName: p.name,
-          streamerId:    matchName(p.name, streamers),
-          hero:          p.hero,
-          // OCR이 일부 수치를 누락하면 undefined가 되어 Firestore가 거부 → 0으로 보정
+          extractedHero: p.hero,
+          streamerId:    resolveStreamerId(p.name, streamers, ocrCorrections),
+          hero:          resolveHeroName(p.hero, ocrCorrections),
           stat: {
             kills: Number(p.kills) || 0, assists: Number(p.assists) || 0, deaths: Number(p.deaths) || 0,
             siegeDmg: Number(p.siegeDmg) || 0, heroDmg: Number(p.heroDmg) || 0,
@@ -233,6 +407,7 @@ export default function NewMatchPage() {
       }
       setBlueSlots(buildSlots(parsed.blueTeam));
       setRedSlots(buildSlots(parsed.redTeam));
+      setShowAiVerifyNotice(true);
     } catch {
       setParseError('서버 오류');
     } finally {
@@ -241,35 +416,35 @@ export default function NewMatchPage() {
     }
   }
 
+  function recordCorrection(kind: 'streamer' | 'hero', wrong: string, correct: string) {
+    const key = normalizeOcrKey(wrong);
+    if (!key) return;
+    const field = kind === 'streamer' ? 'streamers' : 'heroes';
+    setOcrCorrections(prev => ({
+      ...prev,
+      [field]: { ...prev[field], [key]: correct },
+    }));
+    if (isFirebaseConfigured) {
+      upsertOcrCorrection(kind, wrong, correct).catch(() => {
+        // 교정맵 저장 실패는 무시 — 경기 저장에 영향 없음
+      });
+    }
+  }
+
   function patchSlot(side: 'blue' | 'red', i: number, patch: Partial<TeamSlot>) {
     const slots = side === 'blue' ? blueSlots : redSlots;
     const current = slots[i];
 
-    // 자가학습: 미매칭 슬롯(extractedName 있고 기존 streamerId 없음)을 수동으로 스트리머에 지정하면
-    // 해당 추출 이름을 그 스트리머의 gameNames에 append → 다음 OCR부터 자동 매칭됨.
-    if (
-      patch.streamerId &&
-      !current.streamerId &&
-      current.extractedName &&
-      isFirebaseConfigured
-    ) {
-      // AI가 배틀태그 대신 스트리머 표시명을 반환한 경우 gameNames 오염 방지
-      const isDisplayName = streamers.some(
-        s => s.name.toLowerCase() === current.extractedName.toLowerCase()
-      );
-      if (!isDisplayName) {
-        appendGameName(patch.streamerId, current.extractedName).catch(() => {
-          // 자가학습 실패는 무시 — 경기 저장에 영향 없음
-        });
-        // 로컬 state도 즉시 반영 (다음 matchName 호출 시 바로 매칭되도록)
-        setStreamers(prev =>
-          prev.map(s =>
-            s.id === patch.streamerId
-              ? { ...s, gameNames: [...(s.gameNames ?? []), current.extractedName] }
-              : s,
-          ),
-        );
-      }
+    if (patch.streamerId && shouldRecordStreamerCorrection(
+      current.extractedName, patch.streamerId, streamers, ocrCorrections,
+    )) {
+      recordCorrection('streamer', current.extractedName, patch.streamerId);
+    }
+
+    if (patch.hero !== undefined && shouldRecordHeroCorrection(
+      current.extractedHero, patch.hero, ocrCorrections,
+    )) {
+      recordCorrection('hero', current.extractedHero, patch.hero);
     }
 
     (side === 'blue' ? setBlueSlots : setRedSlots)(
@@ -293,11 +468,15 @@ export default function NewMatchPage() {
     const v = validateMatchForm(blueTeam, redTeam);
     if (!v.valid) { setError(v.error); return; }
 
+    const durParsed = parseMatchDur(dur);
+    if (!durParsed.valid) { setError(durParsed.error); return; }
+    const normalizedDur = durParsed.value;
+
     // 편집 모드에서는 중복 체크 생략 (자기 자신이 중복으로 감지됨)
     if (!forceSubmit && !editId) {
       const existingMatches = isFirebaseConfigured ? await getMatches() : [];
       const dup = findDuplicateMatch(
-        { date: new Date(date), blueTeam, redTeam, dur: dur || undefined },
+        { date: new Date(date), blueTeam, redTeam, dur: normalizedDur },
         existingMatches,
       );
       if (dup.level !== 'none' && dup.match) {
@@ -318,7 +497,7 @@ export default function NewMatchPage() {
         winner,
         leftTeam: leftTeam || undefined,
         blueLevel: parseLevel(blueLevel), redLevel: parseLevel(redLevel),
-        map: map || undefined, dur: dur || undefined, note: note || undefined,
+        map: map || undefined, dur: normalizedDur, note: note || undefined,
       };
       if (editId) {
         await updateMatch(editId, data);
@@ -393,6 +572,23 @@ export default function NewMatchPage() {
           )}
         </div>
 
+        {/* AI 분석 완료 후 확인 안내 */}
+        {showAiVerifyNotice && (
+          <div style={{
+            borderRadius: 'var(--r-md)',
+            border: '1px solid color-mix(in srgb, var(--tier-b) 55%, var(--border-line))',
+            background: 'color-mix(in srgb, var(--tier-b) 12%, var(--surface-card))',
+            padding: 'var(--sp-3) var(--sp-4)',
+          }}>
+            <p style={{
+              margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
+              color: 'var(--tier-b)', fontWeight: 600, lineHeight: 1.5,
+            }}>
+              ⚠ AI 분석 결과는 부정확할 수 있습니다. 스트리머·영웅·스탯·승리팀을 반드시 직접 확인한 뒤 저장해주세요.
+            </p>
+          </div>
+        )}
+
         {/* ── 날짜 / 맵 / 경기시간 ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 'var(--sp-3)' }}>
           <div>
@@ -408,7 +604,8 @@ export default function NewMatchPage() {
           </div>
           <div>
             <label style={LABEL}>경기시간</label>
-            <input value={dur} onChange={e => setDur(e.target.value)} placeholder="21:04" style={INPUT} />
+            <input value={dur} onChange={e => setDur(e.target.value)} placeholder="21:04"
+              inputMode="numeric" pattern="\d*:\d*" title="M:SS 또는 MM:SS (예: 21:04)" style={INPUT} />
           </div>
         </div>
 

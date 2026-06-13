@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getStreamers, getMatches, getCachedStreamers, getCachedMatches, isFirebaseConfigured } from '@/lib/firestore';
-import { readDataSourceCookieClient, resolveUseMock } from '@/lib/data-source';
+import { getStreamers, getMatches, getCachedStreamers, getCachedMatches } from '@/lib/firestore';
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
 import { calcHeroTiers, groupHeroesByTier } from '@/lib/hero-tier';
 import type { HeroTierStat } from '@/lib/hero-tier';
 import type { PlayerStats, FineRole, Tier } from '@/lib/types';
-import { MOCK_STATS } from '@/test/fixtures';
-import { MOCK_MATCHES } from '@/test/fixtures/matches';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
 
@@ -45,7 +42,7 @@ function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg
 }
 
 // ── 플레이어 셀 ───────────────────────────────────────────────
-function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tier }) {
+function PlayerCell({ p, tier }: { p: PlayerStats; tier: Tier }) {
   const [hover, setHover] = useState(false);
 
   return (
@@ -71,17 +68,6 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
           ringWidth={tier !== 'unranked' ? 2 : 1.5}
           size={54}
         />
-        {rank <= 3 && tier === 'S' && (
-          <span style={{
-            position: 'absolute', top: -4, left: -4, width: 18, height: 18,
-            borderRadius: '50%', background: 'var(--mvp)', color: 'var(--bg-void)',
-            fontFamily: 'var(--font-numeral)', fontWeight: 800, fontSize: 11,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 0 2px var(--surface-card)',
-          }}>
-            {rank}
-          </span>
-        )}
       </div>
 
       {/* 이름 */}
@@ -92,6 +78,7 @@ function PlayerCell({ p, rank, tier }: { p: PlayerStats; rank: number; tier: Tie
       }}>
         {p.streamerName}
       </span>
+
     </Link>
   );
 }
@@ -123,7 +110,6 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
         <TierBadge tier={tier} size="lg" />
-        
       </div>
 
       {/* 아바타 플로우 */}
@@ -132,7 +118,7 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
         alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)',
       }}>
         {players.map((p, i) => (
-          <PlayerCell key={p.streamerId} p={p} rank={i + 1} tier={tier} />
+          <PlayerCell key={p.streamerId} p={p} tier={tier} />
         ))}
       </div>
     </div>
@@ -273,6 +259,14 @@ function HeroCell({ h, tier }: { h: HeroTierStat; tier: Tier }) {
         }}>
           {Math.round(h.winRate * 100)}%
         </span>
+        {((h as any).recentWinRate != null) && Math.abs(((h as any).recentWinRate) - h.winRate) > 0.1 && (
+          <span style={{
+            fontSize: 10, fontWeight: 700,
+            color: ((h as any).recentWinRate) > h.winRate ? 'var(--win)' : '#e74c3c',
+          }}>
+            {((h as any).recentWinRate) > h.winRate ? '↑' : '↓'}
+          </span>
+        )}
         <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--ink-600)' }} />
         <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--text-faint)' }}>
           {h.games}판
@@ -366,13 +360,10 @@ function PlaceholderTab({ label }: { label: string }) {
   );
 }
 
-// 스트리머·매치 → 티어리스트 표시 데이터. 데이터 없으면 더미로 폴백.
 function computeHome(streamers: Parameters<typeof calcPlayerStats>[0], matches: Parameters<typeof calcHeroTiers>[0]) {
-  const computed = calcPlayerStats(streamers, matches);
-  const hasData = computed.length > 0 && matches.length > 0;
   return {
-    stats: hasData ? computed : MOCK_STATS,
-    heroTiers: hasData ? calcHeroTiers(matches) : calcHeroTiers(MOCK_MATCHES),
+    stats: calcPlayerStats(streamers, matches),
+    heroTiers: calcHeroTiers(matches),
   };
 }
 
@@ -390,22 +381,10 @@ export default function HomePage() {
 
   useEffect(() => {
     async function load() {
-      const useMock = resolveUseMock(readDataSourceCookieClient(), isFirebaseConfigured);
-      if (useMock) {
-        setStats(MOCK_STATS);
-        setHeroTiers(calcHeroTiers(MOCK_MATCHES));
-        setLoading(false);
-        return;
-      }
-      try {
-        const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
-        const next = computeHome(streamers, matches);
-        setStats(next.stats);
-        setHeroTiers(next.heroTiers);
-      } catch {
-        setStats(MOCK_STATS);
-        setHeroTiers(calcHeroTiers(MOCK_MATCHES));
-      }
+      const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
+      const next = computeHome(streamers, matches);
+      setStats(next.stats);
+      setHeroTiers(next.heroTiers);
       setLoading(false);
     }
     load();
