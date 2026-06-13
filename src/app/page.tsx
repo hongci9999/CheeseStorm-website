@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { getStreamers, getMatches, getCachedStreamers, getCachedMatches } from '@/lib/firestore';
+import { getStreamers, getMatches, getCachedStreamers, getCachedMatches, getPrecomputedStats } from '@/lib/firestore';
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
 import { calcHeroTiers, groupHeroesByTier } from '@/lib/hero-tier';
 import type { HeroTierStat } from '@/lib/hero-tier';
@@ -401,6 +401,16 @@ export default function HomePage() {
 
   useEffect(() => {
     async function load() {
+      // stats/current가 있으면 1 read로 즉시 표시 (방문자 최적화)
+      const precomputed = await getPrecomputedStats();
+      if (precomputed) {
+        setStats(precomputed.playerStats);
+        setHeroTiers(precomputed.heroTiers);
+        setLoading(false);
+        // 큐레이션 탭은 자체적으로 데이터를 로드하므로 streamers/matches 불필요
+        return;
+      }
+      // 폴백: stats/current 없으면 전체 컬렉션 읽기 (초기 배포, 집계 전)
       const [streamers, matches] = await Promise.all([
         getStreamers({ fresh: true }),
         getMatches(),

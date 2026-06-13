@@ -16,6 +16,10 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 export { isFirebaseConfigured };
+import { calcPlayerStats } from './tier';
+import { calcHeroTiers } from './hero-tier';
+import type { PlayerStats } from './types';
+import type { HeroTierStat } from './hero-tier';
 import type { Match, OcrCorrections, CuratedTierLists, Streamer } from './types';
 import { emptyTierLists, listsFromPlacements, sanitizeLists, CURATED_TIER_ORDER } from './curated-tier';
 import { EMPTY_OCR_CORRECTIONS, normalizeOcrKey } from './ocr-corrections';
@@ -27,6 +31,7 @@ import { normalizeMatchDur } from './match';
 const isClient = typeof window !== 'undefined';
 let streamersCache: Streamer[] | null = null;
 let matchesCache: Match[] | null = null;
+let statsCache: { playerStats: PlayerStats[]; heroTiers: HeroTierStat[] } | null = null;
 
 // 페이지가 첫 렌더에서 동기적으로 읽어 스피너 없이 즉시 그리기 위한 getter. 없으면 null.
 export function getCachedStreamers(): Streamer[] | null {
@@ -64,6 +69,7 @@ export async function addStreamer(data: Omit<Streamer, 'id' | 'createdAt'>): Pro
     createdAt: Timestamp.now(),
   });
   streamersCache = null; // 변경됨 → 다음 조회 시 새로고침
+  void refreshStats();
   return ref.id;
 }
 
@@ -87,6 +93,7 @@ export async function deleteStreamer(id: string): Promise<void> {
   await deleteDoc(doc(db, 'streamers', id));
   await removeCuratedPlacement(id);
   streamersCache = null;
+  void refreshStats();
 }
 
 // 미매칭 슬롯 자가학습: 인게임 이름을 스트리머의 gameNames에 append.
@@ -219,6 +226,44 @@ export async function removeCuratedPlacement(streamerId: string): Promise<void> 
 export const getCuratedTiers = getCuratedTierLists;
 export const saveCuratedTiers = saveCuratedTierLists;
 
+// --- 사전집계 통계 ---
+
+// 사전집계된 티어 데이터 조회 — 없으면 null (폴백: 전체 컬렉션 읽기)
+export async function getPrecomputedStats(): Promise<{ playerStats: PlayerStats[]; heroTiers: HeroTierStat[] } | null> {
+  if (isClient && statsCache) return statsCache;
+  const d = await getDoc(doc(db, 'stats', 'current'));
+  if (!d.exists()) return null;
+  const data = d.data();
+  const result = {
+    playerStats: (data.playerStats ?? []) as PlayerStats[],
+    heroTiers: (data.heroTiers ?? []) as HeroTierStat[],
+  };
+  if (isClient) statsCache = result;
+  return result;
+}
+
+// 집계 결과를 stats/current에 저장 — 경기/스트리머 변경 시 호출. 실패해도 throws하지 않음
+export async function refreshStats(): Promise<void> {
+  try {
+    const [streamers, matches] = await Promise.all([
+      getStreamers({ fresh: true }),
+      getMatches(),
+    ]);
+    const playerStats = calcPlayerStats(streamers, matches);
+    const heroTiers = calcHeroTiers(matches);
+    // undefined 필드 제거 (Firestore는 undefined 값 거부)
+    const clean = (v: unknown) => JSON.parse(JSON.stringify(v));
+    await setDoc(doc(db, 'stats', 'current'), {
+      playerStats: clean(playerStats),
+      heroTiers: clean(heroTiers),
+      updatedAt: Timestamp.now(),
+    });
+    statsCache = null;
+  } catch (err) {
+    console.error('[refreshStats] 집계 실패:', err);
+  }
+}
+
 // --- Matches ---
 
 // Firestore는 중첩 배열([[id,hero],...])을 금지하므로 팀을 객체 배열({id,hero})로 직렬화.
@@ -283,12 +328,14 @@ export async function addMatch(data: Omit<Match, 'id' | 'createdAt'>): Promise<s
 
   const ref = await addDoc(collection(db, 'matches'), payload);
   matchesCache = null; // 변경됨 → 다음 조회 시 새로고침
+  void refreshStats();
   return ref.id;
 }
 
 export async function deleteMatch(id: string): Promise<void> {
   await deleteDoc(doc(db, 'matches', id));
   matchesCache = null;
+  void refreshStats();
 }
 
 export async function updateMatchDate(id: string, date: Date): Promise<void> {
@@ -308,4 +355,5 @@ export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdA
   }
   await updateDoc(doc(db, 'matches', id), payload);
   matchesCache = null;
+  void refreshStats();
 }
