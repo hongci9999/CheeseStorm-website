@@ -47,6 +47,11 @@ export interface Match {
 
 export type Tier = 'S' | 'A' | 'B' | 'C' | 'D' | 'unranked';
 
+// 큐레이션 티어 — S~D만 수동 배정, 미배정은 unranked로 표시
+export type CuratedTier = Exclude<Tier, 'unranked'>;
+export type CuratedPlacements = Record<string, CuratedTier>; // 레거시 마이그레이션용
+export type CuratedTierLists = Record<CuratedTier, string[]>; // 티어별 순서 있는 스트리머 ID 목록
+
 // AI OCR 오답 → 정답 매핑 (스트리머 ID / 영웅명). 키는 normalizeOcrKey 적용값.
 export interface OcrCorrections {
   streamers: Record<string, string>;

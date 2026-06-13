@@ -14,7 +14,8 @@ import {
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 export { isFirebaseConfigured };
-import type { Match, OcrCorrections, Streamer } from './types';
+import type { Match, OcrCorrections, CuratedTierLists, Streamer } from './types';
+import { emptyTierLists, listsFromPlacements, sanitizeLists, CURATED_TIER_ORDER } from './curated-tier';
 import { EMPTY_OCR_CORRECTIONS, normalizeOcrKey } from './ocr-corrections';
 import { normalizeMatchDur } from './match';
 
@@ -35,8 +36,9 @@ export function getCachedMatches(): Match[] | null {
 
 // --- Streamers ---
 
-export async function getStreamers(): Promise<Streamer[]> {
-  if (isClient && streamersCache) return streamersCache;
+export async function getStreamers(opts?: { fresh?: boolean }): Promise<Streamer[]> {
+  if (opts?.fresh) streamersCache = null;
+  if (isClient && streamersCache !== null) return streamersCache;
   const q = query(collection(db, 'streamers'), orderBy('name'));
   const snapshot = await getDocs(q);
   const list = snapshot.docs.map((d) => {
@@ -65,6 +67,7 @@ export async function addStreamer(data: Omit<Streamer, 'id' | 'createdAt'>): Pro
 
 export async function deleteStreamer(id: string): Promise<void> {
   await deleteDoc(doc(db, 'streamers', id));
+  await removeCuratedPlacement(id);
   streamersCache = null;
 }
 
@@ -139,6 +142,64 @@ export async function upsertOcrCorrection(
   }, { merge: true });
   ocrCorrectionsCache = null;
 }
+
+// --- 큐레이션 티어 (ADR-0005) — 티어별 순서 있는 스트리머 ID 목록 ---
+
+let curatedListsCache: CuratedTierLists | null = null;
+
+export async function getCuratedTierLists(
+  streamerIds?: Iterable<string>,
+): Promise<CuratedTierLists> {
+  if (isClient && curatedListsCache && !streamerIds) return curatedListsCache;
+
+  const d = await getDoc(doc(db, 'curatedTiers', 'current'));
+  if (!d.exists()) {
+    const empty = emptyTierLists();
+    if (isClient) curatedListsCache = empty;
+    return empty;
+  }
+
+  const data = d.data();
+  let lists: CuratedTierLists;
+  if (data.lists) {
+    lists = data.lists as CuratedTierLists;
+  } else if (data.placements) {
+    // 레거시 streamerId → tier 맵 마이그레이션
+    const ids = streamerIds ? [...streamerIds] : Object.keys(data.placements as object);
+    const streamers = ids.map((id) => ({ id, name: id }));
+    lists = listsFromPlacements(data.placements as Record<string, import('./types').CuratedTier>, streamers);
+  } else {
+    lists = emptyTierLists();
+  }
+
+  if (streamerIds) lists = sanitizeLists(lists, streamerIds);
+  if (isClient) curatedListsCache = lists;
+  return lists;
+}
+
+export async function saveCuratedTierLists(lists: CuratedTierLists): Promise<void> {
+  await setDoc(doc(db, 'curatedTiers', 'current'), {
+    lists,
+    updatedAt: Timestamp.now(),
+  }, { merge: true });
+  curatedListsCache = lists;
+}
+
+// 스트리머 삭제 시 모든 티어 목록에서 제거
+export async function removeCuratedPlacement(streamerId: string): Promise<void> {
+  const current = await getCuratedTierLists();
+  const has = CURATED_TIER_ORDER.some((t) => current[t].includes(streamerId));
+  if (!has) return;
+  const next = emptyTierLists();
+  for (const tier of CURATED_TIER_ORDER) {
+    next[tier] = current[tier].filter((id) => id !== streamerId);
+  }
+  await saveCuratedTierLists(next);
+}
+
+// 하위 호환 alias
+export const getCuratedTiers = getCuratedTierLists;
+export const saveCuratedTiers = saveCuratedTierLists;
 
 // --- Matches ---
 

@@ -9,6 +9,8 @@ import { mapWinRates } from '@/lib/map-stats';
 import { INSUFFICIENT_DATA } from '@/lib/sample';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { LevelBadge } from '@/components/level-badge';
+import { ProSticker } from '@/components/pro-sticker';
+import { isProStreamer } from '@/lib/pro-streamers';
 import { heroImageUrl } from '@/lib/hero-image';
 import type { HeroAggregate } from '@/lib/hero-stats';
 import type { SynergyStat, NemesisStat } from '@/lib/relations';
@@ -516,13 +518,16 @@ export default async function ProfilePage({
           padding: 'var(--sp-6)', textAlign: 'center',
         }}>
           {/* 아바타 104 — 육각형, 티어색 테두리 */}
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <HexAvatar
-              name={streamer.name}
-              imageUrl={streamer.profileImageUrl}
-              ring={tc}
-              size={104}
-            />
+          <div style={{ display: 'flex', justifyContent: 'center', overflow: 'visible' }}>
+            <div style={{ position: 'relative', display: 'inline-flex', overflow: 'visible' }}>
+              <HexAvatar
+                name={streamer.name}
+                imageUrl={streamer.profileImageUrl}
+                ring={tc}
+                size={104}
+              />
+              {isProStreamer(streamer) && <ProSticker />}
+            </div>
           </div>
 
           {/* 이름 + 티어 */}

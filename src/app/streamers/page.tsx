@@ -9,6 +9,8 @@ import { fetchChzzkProfiles, isProfileStale } from '@/lib/chzzk-profile';
 import type { Streamer } from '@/lib/types';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { LevelBadge } from '@/components/level-badge';
+import { ProSticker } from '@/components/pro-sticker';
+import { isProStreamer } from '@/lib/pro-streamers';
 
 const INPUT: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px',
@@ -91,33 +93,36 @@ function StreamerCard({
       )}
 
       {/* 육각형 프로필 — 사진 or 이니셜 + 하단 그라데이션 오버레이 */}
-      <HexAvatar
-        name={streamer.name}
-        imageUrl={streamer.profileImageUrl}
-        ring={ring}
-        ringWidth={6}
-        size={CARD_HEX}
-      >
-        {/* 하단 그라데이션 + 닉네임 + 계정레벨 */}
-        <span style={{
-          position: 'absolute', left: 0, right: 0, bottom: 0, height: '58%',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end',
-          gap: 2, paddingBottom: CARD_HEX * 0.11, pointerEvents: 'none',
-          background: 'linear-gradient(to top, color-mix(in srgb, var(--bg-void) 92%, transparent) 28%, transparent)',
-        }}>
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
+        <HexAvatar
+          name={streamer.name}
+          imageUrl={streamer.profileImageUrl}
+          ring={ring}
+          ringWidth={6}
+          size={CARD_HEX}
+        >
+          {/* 하단 그라데이션 + 닉네임 + 계정레벨 */}
           <span style={{
-            fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
-            color: 'var(--text-strong)', maxWidth: '78%',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            textShadow: 'var(--hex-label-shadow)',
+            position: 'absolute', left: 0, right: 0, bottom: 0, height: '58%',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end',
+            gap: 2, paddingBottom: CARD_HEX * 0.11, pointerEvents: 'none',
+            background: 'linear-gradient(to top, color-mix(in srgb, var(--bg-void) 92%, transparent) 28%, transparent)',
           }}>
-            {streamer.name}
+            <span style={{
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
+              color: 'var(--text-strong)', maxWidth: '78%',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              textShadow: 'var(--hex-label-shadow)',
+            }}>
+              {streamer.name}
+            </span>
+            {streamer.accountLevel != null && (
+              <LevelBadge level={streamer.accountLevel} />
+            )}
           </span>
-          {streamer.accountLevel != null && (
-            <LevelBadge level={streamer.accountLevel} />
-          )}
-        </span>
-      </HexAvatar>
+        </HexAvatar>
+        {isProStreamer(streamer) && <ProSticker avatarSize={CARD_HEX} />}
+      </div>
     </div>
   );
 }
