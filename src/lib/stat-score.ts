@@ -184,5 +184,5 @@ export function statAlpha(coverage: number): number {
 
 // stat score(0~1) → 가상 승률(0.3~0.7). 스탯이 티어를 과도하게 뒤집지 않도록 제한.
 export function statToWinRate(statScore: number): number {
-  return 0.3 + statScore * 0.4;
+  return 0.2 + statScore * 0.6;
 }

@@ -178,7 +178,64 @@ matches: { ..., season: '2025-s1' }
 
 ---
 
-## 6. 미구현 / 향후 과제
+## 6. 파라미터 튜닝 가이드
+
+수동으로 조정할 수 있는 파라미터와 위치.
+
+### `src/lib/stat-score.ts`
+
+#### 역할별 스탯 가중치 (`ROLE_STAT_WEIGHTS`)
+
+각 역할의 6개 가중치 합계는 **반드시 1.0** 이어야 함.
+
+```ts
+'암살자': { kda: 0.25, xpPerMin: 0.20, heroDmgPerMin: 0.40, siegeDmgPerMin: 0.05, healingPerMin: 0.00, selfHealPerMin: 0.10 }
+```
+
+- `heroDmgPerMin` ↑ → 딜러 고득점 유리
+- `healingPerMin` ↑ → 힐러 고득점 유리
+- `kda` ↑ → 죽지 않는 플레이 가중
+
+#### statWR 범위 (`statToWinRate`)
+
+```ts
+return 0.2 + statScore * 0.6;   // 스탯 최저→0.2, 최고→0.8
+```
+
+- 범위 넓힐수록 스탯이 티어를 더 많이 뒤집을 수 있음
+- `0.3 + score * 0.4` → 0.3~0.7 (보수적)
+- `0.2 + score * 0.6` → 0.2~0.8 (현재, 공격적)
+- `0.0 + score * 1.0` → 스탯만으로 결정 (극단적)
+
+#### α 가중치 (`statAlpha`)
+
+```ts
+if (coverage < 0.3) return 0.80;  // 스탯 부족 → 승률 위주
+if (coverage < 0.7) return 0.50;  // 중간 → 동등
+return 0.35;                       // 스탯 충분 → 스탯 비중 높임
+```
+
+- α 낮출수록 스탯 영향력 증가
+- α=0.5 고정 → 승률/스탯 항상 동등
+
+### `src/lib/tier.ts`
+
+#### 티어 기준선 (`TIER_THRESHOLDS`)
+
+```ts
+{ tier: 'S', min: 0.65 },
+{ tier: 'A', min: 0.55 },
+{ tier: 'B', min: 0.45 },
+{ tier: 'C', min: 0.35 },
+{ tier: 'D', min: 0    },
+```
+
+- S가 비어있으면 기준선을 0.65 → 0.60으로 낮추기
+- 전체적으로 너무 몰리면 기준선 간격 조정
+
+---
+
+## 7. 미구현 / 향후 과제
 
 - [x] `stat-score.ts` 구현 및 `calcPlayerStats` 연동
 - [ ] 치지직 OAuth 인증 + 권한 기반 큐레이션 편집 UI

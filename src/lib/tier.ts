@@ -145,7 +145,7 @@ export function groupStatsByTier(
 ): { tier: Tier | 'unranked'; players: PlayerStats[] }[] {
   return TIER_ORDER
     .map((tier) => ({ tier, players: stats.filter((s) => s.tier === tier) }))
-    .filter((g) => g.players.length > 0);
+    .filter((g) => g.tier === 'S' || g.players.length > 0); // S는 빈 칸도 항상 표시
 }
 
 
