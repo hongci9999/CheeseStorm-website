@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Saira, Saira_Condensed } from 'next/font/google';
 import SiteHeader from '@/components/site-header';
 import SiteFooter from '@/components/site-footer';
+import { AuthToast } from '@/components/auth-toast';
 import './globals.css';
 
 const saira = Saira({
@@ -74,6 +76,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <SiteFooter />
+        <Suspense>
+          <AuthToast />
+        </Suspense>
       </body>
     </html>
   );
