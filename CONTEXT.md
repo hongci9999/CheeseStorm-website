@@ -92,6 +92,38 @@ _Avoid_: 큐레이션 배치를 승률 티어에 역반영하는 것
 
 현재 미구현. 향후 Elo 방식 추가 예정 (ADR-0001 참조).
 
+## 인증 & 권한
+
+치지직 OAuth 2.0으로 로그인. 세션은 `jose` JWT → httpOnly 쿠키. NextAuth 미사용.
+
+### 역할 (Role)
+
+| 역할 | 부여 조건 |
+|---|---|
+| `viewer` | 누구나 (로그인 불필요) |
+| `streamer` | 로그인한 chzzkId가 `streamers` 컬렉션에 존재 |
+| `admin` | `ADMIN_CHZZK_ID` 환경변수에 등록된 chzzkId (콤마 구분 복수 가능) |
+
+`isStreamer = role === 'streamer' || role === 'admin'` — admin은 streamer 권한을 포함.
+
+### 기능별 권한
+
+| 기능 | viewer | streamer | admin |
+|---|:---:|:---:|:---:|
+| 전체 조회 | ✅ | ✅ | ✅ |
+| 경기 입력·수정·삭제 | ✗ | ✅ | ✅ |
+| 스트리머 추가·수정 | ✗ | ✅ | ✅ |
+| 큐레이션 티어 편집 | ✗ | ✅ | ✅ |
+| 스트리머 삭제 | ✗ | ✗ | ✅ |
+
+### 접근 제어 구현 방식
+
+- **미들웨어** (`middleware.ts`): `/matches/new` 경로를 viewer가 접근하면 `/?auth=required`로 리다이렉트
+- **UI 가드**: 나머지 쓰기 기능(삭제 버튼 등)은 `isStreamer`/`isAdmin` 조건으로 버튼 숨김
+- **안내 토스트**: `?auth=required` / `?auth=error` 쿼리 감지 시 하단 토스트 표시 후 URL 정리
+
+_Avoid_: Firestore 클라이언트 SDK 쓰기에 별도 서버 검증 없음 — 실질 보안은 Firestore 보안 규칙에 의존. Firebase Auth 미연동으로 규칙에서 JWT 검증 불가. 강화 시 쓰기를 API Route로 이전 필요.
+
 ## 페이지 구조
 
 - `/` — 티어리스트. 3탭: **스트리머 자동**(승률 파생) · **스트리머 큐레이션**(수동 배치) · **영웅**(영웅 승률). 스트리머 셀 클릭 시 개인 전적으로 이동
