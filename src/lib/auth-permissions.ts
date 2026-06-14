@@ -6,8 +6,13 @@ import { getStreamerByChzzkId } from './firestore';
 
 export type { AppRole };
 
+const adminIds = (process.env.ADMIN_CHZZK_ID ?? '')
+  .split(',')
+  .map((id) => id.trim())
+  .filter(Boolean);
+
 export async function resolveRole(chzzkId: string): Promise<AppRole> {
-  if (chzzkId === process.env.ADMIN_CHZZK_ID) return 'admin';
+  if (adminIds.includes(chzzkId)) return 'admin';
   const streamer = await getStreamerByChzzkId(chzzkId);
   return streamer ? 'streamer' : 'viewer';
 }
