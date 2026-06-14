@@ -94,6 +94,7 @@ npm run build
 ### 목적
 
 연 1회 HotS 대회를 대비한 내전 운영 도구.
+
 - 내전 전적 기록
 - 밸런스 있는 팀 선정 보조 (운영자가 수동으로 판단, 티어리스트는 참고 자료)
 - 스트리머 본인 전적 확인
@@ -106,6 +107,7 @@ npm run build
 ### 티어리스트 구조
 
 **자동 탭 (참고용)**
+
 - 내전은 팀이 의도적으로 밸런싱되므로 승률만으로 개인 실력 측정 불가
 - 전프로도 승률에 따라 C티어에 배정될 수 있는 구조적 한계 존재
 - 자동 티어는 실력 지표가 아닌 전적 요약으로만 사용
@@ -113,6 +115,7 @@ npm run build
 - 카드: 아바타 + 이름만 표시 (심플 유지)
 
 **큐레이션 탭 (실제 티어)**
+
 - 운영자 + 권한 있는 스트리머가 드래그앤드롭으로 직접 배정
 - 이것이 팀 편성 시 실제로 참고하는 지표
 
@@ -129,6 +132,7 @@ npm run build
 ### 프로필 페이지 핵심 정보
 
 팀 편성 관점에서 중요한 두 가지:
+
 1. 역할군별 플레이 분포 (어느 포지션 가능한지)
 2. 영웅 풀 (어떤 영웅을 주로 플레이하는지)
 
@@ -151,14 +155,16 @@ npm run build
 `finalScore = α × winRate + (1-α) × statWinRate` (α는 스탯 커버리지에 따라 0.35~0.80 동적 조정)  
 상세 공식·파라미터 튜닝: [`docs/tierlist-logic.md`](docs/tierlist-logic.md)
 
-| 티어 | 혼합 점수 | 최소 경기 |
-|------|---------|---------|
-| S | 65%+ | 5경기 |
-| A | 55~65% | 5경기 |
-| B | 45~55% | 5경기 |
-| C | 35~45% | 5경기 |
-| D | ~35% | 5경기 |
-| ? | — | 5경기 미만 |
+| 티어 | 혼합 점수 | 최소 경기  |
+| ---- | --------- | ---------- |
+| S    | 65%+      | 5경기      |
+| A    | 55~65%    | 5경기      |
+| B    | 45~55%    | 5경기      |
+| C    | 35~45%    | 5경기      |
+| D    | ~35%      | 5경기      |
+| ?    | —         | 5경기 미만 |
+
+변경 가능
 
 ## 코딩 컨벤션
 
@@ -185,6 +191,7 @@ Single-context: one CONTEXT.md + docs/adr/ at root. See `docs/agents/domain.md`.
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
 Rules:
+
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.

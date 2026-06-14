@@ -467,7 +467,7 @@ export default function GuidePage() {
               {
                 role: '운영자',
                 color: 'var(--tier-s)',
-                desc: '스트리머의 모든 권한에 더해 스트리머 삭제 권한을 가집니다. ADMIN_CHZZK_ID 환경 변수에 채널 ID를 등록해 지정하며, 콤마로 구분해 복수 지정이 가능합니다.',
+                desc: '스트리머의 모든 권한에 더해 스트리머 삭제 권한을 가집니다.',
               },
             ].map(({ role, color, desc }) => (
               <div
