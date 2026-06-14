@@ -195,7 +195,7 @@ export default function SiteHeader() {
               onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
               <Image src="/assets/chzzk-logo.png" alt="치지직" width={16} height={16} style={{ borderRadius: 4 }} />
-              치지직 로그인
+              스트리머 로그인
             </a>
           )
         )}

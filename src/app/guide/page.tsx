@@ -497,7 +497,7 @@ export default function GuidePage() {
             background: 'color-mix(in srgb, var(--cheese-green) 8%, var(--surface-card))',
           }}>
             <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 13.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              헤더 우측의 <strong style={{ color: 'var(--cheese-green)' }}>치지직 로그인</strong> 버튼을 누르면 치지직 OAuth 인증 페이지로 이동합니다.
+              헤더 우측의 <strong style={{ color: 'var(--cheese-green)' }}>스트리머 로그인</strong> 버튼을 누르면 치지직 OAuth 인증 페이지로 이동합니다.
               인증 완료 후 자동으로 돌아옵니다.
             </p>
           </div>
