@@ -352,7 +352,7 @@ function CurationTierNotice() {
         margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
         color: 'var(--cheese-green)', fontWeight: 600, lineHeight: 1.55,
       }}>
-        모든 이용자가 하나의 티어표를 공유합니다.
+        사이트에 등록된 스트리머가 수정하는 티어표 입니다. 모든 이용자가 하나의 티어표를 공유합니다.
       </p>
     </div>
   );

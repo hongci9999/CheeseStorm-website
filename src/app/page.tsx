@@ -294,14 +294,6 @@ function HeroCell({ h, tier, bp }: { h: HeroTierStat; tier: Tier; bp: Bp }) {
         }}>
           {Math.round(h.winRate * 100)}%
         </span>
-        {((h as any).recentWinRate != null) && Math.abs(((h as any).recentWinRate) - h.winRate) > 0.1 && (
-          <span style={{
-            fontSize: 10, fontWeight: 700,
-            color: ((h as any).recentWinRate) > h.winRate ? 'var(--win)' : '#e74c3c',
-          }}>
-            {((h as any).recentWinRate) > h.winRate ? '↑' : '↓'}
-          </span>
-        )}
         <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--ink-600)' }} />
         <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--text-faint)' }}>
           {h.games}판
