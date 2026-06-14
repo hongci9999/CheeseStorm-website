@@ -69,6 +69,14 @@
   to { transform: rotate(360deg); }
 }
 
+@keyframes skel-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none !important; }
+}
+
 @keyframes emblem-spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(-360deg); }

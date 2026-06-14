@@ -1,5 +1,6 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getStreamers, getMatches } from '@/lib/firestore';
+import { getStreamers, getMatchesCached } from '@/lib/firestore';
 import { getStreamerProfile, getRecentMatches, kdaFor } from '@/lib/profile';
 import { fineRoleAffinity } from '@/lib/heroes';
 import { aggregateHeroStats } from '@/lib/hero-stats';
@@ -10,42 +11,25 @@ import { LevelBadge } from '@/components/level-badge';
 import { ProSticker } from '@/components/pro-sticker';
 import { isProStreamer } from '@/lib/pro-streamers';
 import type { SynergyStat, NemesisStat } from '@/lib/relations';
-import type { Match, Tier } from '@/lib/types';
+import type { Match, Streamer } from '@/lib/types';
 import { ProfileTabs } from './profile-tabs';
 import type { SerializedMatch } from './profile-tabs';
 import { ProfileLayout } from './profile-layout';
 
-// --- 색상 상수 ---
-const TIER_COLOR: Record<Tier, string> = {
-  S: 'var(--tier-s)',
-  A: 'var(--tier-a)',
-  B: 'var(--tier-b)',
-  C: 'var(--tier-c)',
-  D: 'var(--tier-d)',
-  unranked: 'var(--text-faint)',
-};
-const TIER_LABEL: Record<Tier, string> = {
-  S: 'S', A: 'A', B: 'B', C: 'C', D: 'D', unranked: '?',
-};
 
-// --- 직렬화 헬퍼 (Date → ISO string, 서버→클라이언트 경계) ---
+// --- 직렬화 헬퍼 (Date → ISO string) ---
 function serializeMatch(m: Match): SerializedMatch {
   return { ...m, date: m.date.toISOString(), createdAt: m.createdAt.toISOString() };
 }
 
-// --- 사이드바용 컴포넌트 ---
-function SectionHead({ ko, en, right }: { ko: string; en: string; right?: React.ReactNode }) {
+// --- 공통 UI ---
+function SectionHead({ ko, en }: { ko: string; en: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 'var(--sp-4)' }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15,
-        color: 'var(--text-strong)', margin: 0 }}>
-        {ko}
-      </h2>
+        color: 'var(--text-strong)', margin: 0 }}>{ko}</h2>
       <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10.5, letterSpacing: '0.1em',
-        color: 'var(--text-faint)', textTransform: 'uppercase' }}>
-        {en}
-      </span>
-      {right && <span style={{ marginLeft: 'auto' }}>{right}</span>}
+        color: 'var(--text-faint)', textTransform: 'uppercase' }}>{en}</span>
     </div>
   );
 }
@@ -59,21 +43,6 @@ function WinRateBar({ wins, total, height = 8 }: { wins: number; total: number; 
   );
 }
 
-function TierBadge({ tier }: { tier: Tier }) {
-  const c = TIER_COLOR[tier];
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      width: 32, height: 32, borderRadius: 'var(--r-sm)',
-      background: `color-mix(in srgb, ${c} 15%, transparent)`,
-      border: `1px solid color-mix(in srgb, ${c} 40%, transparent)`,
-      fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16,
-      color: c, lineHeight: 1,
-    }}>
-      {TIER_LABEL[tier]}
-    </span>
-  );
-}
 
 function StatPill({ value, suffix, label, accent }: {
   value: string; suffix?: string; label: string; accent?: 'green' | 'blue';
@@ -93,118 +62,142 @@ function StatPill({ value, suffix, label, accent }: {
   );
 }
 
-// --- 메인 페이지 ---
-export default async function ProfilePage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
-}) {
-  const [{ id }, { tab }] = await Promise.all([params, searchParams]);
+// --- 스켈레톤 (Suspense 폴백) ---
+const SKEL: React.CSSProperties = {
+  borderRadius: 'var(--r-sm)',
+  background: 'var(--surface-raise)',
+  animation: 'skel-pulse 1.5s ease-in-out infinite',
+};
 
-  const initialTab: 'overview' | 'heroes' | 'matches' =
-    tab === 'heroes' ? 'heroes' : tab === 'matches' ? 'matches' : 'overview';
-
-  const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
-
-  const profile = getStreamerProfile(id, streamers, matches);
-  if (!profile) notFound();
-
-  const streamer  = streamers.find(s => s.id === id)!;
-  const kda       = kdaFor(matches, id);
-  const affinity  = fineRoleAffinity(matches, id);
-  const maxAff    = affinity.length > 0 ? affinity[0].games : 1;
-  const tc        = TIER_COLOR[profile.tier];
-
-  const heroAggregates = aggregateHeroStats(id, matches);
-  const { synergy, nemesis } = computeRelations(id, streamers, matches);
-  const maps = mapWinRates(id, matches);
-
-  const synergyRows = synergy.map((s: SynergyStat) => ({
-    streamerId: s.streamerId, streamerName: s.streamerName,
-    games: s.games, rate: s.winRate,
-  }));
-  const nemesisRows = nemesis.map((n: NemesisStat) => ({
-    streamerId: n.streamerId, streamerName: n.streamerName,
-    games: n.games, rate: n.lossRate,
-  }));
-  const streamerBasics = streamers.map(s => ({
-    id: s.id, name: s.name, profileImageUrl: s.profileImageUrl,
-  }));
-  const recent     = getRecentMatches(id, matches, 6);
-  const allMatches = getRecentMatches(id, matches, Infinity);
-
-  const sidebar = (
+function SidebarStatsSkeleton() {
+  return (
     <>
-      {/* 프로필 카드 (글로우) */}
       <div style={{
         background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
-        border: `1px solid ${profile.tier === 'S' ? 'var(--border-glow)' : 'var(--border-line)'}`,
-        boxShadow: profile.tier === 'S' ? 'var(--glow-green-soft)' : 'var(--shadow-sm)',
-        padding: 'var(--sp-6)', textAlign: 'center',
+        border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--sp-4)',
       }}>
-        {/* 아바타 104 — 육각형, 티어색 테두리 */}
-        <div style={{ display: 'flex', justifyContent: 'center', overflow: 'visible' }}>
-          <div style={{ position: 'relative', display: 'inline-flex', overflow: 'visible' }}>
-            <HexAvatar
-              name={streamer.name}
-              imageUrl={streamer.profileImageUrl}
-              ring={tc}
-              size={104}
-            />
-            {isProStreamer(streamer) && <ProSticker />}
-          </div>
+        <div style={{ ...SKEL, width: '35%', height: 32 }} />
+        <div style={{ display: 'flex', gap: 'var(--sp-6)' }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+              <div style={{ ...SKEL, width: 48, height: 20 }} />
+              <div style={{ ...SKEL, width: 36, height: 10 }} />
+            </div>
+          ))}
         </div>
+        <div style={{ ...SKEL, width: '100%', height: 8 }} />
+      </div>
+      <div style={{
+        background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+        border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+        display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)',
+      }}>
+        <div style={{ ...SKEL, width: '45%', height: 16 }} />
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+            <div style={{ ...SKEL, width: 46, height: 13 }} />
+            <div style={{ ...SKEL, flex: 1, height: 12 }} />
+            <div style={{ ...SKEL, width: 68, height: 13 }} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
 
-        {/* 이름 + 티어 */}
+function TabsSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-5)' }}>
+      <div style={{
+        background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+        border: '1px solid var(--border-line)', padding: 'var(--sp-2)',
+        display: 'flex', gap: 'var(--sp-2)',
+      }}>
+        {[68, 72, 96].map(w => <div key={w} style={{ ...SKEL, width: w, height: 36 }} />)}
+      </div>
+      <div style={{
+        background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+        border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+        display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)',
+      }}>
+        <div style={{ ...SKEL, width: '30%', height: 18 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--sp-4)' }}>
+          {[0, 1, 2].map(i => <div key={i} style={{ ...SKEL, height: 148 }} />)}
+        </div>
+        <div style={{ ...SKEL, width: '100%', height: 16 }} />
+        <div style={{ ...SKEL, width: '80%', height: 16 }} />
+      </div>
+    </div>
+  );
+}
+
+// --- 정적 카드: matches 없이 즉시 렌더 ---
+function StaticProfileCard({ streamer }: { streamer: Streamer }) {
+  return (
+    <div style={{
+      background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+      border: '1px solid var(--border-line)',
+      boxShadow: 'var(--shadow-sm)',
+      padding: 'var(--sp-4) var(--sp-6)', textAlign: 'center',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'center', overflow: 'visible' }}>
+        <div style={{ position: 'relative', display: 'inline-flex', overflow: 'visible' }}>
+          <HexAvatar
+            name={streamer.name}
+            imageUrl={streamer.profileImageUrl}
+            ring="var(--hots-purple)"
+            ringWidth={4}
+            size={124}
+          />
+          {isProStreamer(streamer) && <ProSticker />}
+        </div>
+      </div>
+      <div style={{ marginTop: 'var(--sp-4)' }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22,
+          color: 'var(--text-strong)', letterSpacing: '-0.01em' }}>
+          {streamer.name}
+        </span>
+      </div>
+      {streamer.gameNames && streamer.gameNames.length > 0 && (
+        <div style={{ marginTop: 4, fontFamily: 'var(--font-numeral)', fontSize: 12,
+          color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap' }}>
+          {streamer.gameNames.join(' · ')}
+        </div>
+      )}
+      {streamer.accountLevel != null && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 8, marginTop: 'var(--sp-4)' }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22,
-            color: 'var(--text-strong)', letterSpacing: '-0.01em' }}>
-            {streamer.name}
-          </span>
-          <TierBadge tier={profile.tier} />
+          gap: 5, marginTop: 8 }}>
+          <LevelBadge level={streamer.accountLevel} />
         </div>
+      )}
+    </div>
+  );
+}
 
-        {/* 배틀넷 닉네임 */}
-        {streamer.gameNames && streamer.gameNames.length > 0 && (
-          <div style={{ marginTop: 4, fontFamily: 'var(--font-numeral)', fontSize: 12,
-            color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap' }}>
-            {streamer.gameNames.join(' · ')}
-          </div>
-        )}
+// --- 동적 사이드바 stats: matches 로드 후 스트리밍 ---
+async function SidebarStatsSection({ streamerId, streamers }: { streamerId: string; streamers: Streamer[] }) {
+  const matches = await getMatchesCached();
+  const profile = getStreamerProfile(streamerId, streamers, matches);
+  if (!profile) return null;
 
-        {/* 계정레벨 */}
-        {streamer.accountLevel != null && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 5, marginTop: 8 }}>
-            <LevelBadge level={streamer.accountLevel} />
-          </div>
-        )}
+  const kda = kdaFor(matches, streamerId);
+  const affinity = fineRoleAffinity(matches, streamerId);
+  const maxAff = affinity.length > 0 ? affinity[0].games : 1;
 
-        {/* 메인 롤 */}
-        {affinity[0] && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginTop: 10 }}>
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--text-muted)' }}>
-              {affinity[0].role} 메인
-            </span>
-          </div>
-        )}
-
-        {/* 스탯 필 */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--sp-6)',
-          marginTop: 'var(--sp-5)', paddingTop: 'var(--sp-5)',
-          borderTop: '1px solid var(--border-faint)' }}>
-          <StatPill value={String(Math.round(profile.winRate * 100))} suffix="%"
-            label="WIN RATE" accent="green" />
+  return (
+    <>
+      {/* 스탯 카드 */}
+      <div style={{
+        background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+        border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--sp-6)' }}>
+          <StatPill value={String(Math.round(profile.winRate * 100))} suffix="%" label="WIN RATE" accent="green" />
           <StatPill value={kda != null ? kda.toFixed(2) : '—'} label="KDA" accent="blue" />
           <StatPill value={String(profile.totalGames)} label="총 경기" />
         </div>
-
-        {/* 승률 바 */}
         <div style={{ marginTop: 'var(--sp-5)' }}>
           <WinRateBar wins={profile.wins} total={profile.totalGames} />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
@@ -218,7 +211,7 @@ export default async function ProfilePage({
         </div>
       </div>
 
-      {/* 선호 포지션 */}
+      {/* 선호 포지션 카드 */}
       <div style={{
         background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
         border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
@@ -234,9 +227,7 @@ export default async function ProfilePage({
               {affinity.map((r, i) => (
                 <div key={r.role} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
                   <span style={{ width: 46, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
-                    color: i === 0 ? 'var(--text-high)' : 'var(--text-muted)' }}>
-                    {r.role}
-                  </span>
+                    color: i === 0 ? 'var(--text-high)' : 'var(--text-muted)' }}>{r.role}</span>
                   <div style={{ flex: 1, height: 12, borderRadius: 999,
                     background: 'var(--surface-raise)', overflow: 'hidden' }}>
                     <div style={{
@@ -267,22 +258,89 @@ export default async function ProfilePage({
       </div>
     </>
   );
+}
+
+// --- 동적 탭 섹션: matches 로드 후 스트리밍 (SidebarStatsSection과 getMatchesCached 공유) ---
+async function ProfileTabsServer({
+  streamerId, streamers, initialTab,
+}: {
+  streamerId: string;
+  streamers: Streamer[];
+  initialTab: 'overview' | 'heroes' | 'matches';
+}) {
+  const matches = await getMatchesCached();
+  const profile = getStreamerProfile(streamerId, streamers, matches);
+  if (!profile) return null;
+
+  const heroAggregates = aggregateHeroStats(streamerId, matches);
+  const { synergy, nemesis } = computeRelations(streamerId, streamers, matches);
+  const maps = mapWinRates(streamerId, matches);
+
+  const synergyRows = synergy.map((s: SynergyStat) => ({
+    streamerId: s.streamerId, streamerName: s.streamerName,
+    games: s.games, rate: s.winRate,
+  }));
+  const nemesisRows = nemesis.map((n: NemesisStat) => ({
+    streamerId: n.streamerId, streamerName: n.streamerName,
+    games: n.games, rate: n.lossRate,
+  }));
+  const streamerBasics = streamers.map(s => ({
+    id: s.id, name: s.name, profileImageUrl: s.profileImageUrl,
+  }));
+  const recent = getRecentMatches(streamerId, matches, 6);
+  const allMatches = getRecentMatches(streamerId, matches, Infinity);
+
+  return (
+    <ProfileTabs
+      streamerId={streamerId}
+      initialTab={initialTab}
+      heroStats={profile.heroStats}
+      heroAggregates={heroAggregates}
+      recentMatches={recent.map(serializeMatch)}
+      allMatches={allMatches.map(serializeMatch)}
+      synergy={synergyRows}
+      nemesis={nemesisRows}
+      maps={maps}
+      streamers={streamerBasics}
+    />
+  );
+}
+
+// --- 메인 페이지 ---
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const [{ id }, { tab }] = await Promise.all([params, searchParams]);
+
+  const initialTab: 'overview' | 'heroes' | 'matches' =
+    tab === 'heroes' ? 'heroes' : tab === 'matches' ? 'matches' : 'overview';
+
+  // 스트리머 목록 우선 로드 — 경기 데이터보다 빠르며 기본 프로필 카드에 충분
+  const streamers = await getStreamers();
+  const streamer = streamers.find(s => s.id === id);
+  if (!streamer) notFound();
+
+  const sidebar = (
+    <>
+      {/* 아바타·이름·배틀태그·레벨 — getStreamers()만으로 즉시 렌더 */}
+      <StaticProfileCard streamer={streamer} />
+      {/* 티어·승률·KDA·포지션 — getMatchesCached() 후 스트리밍 */}
+      <Suspense fallback={<SidebarStatsSkeleton />}>
+        <SidebarStatsSection streamerId={id} streamers={streamers} />
+      </Suspense>
+    </>
+  );
 
   return (
     <ProfileLayout sidebar={sidebar}>
-      {/* ── 메인 피드 (탭) — 클라이언트 컴포넌트로 즉시 전환 ── */}
-      <ProfileTabs
-        streamerId={id}
-        initialTab={initialTab}
-        heroStats={profile.heroStats}
-        heroAggregates={heroAggregates}
-        recentMatches={recent.map(serializeMatch)}
-        allMatches={allMatches.map(serializeMatch)}
-        synergy={synergyRows}
-        nemesis={nemesisRows}
-        maps={maps}
-        streamers={streamerBasics}
-      />
+      {/* 탭 전체 — getMatchesCached() 후 스트리밍 (SidebarStatsSection과 Firestore 호출 공유) */}
+      <Suspense fallback={<TabsSkeleton />}>
+        <ProfileTabsServer streamerId={id} streamers={streamers} initialTab={initialTab} />
+      </Suspense>
     </ProfileLayout>
   );
 }

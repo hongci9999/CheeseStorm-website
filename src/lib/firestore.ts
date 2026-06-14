@@ -14,6 +14,7 @@ import {
   setDoc,
   Timestamp,
 } from 'firebase/firestore';
+import { cache } from 'react';
 import { db, isFirebaseConfigured } from './firebase';
 export { isFirebaseConfigured };
 import { calcPlayerStats } from './tier';
@@ -357,3 +358,6 @@ export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdA
   matchesCache = null;
   void refreshStats();
 }
+
+// React 서버 렌더링 내 중복 Firestore 호출 제거 (Suspense 스트리밍 시 사이드바·탭이 동시에 호출해도 1회만 실행)
+export const getMatchesCached = cache(getMatches);

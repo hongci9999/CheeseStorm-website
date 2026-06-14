@@ -411,11 +411,14 @@ function MapWinRateList({ rows }: { rows: MapWinRate[] }) {
 }
 
 // ── 메인 클라이언트 컴포넌트 ──────────────────────────────────
+const MATCHES_PAGE = 10;
+
 export function ProfileTabs({
   streamerId, initialTab, heroStats, heroAggregates,
   recentMatches, allMatches, synergy, nemesis, maps, streamers,
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'heroes' | 'matches'>(initialTab);
+  const [visibleCount, setVisibleCount] = useState(MATCHES_PAGE);
 
   // URL의 ?tab= 파라미터를 탭 전환 시 동기화 (페이지 리로드 없이)
   useEffect(() => {
@@ -650,9 +653,36 @@ export function ProfileTabs({
           {allMatches.length === 0 ? (
             <EmptyHint>경기 기록이 없습니다.</EmptyHint>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {allMatches.map(m => <MatchRow key={m.id} m={m} streamerId={streamerId} />)}
-            </div>
+            <>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {allMatches.slice(0, visibleCount).map(m => (
+                  <MatchRow key={m.id} m={m} streamerId={streamerId} />
+                ))}
+              </div>
+              {visibleCount < allMatches.length && (
+                <button
+                  onClick={() => setVisibleCount(c => c + MATCHES_PAGE)}
+                  style={{
+                    marginTop: 'var(--sp-4)', width: '100%', height: 44,
+                    borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',
+                    background: 'transparent', cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
+                    color: 'var(--text-muted)',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'var(--surface-raise)';
+                    e.currentTarget.style.color = 'var(--text-high)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                  }}
+                >
+                  더 보기 ({allMatches.length - visibleCount}경기 남음)
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
