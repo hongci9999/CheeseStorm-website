@@ -5,6 +5,7 @@ import SiteHeader from '@/components/site-header';
 import SiteFooter from '@/components/site-footer';
 import BottomTabBar from '@/components/bottom-tab-bar';
 import { AuthToast } from '@/components/auth-toast';
+import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
 const saira = Saira({
@@ -81,6 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense>
           <AuthToast />
         </Suspense>
+        <Analytics />
       </body>
     </html>
   );
