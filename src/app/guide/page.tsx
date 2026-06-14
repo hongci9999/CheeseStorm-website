@@ -167,25 +167,6 @@ function RoleBadge({ role, color }: { role: string; color: string }) {
   );
 }
 
-function TierRow({ tier, color, desc }: { tier: string; color: string; desc: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', padding: '6px 0' }}>
-      <span style={{
-        width: 36, height: 36, flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        clipPath: 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)',
-        background: color,
-        fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: 16,
-        color: 'var(--ink-1000)',
-      }}>
-        {tier}
-      </span>
-      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13.5, color: 'var(--text-muted)' }}>
-        {desc}
-      </span>
-    </div>
-  );
-}
 
 export default function GuidePage() {
   return (
@@ -385,11 +366,94 @@ export default function GuidePage() {
 
           <ScreenshotFrame src="/screenshots/matches-new.png" alt="경기 입력 화면" />
 
+          {/* AI OCR 하이라이트 */}
+          <div style={{
+            marginTop: 'var(--sp-6)',
+            borderRadius: 'var(--r-lg)',
+            border: '1px solid color-mix(in srgb, var(--cheese-green) 35%, var(--border-line))',
+            background: 'color-mix(in srgb, var(--cheese-green) 6%, var(--surface-card))',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: 'var(--sp-4) var(--sp-5)',
+              borderBottom: '1px solid color-mix(in srgb, var(--cheese-green) 20%, var(--border-faint))',
+              display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
+            }}>
+              <span style={{ fontSize: 22 }}>🤖</span>
+              <div>
+                <p style={{
+                  margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800,
+                  fontSize: 15, color: 'var(--cheese-green)',
+                }}>
+                  AI가 결과창을 자동으로 분석합니다
+                </p>
+                <p style={{
+                  margin: 0, fontFamily: 'var(--font-ui)', fontSize: 12,
+                  color: 'var(--text-faint)', marginTop: 2,
+                }}>
+                  Powered by Gemini AI
+                </p>
+              </div>
+            </div>
+            <div style={{ padding: 'var(--sp-4) var(--sp-5)' }}>
+              <p style={{
+                margin: '0 0 var(--sp-3)', fontFamily: 'var(--font-ui)', fontSize: 13.5,
+                color: 'var(--text-muted)', lineHeight: 1.7,
+              }}>
+                게임 종료 후 <strong style={{ color: 'var(--text-high)' }}>통계 탭</strong>이 열린 결과 화면을 캡처해 업로드하면,
+                Gemini AI가 선수 이름·영웅·KDA·딜량·힐량·경험치 등 모든 스탯을 자동으로 읽어옵니다.
+                아래와 같은 화면이면 됩니다.
+              </p>
+              {/* 예시 스크린샷 */}
+              <div style={{
+                marginTop: 'var(--sp-3)',
+                borderRadius: 'var(--r-md)',
+                overflow: 'hidden',
+                border: '1px solid var(--border-line)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+                maxWidth: 560,
+              }}>
+                <div style={{
+                  background: 'var(--surface-raise)',
+                  borderBottom: '1px solid var(--border-line)',
+                  padding: '6px 10px',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <span style={{ fontSize: 11, fontFamily: 'var(--font-ui)', color: 'var(--text-faint)' }}>
+                    게임 종료 화면 → 통계 탭 캡처
+                  </span>
+                  <span style={{
+                    marginLeft: 'auto', fontSize: 10, fontFamily: 'var(--font-numeral)',
+                    letterSpacing: '0.08em', color: 'var(--cheese-green)',
+                    padding: '2px 8px', borderRadius: 'var(--r-pill)',
+                    border: '1px solid color-mix(in srgb, var(--cheese-green) 40%, transparent)',
+                    background: 'color-mix(in srgb, var(--cheese-green) 12%, transparent)',
+                  }}>
+                    AI 인식 가능
+                  </span>
+                </div>
+                <Image
+                  src="/screenshots/hots-result.png"
+                  alt="히오스 게임 결과 화면 예시 — 통계 탭"
+                  width={1456}
+                  height={816}
+                  style={{ display: 'block', width: '100%', height: 'auto' }}
+                />
+              </div>
+              <p style={{
+                margin: 'var(--sp-3) 0 0', fontFamily: 'var(--font-ui)', fontSize: 12.5,
+                color: 'var(--text-faint)', lineHeight: 1.6,
+              }}>
+                인식이 잘못된 항목은 업로드 후 직접 수정할 수 있습니다.
+              </p>
+            </div>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)', marginTop: 'var(--sp-6)' }}>
             <Step
               num={1}
               title="스크린샷 업로드 (OCR 자동 파싱)"
-              desc="게임 결과 화면 스크린샷을 업로드하면 Gemini AI가 선수 이름, 영웅, 스탯을 자동으로 인식합니다."
+              desc="게임 종료 후 통계 탭이 열린 결과 화면을 캡처해 업로드합니다. Gemini AI가 선수 이름, 영웅, 스탯을 자동으로 인식합니다."
             />
             <Step
               num={2}
