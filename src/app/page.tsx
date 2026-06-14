@@ -11,6 +11,7 @@ import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar
 import { CurationTierTab } from '@/components/curation-tier-tab';
 import { heroImageUrl } from '@/lib/hero-image';
 import type { Match, Streamer } from '@/lib/types';
+import { useBreakpoint, type Bp } from '@/hooks/use-breakpoint';
 
 // 상위 탭 종류
 type MainTab = 'auto' | 'curation' | 'hero';
@@ -44,8 +45,9 @@ function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg
 }
 
 // ── 플레이어 셀 ───────────────────────────────────────────────
-function PlayerCell({ p, tier }: { p: PlayerStats; tier: Tier }) {
+function PlayerCell({ p, tier, bp }: { p: PlayerStats; tier: Tier; bp: Bp }) {
   const [hover, setHover] = useState(false);
+  const isMobile = bp === 'mobile';
 
   return (
     <Link
@@ -54,7 +56,7 @@ function PlayerCell({ p, tier }: { p: PlayerStats; tier: Tier }) {
       onMouseLeave={() => setHover(false)}
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-        width: 78, padding: 'var(--sp-3) 4px', borderRadius: 'var(--r-md)', cursor: 'pointer',
+        width: isMobile ? 60 : 78, padding: 'var(--sp-3) 4px', borderRadius: 'var(--r-md)', cursor: 'pointer',
         background: hover ? 'var(--surface-raise)' : 'transparent',
         transform: hover ? 'translateY(-2px)' : 'none',
         transition: 'transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out)',
@@ -67,13 +69,13 @@ function PlayerCell({ p, tier }: { p: PlayerStats; tier: Tier }) {
         imageUrl={p.profileImageUrl}
         ring={`var(${TIER_COLOR_VAR[tier]})`}
         ringWidth={tier !== 'unranked' ? 2 : 1.5}
-        size={54}
+        size={isMobile ? 40 : 54}
       />
 
       {/* 이름 */}
       <span style={{
-        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12.5,
-        color: 'var(--text-high)', maxWidth: 74,
+        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: isMobile ? 11 : 12.5,
+        color: 'var(--text-high)', maxWidth: isMobile ? 56 : 74,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>
         {p.streamerName}
@@ -84,9 +86,10 @@ function PlayerCell({ p, tier }: { p: PlayerStats; tier: Tier }) {
 }
 
 // ── 티어 행 ───────────────────────────────────────────────────
-function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
+function TierRow({ tier, players, bp }: { tier: Tier; players: PlayerStats[]; bp: Bp }) {
   const isS = tier === 'S';
   const color = `var(${TIER_COLOR_VAR[tier]})`;
+  const isMobile = bp === 'mobile';
 
   return (
     <div style={{
@@ -103,13 +106,13 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
 
       {/* 티어 컬럼 */}
       <div style={{
-        width: 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
+        width: isMobile ? 72 : 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 10,
-        padding: 'var(--sp-3) var(--sp-4)',
+        padding: isMobile ? 'var(--sp-2) var(--sp-2)' : 'var(--sp-3) var(--sp-4)',
         borderRight: '1px solid var(--border-faint)',
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
-        <TierBadge tier={tier} size="lg" />
+        <TierBadge tier={tier} size={isMobile ? 'sm' : 'lg'} />
         {tier === 'unranked' && (
           <span style={{
             fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.1em',
@@ -123,11 +126,12 @@ function TierRow({ tier, players }: { tier: Tier; players: PlayerStats[] }) {
       {/* 아바타 플로우 — 큐레이션 티어행과 동일한 최소 높이 */}
       <div style={{
         flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
-        alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)',
+        alignContent: 'center',
+        padding: isMobile ? 'var(--sp-1) var(--sp-2)' : 'var(--sp-2) var(--sp-4)',
         minHeight: 88,
       }}>
-        {players.map((p, i) => (
-          <PlayerCell key={p.streamerId} p={p} tier={tier} />
+        {players.map((p) => (
+          <PlayerCell key={p.streamerId} p={p} tier={tier} bp={bp} />
         ))}
       </div>
     </div>
@@ -231,7 +235,7 @@ function AutoTierNotice() {
 }
 
 // ── 자동 티어리스트 탭 콘텐츠 ───────────────────────────────────
-function AutoTierTab({ stats }: { stats: PlayerStats[] }) {
+function AutoTierTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
   const [role, setRole] = useState('전체');
 
   const filtered = useMemo(
@@ -252,7 +256,7 @@ function AutoTierTab({ stats }: { stats: PlayerStats[] }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
           {groups.map(({ tier, players }) => (
-            <TierRow key={tier} tier={tier} players={players} />
+            <TierRow key={tier} tier={tier} players={players} bp={bp} />
           ))}
         </div>
       )}
@@ -266,18 +270,19 @@ function HeroTile({ name, ring, size = 54 }: { name: string; ring: string; size?
 }
 
 // ── 영웅 셀 ───────────────────────────────────────────────────
-function HeroCell({ h, tier }: { h: HeroTierStat; tier: Tier }) {
+function HeroCell({ h, tier, bp }: { h: HeroTierStat; tier: Tier; bp: Bp }) {
   const win = h.winRate >= 0.5;
   const ring = `var(${TIER_COLOR_VAR[tier]})`;
+  const isMobile = bp === 'mobile';
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-      width: 78, padding: 'var(--sp-3) 4px', borderRadius: 'var(--r-md)',
+      width: isMobile ? 60 : 78, padding: 'var(--sp-3) 4px', borderRadius: 'var(--r-md)',
     }}>
-      <HeroTile name={h.hero} ring={ring} size={54} />
+      <HeroTile name={h.hero} ring={ring} size={isMobile ? 40 : 54} />
       <span style={{
-        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12.5,
-        color: 'var(--text-high)', maxWidth: 74,
+        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: isMobile ? 11 : 12.5,
+        color: 'var(--text-high)', maxWidth: isMobile ? 56 : 74,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>
         {h.hero}
@@ -307,9 +312,10 @@ function HeroCell({ h, tier }: { h: HeroTierStat; tier: Tier }) {
 }
 
 // ── 영웅 티어 행 ──────────────────────────────────────────────
-function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
+function HeroTierRow({ tier, heroes, bp }: { tier: Tier; heroes: HeroTierStat[]; bp: Bp }) {
   const isS = tier === 'S';
   const color = `var(${TIER_COLOR_VAR[tier]})`;
+  const isMobile = bp === 'mobile';
 
   return (
     <div style={{
@@ -323,13 +329,13 @@ function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
         background: color, boxShadow: `0 0 14px ${color}`,
       }} />
       <div style={{
-        width: 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
+        width: isMobile ? 72 : 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 10,
-        padding: 'var(--sp-3) var(--sp-4)',
+        padding: isMobile ? 'var(--sp-2) var(--sp-2)' : 'var(--sp-3) var(--sp-4)',
         borderRight: '1px solid var(--border-faint)',
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
-        <TierBadge tier={tier} size="lg" />
+        <TierBadge tier={tier} size={isMobile ? 'sm' : 'lg'} />
         <span style={{
           fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.14em',
           color: 'var(--text-faint)',
@@ -339,10 +345,11 @@ function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
       </div>
       <div style={{
         flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
-        alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)',
+        alignContent: 'center',
+        padding: isMobile ? 'var(--sp-1) var(--sp-2)' : 'var(--sp-2) var(--sp-4)',
       }}>
         {heroes.map((h) => (
-          <HeroCell key={h.hero} h={h} tier={tier} />
+          <HeroCell key={h.hero} h={h} tier={tier} bp={bp} />
         ))}
       </div>
     </div>
@@ -350,7 +357,7 @@ function HeroTierRow({ tier, heroes }: { tier: Tier; heroes: HeroTierStat[] }) {
 }
 
 // ── 영웅 티어리스트 탭 콘텐츠 (#20) ────────────────────────────
-function HeroTierTab({ heroTiers }: { heroTiers: HeroTierStat[] }) {
+function HeroTierTab({ heroTiers, bp }: { heroTiers: HeroTierStat[]; bp: Bp }) {
   const [role, setRole] = useState('전체');
 
   const filtered = useMemo(
@@ -370,7 +377,7 @@ function HeroTierTab({ heroTiers }: { heroTiers: HeroTierStat[] }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
           {groups.map(({ tier, heroes }) => (
-            <HeroTierRow key={tier} tier={tier} heroes={heroes} />
+            <HeroTierRow key={tier} tier={tier} heroes={heroes} bp={bp} />
           ))}
         </div>
       )}
@@ -398,6 +405,7 @@ export default function HomePage() {
   const [matches, setMatches] = useState<Match[]>(cachedMatches ?? []);
   const [loading, setLoading] = useState(initial === null);
   const [mainTab, setMainTab] = useState<MainTab>('auto');
+  const bp = useBreakpoint();
 
   useEffect(() => {
     async function load() {
@@ -448,11 +456,11 @@ export default function HomePage() {
       <MainTabBar tab={mainTab} onTab={setMainTab} />
 
       {/* 탭 패널 */}
-      {mainTab === 'auto' && <AutoTierTab stats={stats} />}
+      {mainTab === 'auto' && <AutoTierTab stats={stats} bp={bp} />}
       {mainTab === 'curation' && (
         <CurationTierTab streamers={streamers} matches={matches} />
       )}
-      {mainTab === 'hero' && <HeroTierTab heroTiers={heroTiers} />}
+      {mainTab === 'hero' && <HeroTierTab heroTiers={heroTiers} bp={bp} />}
 
       <div style={{ height: 'var(--sp-20)' }} />
     </div>

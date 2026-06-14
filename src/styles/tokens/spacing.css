@@ -18,6 +18,10 @@
   --sp-16: 4rem;      /* 64 */
   --sp-20: 5rem;      /* 80 */
 
+  /* Responsive breakpoints — useBreakpoint() 훅과 동기화 (mobile<768, tablet 768-1023, desktop≥1024) */
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+
   /* Layout */
   --container:    1240px;
   --rail-w:       248px;   /* left nav rail            */

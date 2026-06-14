@@ -8,6 +8,8 @@ import { participants, displaySides } from '@/lib/match';
 import type { Match, Streamer } from '@/lib/types';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
 import { useAuth } from '@/hooks/use-auth';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
+import type { Bp } from '@/hooks/use-breakpoint';
 
 // ── 헬퍼 ─────────────────────────────────────────────────────
 function dateKey(d: Date): string {
@@ -40,15 +42,16 @@ function groupByDate(matches: Match[]): [string, Match[]][] {
 // 분류 탭(팀1 승/팀2 승)은 제거됨 — 검색창만 유지
 
 function MatchFilters({
-  search, onSearch, isStreamer,
+  search, onSearch, isStreamer, bp,
 }: {
-  search: string; onSearch: (v: string) => void; isStreamer: boolean;
+  search: string; onSearch: (v: string) => void; isStreamer: boolean; bp: Bp;
 }) {
+  const isMobile = bp === 'mobile';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
       marginBottom: 'var(--sp-5)', flexWrap: 'wrap' }}>
-      {/* 검색 */}
-      <div style={{ position: 'relative', width: 260 }}>
+      {/* 검색 — mobile: 100% width, desktop: 260px */}
+      <div style={{ position: 'relative', width: isMobile ? '100%' : 260 }}>
         <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
           color: 'var(--text-faint)', fontSize: 15, pointerEvents: 'none' }}>⌕</span>
         <input
@@ -64,8 +67,8 @@ function MatchFilters({
         />
       </div>
 
-      {/* 경기 입력 버튼 — streamer 이상만 */}
-      {isStreamer && (
+      {/* 경기 입력 버튼 — streamer 이상만, mobile에서는 숨김(읽기 전용) */}
+      {isStreamer && !isMobile && (
         <Link href="/matches/new" style={{
           marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6,
           height: 40, padding: '0 var(--sp-4)',
@@ -96,14 +99,17 @@ function LevelChip({ level, won }: { level: number; won: boolean }) {
 
 // ── MatchRow (카드 헤더) ───────────────────────────────────────
 function MatchRow({
-  match, open, idx, onClick, onDelete, onEdit, canEdit,
+  match, open, idx, onClick, onDelete, onEdit, canEdit, bp,
 }: {
   match: Match; open: boolean; idx: number;
   onClick: () => void;
   onDelete: () => void;
   onEdit: () => void;
   canEdit: boolean;
+  bp: Bp;
 }) {
+  const isMobile = bp === 'mobile';
+  const heroSize = isMobile ? 20 : 24;
   const { left, right } = displaySides(match);
   const leftHeroes = left.roster.map(([, h]) => h);
   const rightHeroes = right.roster.map(([, h]) => h);
@@ -116,21 +122,23 @@ function MatchRow({
     }}
       onClick={onClick}
     >
-      {/* 일련번호 */}
-      <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11.5, color: 'var(--text-faint)',
-        width: 32, letterSpacing: '0.04em', flexShrink: 0 }}>
-        #{idx}
-      </span>
+      {/* 일련번호 — mobile에서 숨김 */}
+      {!isMobile && (
+        <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11.5, color: 'var(--text-faint)',
+          width: 32, letterSpacing: '0.04em', flexShrink: 0 }}>
+          #{idx}
+        </span>
+      )}
 
       {/* 영웅 프로필 VS — 이긴 쪽은 초록 블러 글로우로 강조 (승 글자 없음),
           최종 레벨은 VS 양옆에 배치 (오른쪽 팀 레벨은 VS 오른쪽) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <HeroTeamStack heroes={leftHeroes} won={left.won} glow />
+        <HeroTeamStack heroes={leftHeroes} won={left.won} glow size={heroSize} />
         {left.level != null && <LevelChip level={left.level} won={left.won} />}
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16,
           color: 'var(--text-faint)', letterSpacing: '0.06em' }}>VS</span>
         {right.level != null && <LevelChip level={right.level} won={right.won} />}
-        <HeroTeamStack heroes={rightHeroes} won={right.won} glow />
+        <HeroTeamStack heroes={rightHeroes} won={right.won} glow size={heroSize} />
       </div>
 
       {/* 맵 (전장) — VS 다음 */}
@@ -155,8 +163,8 @@ function MatchRow({
         {relativeDate(match.date)}
       </span>
 
-      {/* 수정 · 삭제 — streamer 이상만 */}
-      {canEdit && <>
+      {/* 수정 · 삭제 — streamer 이상만, mobile에서는 항상 숨김 */}
+      {canEdit && !isMobile && <>
         <button
           type="button"
           onClick={e => { e.stopPropagation(); onEdit(); }}
@@ -194,6 +202,7 @@ function MatchRow({
 export default function MatchesPage() {
   const router = useRouter();
   const { isStreamer } = useAuth();
+  const bp = useBreakpoint();
   // 캐시가 있으면 첫 렌더부터 데이터로 그려 스피너·재요청을 건너뛴다 (SPA 재방문 시)
   const cachedMatches = getCachedMatches();
   const cachedStreamers = getCachedStreamers();
@@ -270,7 +279,7 @@ export default function MatchesPage() {
       </div>
 
       <MatchFilters
-        search={search} onSearch={setSearch} isStreamer={isStreamer}
+        search={search} onSearch={setSearch} isStreamer={isStreamer} bp={bp}
       />
 
       {filtered.length === 0 ? (
@@ -327,6 +336,7 @@ export default function MatchesPage() {
                         onDelete={() => handleDelete(m.id, numberById.get(m.id) ?? 0)}
                         onEdit={() => router.push(`/matches/new?edit=${m.id}`)}
                         canEdit={isStreamer}
+                        bp={bp}
                       />
                       {isOpen && <MatchDetail match={m} streamers={streamers} />}
                     </div>

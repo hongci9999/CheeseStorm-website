@@ -13,6 +13,7 @@ import type { SynergyStat, NemesisStat } from '@/lib/relations';
 import type { Match, Tier } from '@/lib/types';
 import { ProfileTabs } from './profile-tabs';
 import type { SerializedMatch } from './profile-tabs';
+import { ProfileLayout } from './profile-layout';
 
 // --- 색상 상수 ---
 const TIER_COLOR: Record<Tier, string> = {
@@ -134,146 +135,141 @@ export default async function ProfilePage({
   const recent     = getRecentMatches(id, matches, 6);
   const allMatches = getRecentMatches(id, matches, Infinity);
 
-  return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '310px 1fr', gap: 'var(--sp-5)',
-      alignItems: 'start',
-      padding: 'var(--sp-7) 0 var(--sp-20)',
-    }}>
-      {/* ── 사이드바 ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)',
-        position: 'sticky', top: 88 }}>
-
-        {/* 프로필 카드 (글로우) */}
-        <div style={{
-          background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
-          border: `1px solid ${profile.tier === 'S' ? 'var(--border-glow)' : 'var(--border-line)'}`,
-          boxShadow: profile.tier === 'S' ? 'var(--glow-green-soft)' : 'var(--shadow-sm)',
-          padding: 'var(--sp-6)', textAlign: 'center',
-        }}>
-          {/* 아바타 104 — 육각형, 티어색 테두리 */}
-          <div style={{ display: 'flex', justifyContent: 'center', overflow: 'visible' }}>
-            <div style={{ position: 'relative', display: 'inline-flex', overflow: 'visible' }}>
-              <HexAvatar
-                name={streamer.name}
-                imageUrl={streamer.profileImageUrl}
-                ring={tc}
-                size={104}
-              />
-              {isProStreamer(streamer) && <ProSticker />}
-            </div>
-          </div>
-
-          {/* 이름 + 티어 */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-            gap: 8, marginTop: 'var(--sp-4)' }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22,
-              color: 'var(--text-strong)', letterSpacing: '-0.01em' }}>
-              {streamer.name}
-            </span>
-            <TierBadge tier={profile.tier} />
-          </div>
-
-          {/* 배틀넷 닉네임 */}
-          {streamer.gameNames && streamer.gameNames.length > 0 && (
-            <div style={{ marginTop: 4, fontFamily: 'var(--font-numeral)', fontSize: 12,
-              color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap' }}>
-              {streamer.gameNames.join(' · ')}
-            </div>
-          )}
-
-          {/* 계정레벨 */}
-          {streamer.accountLevel != null && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-              gap: 5, marginTop: 8 }}>
-              <LevelBadge level={streamer.accountLevel} />
-            </div>
-          )}
-
-          {/* 메인 롤 */}
-          {affinity[0] && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginTop: 10 }}>
-              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--text-muted)' }}>
-                {affinity[0].role} 메인
-              </span>
-            </div>
-          )}
-
-          {/* 스탯 필 */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--sp-6)',
-            marginTop: 'var(--sp-5)', paddingTop: 'var(--sp-5)',
-            borderTop: '1px solid var(--border-faint)' }}>
-            <StatPill value={String(Math.round(profile.winRate * 100))} suffix="%"
-              label="WIN RATE" accent="green" />
-            <StatPill value={kda != null ? kda.toFixed(2) : '—'} label="KDA" accent="blue" />
-            <StatPill value={String(profile.totalGames)} label="총 경기" />
-          </div>
-
-          {/* 승률 바 */}
-          <div style={{ marginTop: 'var(--sp-5)' }}>
-            <WinRateBar wins={profile.wins} total={profile.totalGames} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-              <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--win)' }}>
-                {profile.wins}W
-              </span>
-              <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--loss)' }}>
-                {profile.losses}L
-              </span>
-            </div>
+  const sidebar = (
+    <>
+      {/* 프로필 카드 (글로우) */}
+      <div style={{
+        background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+        border: `1px solid ${profile.tier === 'S' ? 'var(--border-glow)' : 'var(--border-line)'}`,
+        boxShadow: profile.tier === 'S' ? 'var(--glow-green-soft)' : 'var(--shadow-sm)',
+        padding: 'var(--sp-6)', textAlign: 'center',
+      }}>
+        {/* 아바타 104 — 육각형, 티어색 테두리 */}
+        <div style={{ display: 'flex', justifyContent: 'center', overflow: 'visible' }}>
+          <div style={{ position: 'relative', display: 'inline-flex', overflow: 'visible' }}>
+            <HexAvatar
+              name={streamer.name}
+              imageUrl={streamer.profileImageUrl}
+              ring={tc}
+              size={104}
+            />
+            {isProStreamer(streamer) && <ProSticker />}
           </div>
         </div>
 
-        {/* 선호 포지션 */}
-        <div style={{
-          background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
-          border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
-        }}>
-          <SectionHead ko="선호 포지션" en="Role affinity" />
-          {affinity.length === 0 ? (
-            <p style={{ color: 'var(--text-faint)', fontSize: 12.5, fontFamily: 'var(--font-ui)', margin: 0 }}>
-              집계할 기록이 없습니다.
-            </p>
-          ) : (
-            <>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-                {affinity.map((r, i) => (
-                  <div key={r.role} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
-                    <span style={{ width: 46, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
-                      color: i === 0 ? 'var(--text-high)' : 'var(--text-muted)' }}>
-                      {r.role}
-                    </span>
-                    <div style={{ flex: 1, height: 12, borderRadius: 999,
-                      background: 'var(--surface-raise)', overflow: 'hidden' }}>
-                      <div style={{
-                        width: `${(r.games / maxAff) * 100}%`, height: '100%', borderRadius: 999,
-                        background: i === 0 ? 'var(--cheese-green)' : 'var(--text-muted)',
-                        boxShadow: i === 0 ? 'var(--glow-green-soft)' : 'none',
-                      }} />
-                    </div>
-                    <span style={{ width: 70, textAlign: 'right', fontFamily: 'var(--font-numeral)',
-                      fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {r.pct}% · {r.games}판
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 'var(--sp-4)', paddingTop: 'var(--sp-3)',
-                borderTop: '1px solid var(--border-faint)',
-                display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%',
-                  background: 'var(--cheese-green)', boxShadow: '0 0 8px var(--cheese-green)' }} />
-                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--text-muted)' }}>
-                  주 포지션 <b style={{ color: 'var(--text-high)' }}>{affinity[0].role}</b>
-                  {' '}· 전체 판수의 {affinity[0].pct}%
-                </span>
-              </div>
-            </>
-          )}
+        {/* 이름 + 티어 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: 8, marginTop: 'var(--sp-4)' }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22,
+            color: 'var(--text-strong)', letterSpacing: '-0.01em' }}>
+            {streamer.name}
+          </span>
+          <TierBadge tier={profile.tier} />
+        </div>
+
+        {/* 배틀넷 닉네임 */}
+        {streamer.gameNames && streamer.gameNames.length > 0 && (
+          <div style={{ marginTop: 4, fontFamily: 'var(--font-numeral)', fontSize: 12,
+            color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap' }}>
+            {streamer.gameNames.join(' · ')}
+          </div>
+        )}
+
+        {/* 계정레벨 */}
+        {streamer.accountLevel != null && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+            gap: 5, marginTop: 8 }}>
+            <LevelBadge level={streamer.accountLevel} />
+          </div>
+        )}
+
+        {/* 메인 롤 */}
+        {affinity[0] && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginTop: 10 }}>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 12.5, color: 'var(--text-muted)' }}>
+              {affinity[0].role} 메인
+            </span>
+          </div>
+        )}
+
+        {/* 스탯 필 */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--sp-6)',
+          marginTop: 'var(--sp-5)', paddingTop: 'var(--sp-5)',
+          borderTop: '1px solid var(--border-faint)' }}>
+          <StatPill value={String(Math.round(profile.winRate * 100))} suffix="%"
+            label="WIN RATE" accent="green" />
+          <StatPill value={kda != null ? kda.toFixed(2) : '—'} label="KDA" accent="blue" />
+          <StatPill value={String(profile.totalGames)} label="총 경기" />
+        </div>
+
+        {/* 승률 바 */}
+        <div style={{ marginTop: 'var(--sp-5)' }}>
+          <WinRateBar wins={profile.wins} total={profile.totalGames} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--win)' }}>
+              {profile.wins}W
+            </span>
+            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11, color: 'var(--loss)' }}>
+              {profile.losses}L
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* 선호 포지션 */}
+      <div style={{
+        background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
+        border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
+      }}>
+        <SectionHead ko="선호 포지션" en="Role affinity" />
+        {affinity.length === 0 ? (
+          <p style={{ color: 'var(--text-faint)', fontSize: 12.5, fontFamily: 'var(--font-ui)', margin: 0 }}>
+            집계할 기록이 없습니다.
+          </p>
+        ) : (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+              {affinity.map((r, i) => (
+                <div key={r.role} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+                  <span style={{ width: 46, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
+                    color: i === 0 ? 'var(--text-high)' : 'var(--text-muted)' }}>
+                    {r.role}
+                  </span>
+                  <div style={{ flex: 1, height: 12, borderRadius: 999,
+                    background: 'var(--surface-raise)', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${(r.games / maxAff) * 100}%`, height: '100%', borderRadius: 999,
+                      background: i === 0 ? 'var(--cheese-green)' : 'var(--text-muted)',
+                      boxShadow: i === 0 ? 'var(--glow-green-soft)' : 'none',
+                    }} />
+                  </div>
+                  <span style={{ width: 70, textAlign: 'right', fontFamily: 'var(--font-numeral)',
+                    fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {r.pct}% · {r.games}판
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 'var(--sp-4)', paddingTop: 'var(--sp-3)',
+              borderTop: '1px solid var(--border-faint)',
+              display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%',
+                background: 'var(--cheese-green)', boxShadow: '0 0 8px var(--cheese-green)' }} />
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--text-muted)' }}>
+                주 포지션 <b style={{ color: 'var(--text-high)' }}>{affinity[0].role}</b>
+                {' '}· 전체 판수의 {affinity[0].pct}%
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <ProfileLayout sidebar={sidebar}>
       {/* ── 메인 피드 (탭) — 클라이언트 컴포넌트로 즉시 전환 ── */}
       <ProfileTabs
         streamerId={id}
@@ -287,6 +283,6 @@ export default async function ProfilePage({
         maps={maps}
         streamers={streamerBasics}
       />
-    </div>
+    </ProfileLayout>
   );
 }

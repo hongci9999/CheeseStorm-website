@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { Saira, Saira_Condensed } from 'next/font/google';
 import SiteHeader from '@/components/site-header';
 import SiteFooter from '@/components/site-footer';
+import BottomTabBar from '@/components/bottom-tab-bar';
 import { AuthToast } from '@/components/auth-toast';
 import './globals.css';
 
@@ -70,11 +71,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           style={{
             maxWidth: 'var(--container)',
             margin: '0 auto',
-            padding: 'var(--sp-3) var(--sp-6)',
+            padding: 'var(--sp-3) var(--sp-6) calc(var(--sp-3) + 60px)',
           }}
         >
           {children}
         </main>
+        <BottomTabBar />
         <SiteFooter />
         <Suspense>
           <AuthToast />

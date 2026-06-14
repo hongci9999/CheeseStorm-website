@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { resolveTheme, type Theme } from '@/lib/theme';
 import { isFirebaseConfigured } from '@/lib/firestore';
 import { useAuth, invalidateAuthCache } from '@/hooks/use-auth';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 
 const STORAGE_KEY = 'cs-theme';
 
@@ -22,6 +23,8 @@ export default function SiteHeader() {
   const [theme, setTheme] = useState<Theme>('dark');
   const [mounted, setMounted] = useState(false);
   const { session, loading, isStreamer } = useAuth();
+  const bp = useBreakpoint();
+  const isMobile = bp !== 'desktop';
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -52,7 +55,7 @@ export default function SiteHeader() {
   return (
     <header style={{
       position: 'sticky', top: 0, zIndex: 'var(--z-header)',
-      height: 68,
+      height: isMobile ? 52 : 68,
       background: 'color-mix(in srgb, var(--bg-app) 80%, transparent)',
       backdropFilter: 'blur(var(--blur-glass))',
       WebkitBackdropFilter: 'blur(var(--blur-glass))',
@@ -77,8 +80,8 @@ export default function SiteHeader() {
           </span>
         </Link>
 
-        {/* 네비 탭 */}
-        <nav style={{ display: 'flex', gap: 2 }}>
+        {/* 네비 탭 — desktop만 */}
+        {!isMobile && <nav style={{ display: 'flex', gap: 2 }}>
           {NAV_ITEMS.map(({ href, ko, en }) => {
             const active = isActive(href);
             return (
@@ -113,13 +116,13 @@ export default function SiteHeader() {
               </Link>
             );
           })}
-        </nav>
+        </nav>}
 
         {/* 스페이서 */}
         <div style={{ flex: 1 }} />
 
-        {/* 오프라인 뱃지 */}
-        {!isFirebaseConfigured && (
+        {/* 오프라인 뱃지 — desktop만 */}
+        {!isMobile && !isFirebaseConfigured && (
           <span style={{
             display: 'inline-flex', alignItems: 'center', height: 22,
             padding: '0 8px', borderRadius: 'var(--r-xs)',
@@ -133,8 +136,8 @@ export default function SiteHeader() {
           </span>
         )}
 
-        {/* + 경기 입력 CTA — streamer 이상만 */}
-        {isStreamer && (
+        {/* + 경기 입력 CTA — desktop + streamer만 */}
+        {!isMobile && isStreamer && (
           <Link href="/matches/new" style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             height: 'var(--control-sm)', padding: '0 var(--sp-4)',
@@ -150,8 +153,8 @@ export default function SiteHeader() {
           </Link>
         )}
 
-        {/* 로그인 / 유저 정보 */}
-        {!loading && (
+        {/* 로그인 / 유저 정보 — desktop만 */}
+        {!isMobile && !loading && (
           session ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
               <span style={{
