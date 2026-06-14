@@ -41,22 +41,48 @@ function StreamerCard({
   canDelete: boolean;
 }) {
   const [hover, setHover] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   // 테두리는 히오스 보라로 통일 (티어색 미사용)
   const ring = 'var(--hots-purple)';
 
+  function handleClick() {
+    setNavigating(true);
+    onOpen();
+  }
+
+  const scale = pressed ? 'scale(0.95)' : hover ? 'translateY(-3px)' : 'none';
+
   return (
     <div
-      onClick={onOpen}
+      onClick={handleClick}
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+      onMouseLeave={() => { setHover(false); setPressed(false); }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
       style={{
         position: 'relative', cursor: 'pointer',
         display: 'flex', justifyContent: 'center',
-        transform: hover ? 'translateY(-3px)' : 'none',
-        transition: 'transform var(--dur-fast) var(--ease-out)',
-        filter: hover ? `drop-shadow(0 0 12px color-mix(in srgb, ${ring} 45%, transparent))` : 'none',
+        transform: scale,
+        transition: pressed ? 'transform 0.08s ease' : 'transform var(--dur-fast) var(--ease-out)',
+        filter: hover && !pressed ? `drop-shadow(0 0 12px color-mix(in srgb, ${ring} 45%, transparent))` : 'none',
       }}
     >
+      {/* 이동 중 로딩 오버레이 */}
+      {navigating && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 3,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%',
+            border: `3px solid color-mix(in srgb, ${ring} 30%, transparent)`,
+            borderTopColor: ring,
+            animation: 'spin 0.7s linear infinite',
+          }} />
+        </div>
+      )}
       {/* 삭제 + 배틀태그 편집 — hover 시 + 권한 있을 때만 */}
       {hover && (canEdit || canDelete) && (
         <>
