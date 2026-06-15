@@ -37,14 +37,14 @@ import type { FineRole } from './types';
 
 // Firestore 중첩 배열 금지 → 팀을 객체 배열로 저장 (matches 컬렉션과 동일한 방식)
 type PackedPick = { id: string; hero: string };
-type StoredMatch = Omit<Match, 'date' | 'createdAt' | 'blueTeam' | 'redTeam'> & {
+export type StoredMatch = Omit<Match, 'date' | 'createdAt' | 'blueTeam' | 'redTeam'> & {
   date: string;
   createdAt: string;
   blueTeam: PackedPick[];
   redTeam: PackedPick[];
 };
 
-function packMatchForStore(m: Match): StoredMatch {
+export function packMatchForStore(m: Match): StoredMatch {
   const { date, createdAt, blueTeam, redTeam, ...rest } = m;
   return {
     ...rest,

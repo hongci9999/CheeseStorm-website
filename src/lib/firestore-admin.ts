@@ -3,11 +3,16 @@
 
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from './firebase-admin';
-import { getStreamers, getMatches, getCuratedTierLists } from './firestore';
+import { getStreamers, getMatches, getCuratedTierLists, packMatchForStore, type PrecomputedProfile } from './firestore';
 import { calcPlayerStats } from './tier';
 import { calcHeroTiers } from './hero-tier';
 import { normalizeOcrKey } from './ocr-corrections';
 import { emptyTierLists, CURATED_TIER_ORDER } from './curated-tier';
+import { kdaFor, getRecentMatches } from './profile';
+import { fineRoleAffinity } from './heroes';
+import { aggregateHeroStats } from './hero-stats';
+import { computeRelations } from './relations';
+import { mapWinRates } from './map-stats';
 import type { Match, Streamer, CuratedTierLists } from './types';
 
 type StoredPick = { id: string; hero: string };
@@ -20,10 +25,32 @@ async function refreshStats(): Promise<void> {
     const [streamers, matches] = await Promise.all([getStreamers({ fresh: true }), getMatches()]);
     const playerStats = calcPlayerStats(streamers, matches);
     const heroTiers = calcHeroTiers(matches);
+
+    const profiles: Record<string, PrecomputedProfile> = {};
+    for (const s of streamers) {
+      const played = getRecentMatches(s.id, matches, Infinity);
+      const { synergy, nemesis } = computeRelations(s.id, streamers, matches);
+      profiles[s.id] = {
+        streamerName: s.name,
+        ...(s.profileImageUrl !== undefined ? { profileImageUrl: s.profileImageUrl } : {}),
+        ...(s.gameNames !== undefined ? { gameNames: s.gameNames } : {}),
+        ...(s.accountLevel !== undefined ? { accountLevel: s.accountLevel } : {}),
+        kda: kdaFor(matches, s.id),
+        roleAffinity: fineRoleAffinity(matches, s.id),
+        heroAggregates: aggregateHeroStats(s.id, matches),
+        synergy,
+        nemesis,
+        maps: mapWinRates(s.id, matches),
+        recentMatches: played.slice(0, 6).map(packMatchForStore),
+        allMatches: played.map(packMatchForStore),
+      };
+    }
+
     const clean = (v: unknown) => JSON.parse(JSON.stringify(v));
     await getAdminDb().collection('stats').doc('current').set({
       playerStats: clean(playerStats),
       heroTiers: clean(heroTiers),
+      profiles: clean(profiles),
       updatedAt: FieldValue.serverTimestamp(),
     });
   } catch (err) {
@@ -70,10 +97,12 @@ export async function updateStreamerInfo(id: string, name: string, accountLevel?
   const payload: Record<string, unknown> = { name };
   if (accountLevel !== undefined) payload.accountLevel = accountLevel;
   await getAdminDb().collection('streamers').doc(id).update(payload);
+  void refreshStats();
 }
 
 export async function updateStreamerGameNames(id: string, gameNames: string[]): Promise<void> {
   await getAdminDb().collection('streamers').doc(id).update({ gameNames });
+  void refreshStats();
 }
 
 export async function updateStreamerProfileImage(id: string, imageUrl: string): Promise<void> {
@@ -81,6 +110,7 @@ export async function updateStreamerProfileImage(id: string, imageUrl: string): 
     profileImageUrl: imageUrl,
     profileImageUpdatedAt: FieldValue.serverTimestamp(),
   });
+  void refreshStats();
 }
 
 // ── Matches ──────────────────────────────────────────────────
@@ -120,6 +150,7 @@ export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdA
 
 export async function updateMatchDate(id: string, date: Date): Promise<void> {
   await getAdminDb().collection('matches').doc(id).update({ date });
+  void refreshStats();
 }
 
 // ── Curated tiers already exported above ────────────────────
