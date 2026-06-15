@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: '알 수 없는 action' }, { status: 400 });
   }
 
-  revalidateTag('streamers');
+  revalidateTag('streamers', 'max');
   return NextResponse.json({ ok: true });
 }
 
@@ -41,6 +41,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   await deleteStreamer(id);
-  revalidateTag('streamers');
+  revalidateTag('streamers', 'max');
   return NextResponse.json({ ok: true });
 }

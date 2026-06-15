@@ -10,6 +10,6 @@ export async function POST(req: NextRequest) {
 
   const data = (await req.json()) as Omit<Streamer, 'id' | 'createdAt'>;
   const id = await addStreamer(data);
-  revalidateTag('streamers');
+  revalidateTag('streamers', 'max');
   return NextResponse.json({ id });
 }

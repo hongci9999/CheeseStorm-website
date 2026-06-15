@@ -10,6 +10,6 @@ export async function POST(req: NextRequest) {
 
   const data = (await req.json()) as Omit<Match, 'id' | 'createdAt'> & { date: string };
   const id = await addMatch({ ...data, date: new Date(data.date) });
-  revalidateTag('matches');
+  revalidateTag('matches', 'max');
   return NextResponse.json({ id });
 }
