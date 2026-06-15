@@ -3,7 +3,7 @@
 
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from './firebase-admin';
-import { getStreamers, getMatches, getCuratedTierLists, packMatchForStore, type PrecomputedProfile } from './firestore';
+import { getCuratedTierLists, packMatchForStore, type PrecomputedProfile } from './firestore';
 import { calcPlayerStats } from './tier';
 import { calcHeroTiers } from './hero-tier';
 import { normalizeOcrKey } from './ocr-corrections';
@@ -19,10 +19,38 @@ type StoredPick = { id: string; hero: string };
 function packTeam(team: [string, string][]): StoredPick[] {
   return team.map(([id, hero]) => ({ id, hero }));
 }
+function unpackTeam(raw: unknown): [string, string][] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((p) =>
+    Array.isArray(p)
+      ? ([p[0], p[1]] as [string, string])
+      : ([(p as StoredPick).id, (p as StoredPick).hero] as [string, string]),
+  );
+}
+
+// Admin SDK로 reads — 보안 규칙 우회, refreshStats() 전용
+async function getStreamersAdmin(): Promise<Streamer[]> {
+  const snap = await getAdminDb().collection('streamers').get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Streamer));
+}
+async function getMatchesAdmin(): Promise<Match[]> {
+  const snap = await getAdminDb().collection('matches').orderBy('date', 'desc').get();
+  return snap.docs.map(d => {
+    const data = d.data();
+    return {
+      ...data,
+      id: d.id,
+      blueTeam: unpackTeam(data.blueTeam),
+      redTeam: unpackTeam(data.redTeam),
+      date: data.date.toDate(),
+      createdAt: data.createdAt.toDate(),
+    } as Match;
+  });
+}
 
 async function refreshStats(): Promise<void> {
   try {
-    const [streamers, matches] = await Promise.all([getStreamers({ fresh: true }), getMatches()]);
+    const [streamers, matches] = await Promise.all([getStreamersAdmin(), getMatchesAdmin()]);
     const playerStats = calcPlayerStats(streamers, matches);
     const heroTiers = calcHeroTiers(matches);
 
