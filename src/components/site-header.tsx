@@ -8,6 +8,36 @@ import { resolveTheme, type Theme } from '@/lib/theme';
 import { isFirebaseConfigured } from '@/lib/firestore';
 import { useAuth, invalidateAuthCache } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import type { AppRole } from '@/lib/session';
+
+function NicknameDisplay({ name, role }: { name: string; role: AppRole }) {
+  const base: React.CSSProperties = {
+    fontFamily: 'var(--font-ui)', fontSize: 13,
+    maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  };
+
+  if (role === 'admin') {
+    return (
+      <span title="운영자" style={{ ...base, color: '#facc15' }}>
+        {name}
+      </span>
+    );
+  }
+
+  if (role === 'streamer') {
+    return (
+      <span title="스트리머" style={{ ...base, color: 'var(--accent)' }}>
+        {name}
+      </span>
+    );
+  }
+
+  return (
+    <span style={{ ...base, color: 'var(--text-muted)', maxWidth: 100 }}>
+      {name}
+    </span>
+  );
+}
 
 const STORAGE_KEY = 'cs-theme';
 
@@ -157,13 +187,7 @@ export default function SiteHeader() {
         {!isMobile && !loading && (
           session ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-              <span style={{
-                fontFamily: 'var(--font-ui)', fontSize: 13,
-                color: 'var(--text-muted)', maxWidth: 100,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {session.name}
-              </span>
+              <NicknameDisplay name={session.name} role={session.role} />
               <button
                 onClick={handleLogout}
                 style={{

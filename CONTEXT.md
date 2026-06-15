@@ -121,8 +121,9 @@ _Avoid_: 큐레이션 배치를 승률 티어에 역반영하는 것
 - **미들웨어** (`middleware.ts`): `/matches/new` 경로를 viewer가 접근하면 `/?auth=required`로 리다이렉트
 - **UI 가드**: 나머지 쓰기 기능(삭제 버튼 등)은 `isStreamer`/`isAdmin` 조건으로 버튼 숨김
 - **안내 토스트**: `?auth=required` / `?auth=error` 쿼리 감지 시 하단 토스트 표시 후 URL 정리
-
-_Avoid_: Firestore 클라이언트 SDK 쓰기에 별도 서버 검증 없음 — 실질 보안은 Firestore 보안 규칙에 의존. Firebase Auth 미연동으로 규칙에서 JWT 검증 불가. 강화 시 쓰기를 API Route로 이전 필요.
+- **서버 쓰기 보안** (ADR-0011): 모든 Firestore 쓰기는 Next.js API 라우트(`src/app/api/`)를 통해서만 수행됨. 각 라우트는 `requireRole(minRole)`로 JWT를 검증하고 Firebase Admin SDK로 Firestore에 씀. Firestore 규칙은 `allow write: if false`로 직접 쓰기를 전면 차단.
+  - 클라이언트는 `src/lib/api-client.ts`의 fetch 래퍼를 통해 API 라우트를 호출
+  - Admin SDK 초기화: `src/lib/firebase-admin.ts` (서비스 계정 환경변수: `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`)
 
 ## 페이지 구조
 

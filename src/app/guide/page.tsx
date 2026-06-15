@@ -554,8 +554,53 @@ export default function GuidePage() {
             ))}
           </div>
 
+          {/* 닉네임 시각 효과 미리보기 */}
           <div style={{
-            marginTop: 'var(--sp-5)', padding: 'var(--sp-3) var(--sp-4)',
+            marginTop: 'var(--sp-5)',
+            borderRadius: 'var(--r-md)',
+            border: '1px solid var(--border-faint)',
+            background: 'var(--surface-raise)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: 'var(--sp-2) var(--sp-4)',
+              borderBottom: '1px solid var(--border-faint)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10.5, letterSpacing: '0.1em', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                헤더 닉네임 미리보기
+              </span>
+            </div>
+            <div style={{ padding: 'var(--sp-3) var(--sp-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+              {/* 일반 시청자 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>시청자</span>
+                <span style={{
+                  fontFamily: 'var(--font-ui)', fontSize: 13,
+                  color: 'var(--text-muted)', fontWeight: 400,
+                }}>
+                  홍길동
+                </span>
+              </div>
+              {/* 스트리머 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>스트리머</span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--accent)' }}>
+                  홍길동
+                </span>
+              </div>
+              {/* 운영자 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>운영자</span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: '#facc15' }}>
+                  홍길동
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            marginTop: 'var(--sp-4)', padding: 'var(--sp-3) var(--sp-4)',
             borderRadius: 'var(--r-md)',
             border: '1px solid color-mix(in srgb, var(--cheese-green) 30%, var(--border-line))',
             background: 'color-mix(in srgb, var(--cheese-green) 8%, var(--surface-card))',

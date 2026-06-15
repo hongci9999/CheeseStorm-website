@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStreamers, getCachedStreamers, addStreamer, deleteStreamer, updateStreamerGameNames, updateStreamerInfo, updateStreamerProfileImage, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getCachedStreamers, isFirebaseConfigured } from '@/lib/firestore';
+import { addStreamer, deleteStreamer, updateStreamerGameNames, updateStreamerInfo, updateStreamerProfileImage } from '@/lib/api-client';
 import { validateStreamerForm, parseChzzkId, sortStreamersByName } from '@/lib/streamer';
 import { fetchChzzkProfiles, isProfileStale } from '@/lib/chzzk-profile';
 import type { Streamer } from '@/lib/types';

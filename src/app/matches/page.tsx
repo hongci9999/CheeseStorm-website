@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { getMatches, getStreamers, getCachedMatches, getCachedStreamers, deleteMatch } from '@/lib/firestore';
+import { getMatches, getStreamers, getCachedMatches, getCachedStreamers } from '@/lib/firestore';
+import { deleteMatch } from '@/lib/api-client';
 import { participants, displaySides } from '@/lib/match';
 import type { Match, Streamer } from '@/lib/types';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';

@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
-import { getCuratedTierLists, getStreamers, getMatches, saveCuratedTierLists } from '@/lib/firestore';
+import { getCuratedTierLists, getStreamers, getMatches } from '@/lib/firestore';
+import { saveCuratedTierLists } from '@/lib/api-client';
 import {
   buildCuratedPlayers,
   emptyTierLists,
@@ -372,6 +373,7 @@ export function CurationTierTab({
   const [lists, setLists] = useState<CuratedTierLists>(emptyTierLists());
   const [role, setRole] = useState('전체');
   const [editMode, setEditMode] = useState(false);
+  const [snapshot, setSnapshot] = useState<CuratedTierLists | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -419,17 +421,37 @@ export function CurationTierTab({
     return () => { cancelled = true; };
   }, [editMode]);
 
-  const persist = useCallback(async (next: CuratedTierLists) => {
+  const persist = useCallback(async (next: CuratedTierLists): Promise<boolean> => {
     setSaving(true);
     setError('');
     try {
       await saveCuratedTierLists(next);
+      return true;
     } catch {
       setError('저장에 실패했습니다. 다시 시도해주세요.');
+      return false;
     } finally {
       setSaving(false);
     }
   }, []);
+
+  async function handleToggleEdit() {
+    if (editMode) {
+      const ok = await persist(lists);
+      if (ok) {
+        setEditMode(false);
+        setSnapshot(null);
+      }
+    } else {
+      setSnapshot(lists);
+      setEditMode(true);
+    }
+  }
+
+  function handleRevert() {
+    if (!snapshot) return;
+    setLists(snapshot);
+  }
 
   const handleDrop = useCallback((tier: Tier, insertBeforeId?: string) => {
     if (!draggingId) return;
@@ -438,8 +460,7 @@ export function CurationTierTab({
     setDraggingId(null);
     setDragOverTier(null);
     setDragOverCellId(null);
-    void persist(next);
-  }, [draggingId, lists, persist]);
+  }, [draggingId, lists]);
 
   const players = useMemo(
     () => buildCuratedPlayers(roster, lists, matchList),
@@ -482,21 +503,44 @@ export function CurationTierTab({
         }}>
           <FilterBar role={role} onRole={setRole} />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-            {isStreamer && <button
-              onClick={() => setEditMode((v) => !v)}
-              style={{
-                height: 36, padding: '0 16px', borderRadius: 'var(--r-sm)',
-                border: `1px solid ${editMode ? 'var(--cheese-green)' : 'var(--border-line)'}`,
-                background: editMode
-                  ? 'color-mix(in srgb, var(--cheese-green) 18%, transparent)'
-                  : 'var(--surface-raise)',
-                color: editMode ? 'var(--cheese-green)' : 'var(--text-high)',
-                fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 13,
-                cursor: 'pointer', whiteSpace: 'nowrap',
-              }}
-            >
-              {editMode ? '편집 완료' : '티어 편집'}
-            </button>}
+            {isStreamer && (
+              <div style={{ display: 'flex', gap: 8 }}>
+                {editMode && snapshot && (
+                  <button
+                    onClick={handleRevert}
+                    disabled={saving}
+                    style={{
+                      height: 36, padding: '0 16px', borderRadius: 'var(--r-sm)',
+                      border: '1px solid var(--border-line)',
+                      background: 'var(--surface-raise)',
+                      color: 'var(--text-muted)',
+                      fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
+                      cursor: saving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                      opacity: saving ? 0.5 : 1,
+                    }}
+                  >
+                    되돌리기
+                  </button>
+                )}
+                <button
+                  onClick={handleToggleEdit}
+                  disabled={saving}
+                  style={{
+                    height: 36, padding: '0 16px', borderRadius: 'var(--r-sm)',
+                    border: `1px solid ${editMode ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+                    background: editMode
+                      ? 'color-mix(in srgb, var(--cheese-green) 18%, transparent)'
+                      : 'var(--surface-raise)',
+                    color: editMode ? 'var(--cheese-green)' : 'var(--text-high)',
+                    fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 13,
+                    cursor: saving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                    opacity: saving ? 0.6 : 1,
+                  }}
+                >
+                  {saving ? '저장 중...' : editMode ? '편집 완료' : '티어 편집'}
+                </button>
+              </div>
+            )}
             {saving && (
               <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12, color: 'var(--text-faint)' }}>
                 저장 중...

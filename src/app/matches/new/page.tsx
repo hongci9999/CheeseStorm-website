@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getStreamers, getMatches, getMatch, addMatch, updateMatch, getOcrCorrections, upsertOcrCorrection, isFirebaseConfigured } from '@/lib/firestore';
+import { getStreamers, getMatches, getMatch, getOcrCorrections, isFirebaseConfigured } from '@/lib/firestore';
+import { addMatch, updateMatch, upsertOcrCorrection } from '@/lib/api-client';
 import { validateMatchForm, parseMatchDur } from '@/lib/match';
 import {
   resolveStreamerId,

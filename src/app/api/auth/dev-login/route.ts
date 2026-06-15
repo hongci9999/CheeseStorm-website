@@ -9,10 +9,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '프로덕션에서 비활성화' }, { status: 403 });
   }
 
-  const { chzzkId, name, secret } = await req.json();
+  const { chzzkId: rawId, name: rawName, secret, asAdmin } = await req.json();
 
   if (!secret || secret !== process.env.DEV_LOGIN_SECRET) {
     return NextResponse.json({ error: '잘못된 시크릿' }, { status: 401 });
+  }
+
+  let chzzkId = rawId as string;
+  let name = rawName as string;
+
+  if (asAdmin) {
+    const adminId = (process.env.ADMIN_CHZZK_ID ?? '').split(',')[0].trim();
+    if (!adminId) return NextResponse.json({ error: 'ADMIN_CHZZK_ID 미설정' }, { status: 500 });
+    chzzkId = adminId;
+    name = name || '관리자';
   }
 
   if (!chzzkId || !name) {

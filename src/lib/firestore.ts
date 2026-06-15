@@ -38,6 +38,10 @@ let statsCache: { playerStats: PlayerStats[]; heroTiers: HeroTierStat[] } | null
 export function getCachedStreamers(): Streamer[] | null {
   return streamersCache;
 }
+
+export function invalidateStreamersCache() { streamersCache = null; }
+export function invalidateMatchesCache() { matchesCache = null; }
+export function invalidateCuratedListsCache() { curatedListsCache = null; }
 export function getCachedMatches(): Match[] | null {
   return matchesCache;
 }
