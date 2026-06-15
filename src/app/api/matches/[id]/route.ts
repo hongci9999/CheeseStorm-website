@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { updateTag } from 'next/cache';
 import { requireRole } from '@/lib/api-auth';
 import { deleteMatch, updateMatch, updateMatchDate } from '@/lib/firestore-admin';
 import type { Match } from '@/lib/types';
@@ -20,6 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: '알 수 없는 action' }, { status: 400 });
   }
 
+  updateTag('matches');
   return NextResponse.json({ ok: true });
 }
 
@@ -29,5 +31,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   await deleteMatch(id);
+  updateTag('matches');
   return NextResponse.json({ ok: true });
 }

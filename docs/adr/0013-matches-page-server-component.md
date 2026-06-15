@@ -1,7 +1,7 @@
 # ADR-0013 — 경기기록 페이지 서버 컴포넌트 전환
 
 - **날짜**: 2026-06-15
-- **상태**: 채택 (미구현)
+- **상태**: 채택 및 구현 완료
 - **관련**: ADR-0012 (프로필 페이지 읽기 최적화)
 
 ## 발단 — 자주 드는 오해: "더 보기로 나누면 reads가 줄지 않나?"
@@ -60,19 +60,19 @@ MatchesClient (use client)
 
 ```ts
 // addMatch / deleteMatch / updateMatch 끝에 추가
-revalidateTag('matches')   // 캐시 즉시 만료
-void refreshStats()        // 기존 stats/current 갱신 유지
+revalidateTag("matches"); // 캐시 즉시 만료
+void refreshStats(); // 기존 stats/current 갱신 유지
 ```
 
 캐시가 만료되면 다음 방문자가 Firestore를 재fetch하며 캐시가 재생성된다. 5분 딜레이 없이 즉시 반영.
 
 **reads 비교:**
 
-| 상황 | 기존 | 변환 후 |
-|------|------|---------|
-| 방문 1회 | ~150 reads | ~150 reads (첫 방문) |
-| 1,000명 방문 | ~150,000 reads | **~150 reads** (캐시 공유) |
-| 경기 추가 시 | 0 | revalidateTag → 다음 방문자가 재fetch |
+| 상황         | 기존           | 변환 후                               |
+| ------------ | -------------- | ------------------------------------- |
+| 방문 1회     | ~150 reads     | ~150 reads (첫 방문)                  |
+| 1,000명 방문 | ~150,000 reads | **~150 reads** (캐시 공유)            |
+| 경기 추가 시 | 0              | revalidateTag → 다음 방문자가 재fetch |
 
 ## 왜 처음부터 서버 컴포넌트로 만들지 않았나
 
@@ -81,6 +81,9 @@ void refreshStats()        // 기존 stats/current 갱신 유지
 1. **개발자 관성** — 검색창이 있으면 `useState` 필요 → `'use client'` 붙이는 게 자연스러운 흐름. 인터랙티브 UI를 만들 때 클라이언트 컴포넌트로 시작하는 것이 Next.js 개발의 기본 반응.
 
 2. **문제 가시성** — reads 비용은 Firebase 콘솔에서 직접 수치를 보기 전까지 눈에 안 들어온다. 14k reads를 콘솔에서 확인한 뒤에야 구조적 문제가 드러났다.
+
+- 실제 응답 :
+  인터랙티브한 UI를 만들 때 'use client'부터 쓰는 게 Next.js 개발자의 기본 반응입니다. 그리고 "reads가 몇 나오는지"는 실제로 트래픽이 생기거나 Firebase 콘솔을 열어보기 전까지 눈에 안 들어옵니다. 이번에 14k reads 보고 나서야 문제가 보인 것처럼요.
 
 실제 문제가 없으면 우선순위가 없다. 이제 문제가 보였으니 지금 변환하면 된다.
 
@@ -111,8 +114,18 @@ onSnapshot:   데이터 바뀌면 서버가 먼저 "바뀌었어!"  (푸시)
 - `getMatchesCached` (React.cache) → `unstable_cache` 로 교체 (서버 요청 간 공유)
 - 삭제 후 `router.refresh()` 는 그대로 유지 (서버 재렌더 트리거)
 
-## 잔여 과제
+## 구현 파일 목록
 
-- [ ] `src/app/matches/page.tsx` 서버 컴포넌트 전환 구현
-- [ ] `src/components/matches-client.tsx` 신규 작성 (검색/펼치기/삭제 UI)
-- [ ] `src/lib/firestore.ts` — `addMatch/deleteMatch/updateMatch`에 `revalidateTag('matches')` 추가
+| 파일 | 역할 |
+|------|------|
+| `src/lib/firestore.server.ts` | **신규** — `unstable_cache` 래퍼 (`getMatchesCachedServer`, `getStreamersCachedServer`). `next/cache`는 서버 전용이므로 `firestore.ts`와 분리. |
+| `src/app/matches/page.tsx` | **변경** — `'use client'` 제거, async 서버 컴포넌트로 전환. 쿠키에서 세션 읽어 `isStreamer` 판별 후 `<MatchesClient>`에 props 전달. |
+| `src/components/matches-client.tsx` | **신규** — 검색·펼치기·삭제 등 모든 인터랙션 담당. `router.refresh()`로 삭제 후 서버 재렌더 트리거. |
+| `src/app/api/matches/route.ts` | **변경** — POST 후 `revalidateTag('matches')` 추가. |
+| `src/app/api/matches/[id]/route.ts` | **변경** — PATCH·DELETE 후 `revalidateTag('matches')` 추가. |
+
+### firestore.ts 분리 이유
+
+`firestore.ts`는 `curation-tier-tab.tsx`, `streamers/page.tsx` 등 여러 클라이언트 컴포넌트가 import함.
+`next/cache`를 `firestore.ts`에 추가하면 클라이언트 번들에 서버 전용 모듈이 포함돼 빌드 에러 발생.
+→ `firestore.server.ts`로 분리 (`'server-only'` import로 실수 방지).
