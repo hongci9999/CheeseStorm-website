@@ -37,7 +37,7 @@
 
 | 항목         | 사용 기술                            |
 | ------------ | ------------------------------------ |
-| 프레임워크   | Next.js 15 (App Router)              |
+| 프레임워크   | Next.js 16 (App Router)              |
 | 언어         | TypeScript                           |
 | 데이터베이스 | Firebase Firestore (Spark 무료 플랜) |
 | 스타일       | Tailwind CSS v4 + shadcn/ui          |
@@ -73,7 +73,21 @@ npm run dev
 1. [Firebase 콘솔](https://console.firebase.google.com)에서 새 프로젝트 생성
 2. Firestore Database → 프로덕션 모드로 생성
 3. 웹 앱 추가 → SDK 설정값을 `.env.local`에 복사
-4. Firestore 보안 규칙을 서비스 성격에 맞게 설정
+4. 서비스 계정 → 비공개 키 생성 → `FIREBASE_ADMIN_*` 환경변수에 설정
+5. Firestore 보안 규칙: 읽기만 허용, 쓰기는 차단 (서버 API 라우트가 Admin SDK로 처리)
+
+```
+// Firestore 보안 규칙 권장 설정
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;  // 쓰기는 Admin SDK(서버)만 허용
+    }
+  }
+}
+```
 
 ## 설계 판단
 
@@ -86,6 +100,24 @@ npm run dev
 치지직(CHZZK)은 NextAuth가 기본 지원하지 않는 플랫폼이다. 커스텀 프로바이더를 작성하면 NextAuth의 세션 모델·콜백 구조에 맞춰야 하는 제약이 생긴다. 대신 치지직 OAuth 2.0 흐름을 직접 구현하고 `jose`로 JWT를 발급해 쿠키에 저장하는 방식을 택했다. 의존성이 줄고 토큰 구조를 완전히 제어할 수 있다.
 
 치지직 API는 표준 OAuth와 달리 토큰 교환 응답을 `{ content: { accessToken: "..." } }` 래퍼로 감싸서 반환한다. 표준 OAuth를 가정하고 `res.json()`을 그대로 쓰면 `accessToken`이 `undefined`가 되어 이후 유저 정보 조회에서 401이 발생한다. 유저 정보 조회 엔드포인트도 같은 래퍼 구조를 사용하므로, 모든 응답에서 `data.content ?? data`로 언래핑하는 패턴을 통일했다.
+
+### Firestore reads 최적화 구조
+
+연 2-3주 운영 특성상 이벤트 일에 1,000명이 몰리면 Spark 무료 플랜(일 50,000 reads)을 초과할 수 있다. 페이지마다 `getStreamers() + getMatches()` 전체를 읽으면 방문자 1명당 ~150 reads가 발생하기 때문이다.
+
+이를 세 단계로 해결했다.
+
+| 페이지 | 방식 | 방문 1회 |
+|--------|------|---------|
+| 홈 (티어리스트) | `stats/current` 사전집계 문서 | 1 read |
+| 프로필 (`/streamers/[id]`) | `stats/current.profiles` 필드 확장 | 1 read |
+| 경기기록 (`/matches`) | 서버 컴포넌트 + `unstable_cache` | ~0 reads (캐시 히트 시) |
+
+**`stats/current` 패턴**: 경기 추가·수정·삭제 시 `refreshStats()`가 전체 데이터를 재집계해 Firestore 단일 문서에 저장. 방문자는 그 1문서만 읽는다.
+
+**서버 컴포넌트 + `unstable_cache`**: 경기기록 페이지는 서버에서 데이터를 fetch하고 Vercel 메모리에 캐싱. `updateTag('matches')`로 뮤테이션 즉시 캐시를 만료시켜 실시간 반영을 보장한다.
+
+이벤트 일 기준: 최적화 전 ~345,000 reads → 최적화 후 ~4,500 reads (98.7% 절감). 상세 분석: [`docs/firestore-reads-analysis.md`](docs/firestore-reads-analysis.md)
 
 ### 왜 승률만으로 티어를 정하지 않나
 
