@@ -73,6 +73,8 @@ export const getMatchesCached = cache(getMatches);
 
 `getMatches()` 결과를 Next.js 레벨에서 캐싱해 재사용하는 방안은 유보. 내전 진행 중 경기가 실시간으로 추가되므로 stale 데이터를 서빙할 위험이 있으며, ADR-0006의 트래픽 스파이크 플랜과 함께 검토할 사항이다.
 
+→ **후속 결정**: ADR-0012에서 `unstable_cache` 대신 `stats/current` 패턴 확장으로 해결. 딜레이 없이 프로필 페이지를 1 read로 처리.
+
 ## 타임라인 (사용자 체감 흐름)
 
 | 시점 | 화면 |

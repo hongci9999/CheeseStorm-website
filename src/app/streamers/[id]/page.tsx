@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getStreamers, getMatchesCached } from '@/lib/firestore';
+import { getStreamers, getMatchesCached, getPrecomputedStats, unpackStoredMatch } from '@/lib/firestore';
+import type { PrecomputedProfile } from '@/lib/firestore';
 import { getStreamerProfile, getRecentMatches, kdaFor } from '@/lib/profile';
 import { fineRoleAffinity } from '@/lib/heroes';
 import { aggregateHeroStats } from '@/lib/hero-stats';
@@ -11,7 +12,7 @@ import { LevelBadge } from '@/components/level-badge';
 import { ProSticker } from '@/components/pro-sticker';
 import { isProStreamer } from '@/lib/pro-streamers';
 import type { SynergyStat, NemesisStat } from '@/lib/relations';
-import type { Match, Streamer } from '@/lib/types';
+import type { Match, Streamer, PlayerStats } from '@/lib/types';
 import { ProfileTabs } from './profile-tabs';
 import type { SerializedMatch } from './profile-tabs';
 import { ProfileLayout } from './profile-layout';
@@ -177,13 +178,26 @@ function StaticProfileCard({ streamer }: { streamer: Streamer }) {
 }
 
 // --- 동적 사이드바 stats: matches 로드 후 스트리밍 ---
-async function SidebarStatsSection({ streamerId, streamers }: { streamerId: string; streamers: Streamer[] }) {
-  const matches = await getMatchesCached();
-  const profile = getStreamerProfile(streamerId, streamers, matches);
-  if (!profile) return null;
+async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
+  streamerId: string;
+  streamers?: Streamer[];
+  precomputed?: { profile: PlayerStats; kda: number | null; affinity: { role: string; games: number; pct: number }[] };
+}) {
+  let profile: PlayerStats | null;
+  let kda: number | null;
+  let affinity: { role: string; games: number; pct: number }[];
 
-  const kda = kdaFor(matches, streamerId);
-  const affinity = fineRoleAffinity(matches, streamerId);
+  if (precomputed) {
+    ({ profile, kda, affinity } = precomputed);
+  } else {
+    const matches = await getMatchesCached();
+    profile = getStreamerProfile(streamerId, streamers!, matches);
+    if (!profile) return null;
+    kda = kdaFor(matches, streamerId);
+    affinity = fineRoleAffinity(matches, streamerId);
+  }
+
+  if (!profile) return null;
   const maxAff = affinity.length > 0 ? affinity[0].games : 1;
 
   return (
@@ -262,18 +276,41 @@ async function SidebarStatsSection({ streamerId, streamers }: { streamerId: stri
 
 // --- 동적 탭 섹션: matches 로드 후 스트리밍 (SidebarStatsSection과 getMatchesCached 공유) ---
 async function ProfileTabsServer({
-  streamerId, streamers, initialTab,
+  streamerId, streamers, initialTab, precomputed,
 }: {
   streamerId: string;
-  streamers: Streamer[];
+  streamers?: Streamer[];
   initialTab: 'overview' | 'heroes' | 'matches';
+  precomputed?: {
+    profile: PlayerStats;
+    profileData: PrecomputedProfile;
+    streamerBasics: { id: string; name: string; profileImageUrl?: string }[];
+  };
 }) {
+  if (precomputed) {
+    const { profile, profileData, streamerBasics } = precomputed;
+    return (
+      <ProfileTabs
+        streamerId={streamerId}
+        initialTab={initialTab}
+        heroStats={profile.heroStats}
+        heroAggregates={profileData.heroAggregates}
+        recentMatches={profileData.recentMatches.map(unpackStoredMatch)}
+        allMatches={profileData.allMatches.map(unpackStoredMatch)}
+        synergy={profileData.synergy.map(s => ({ streamerId: s.streamerId, streamerName: s.streamerName, games: s.games, rate: s.winRate }))}
+        nemesis={profileData.nemesis.map(n => ({ streamerId: n.streamerId, streamerName: n.streamerName, games: n.games, rate: n.lossRate }))}
+        maps={profileData.maps}
+        streamers={streamerBasics}
+      />
+    );
+  }
+
   const matches = await getMatchesCached();
-  const profile = getStreamerProfile(streamerId, streamers, matches);
+  const profile = getStreamerProfile(streamerId, streamers!, matches);
   if (!profile) return null;
 
   const heroAggregates = aggregateHeroStats(streamerId, matches);
-  const { synergy, nemesis } = computeRelations(streamerId, streamers, matches);
+  const { synergy, nemesis } = computeRelations(streamerId, streamers!, matches);
   const maps = mapWinRates(streamerId, matches);
 
   const synergyRows = synergy.map((s: SynergyStat) => ({
@@ -284,7 +321,7 @@ async function ProfileTabsServer({
     streamerId: n.streamerId, streamerName: n.streamerName,
     games: n.games, rate: n.lossRate,
   }));
-  const streamerBasics = streamers.map(s => ({
+  const streamerBasics = streamers!.map(s => ({
     id: s.id, name: s.name, profileImageUrl: s.profileImageUrl,
   }));
   const recent = getRecentMatches(streamerId, matches, 6);
@@ -319,7 +356,51 @@ export default async function ProfilePage({
   const initialTab: 'overview' | 'heroes' | 'matches' =
     tab === 'heroes' ? 'heroes' : tab === 'matches' ? 'matches' : 'overview';
 
-  // 스트리머 목록 우선 로드 — 경기 데이터보다 빠르며 기본 프로필 카드에 충분
+  // 빠른 경로: stats/current 1 read로 전체 프로필 렌더 (streamers + matches 컬렉션 read 없음)
+  const precomputedStats = await getPrecomputedStats();
+  const profileData = precomputedStats?.profiles?.[id];
+  const playerStat = precomputedStats?.playerStats.find(p => p.streamerId === id);
+
+  if (profileData && playerStat) {
+    const streamer: Streamer = {
+      id,
+      name: profileData.streamerName,
+      profileImageUrl: profileData.profileImageUrl,
+      gameNames: profileData.gameNames,
+      accountLevel: profileData.accountLevel,
+      createdAt: new Date(0),
+    };
+
+    if (!streamer.name) notFound();
+
+    const streamerBasics = precomputedStats!.playerStats.map(p => ({
+      id: p.streamerId,
+      name: p.streamerName,
+      profileImageUrl: p.profileImageUrl,
+    }));
+
+    const sidebar = (
+      <>
+        <StaticProfileCard streamer={streamer} />
+        <SidebarStatsSection
+          streamerId={id}
+          precomputed={{ profile: playerStat, kda: profileData.kda, affinity: profileData.roleAffinity }}
+        />
+      </>
+    );
+
+    return (
+      <ProfileLayout sidebar={sidebar}>
+        <ProfileTabsServer
+          streamerId={id}
+          initialTab={initialTab}
+          precomputed={{ profile: playerStat, profileData, streamerBasics }}
+        />
+      </ProfileLayout>
+    );
+  }
+
+  // 느린 경로 (폴백): 기존 동작 — stats/current 없을 때
   const streamers = await getStreamers();
   const streamer = streamers.find(s => s.id === id);
   if (!streamer) notFound();

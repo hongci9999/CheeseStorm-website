@@ -25,6 +25,59 @@ import type { Match, OcrCorrections, CuratedTierLists, Streamer } from './types'
 import { emptyTierLists, listsFromPlacements, sanitizeLists, CURATED_TIER_ORDER } from './curated-tier';
 import { EMPTY_OCR_CORRECTIONS, normalizeOcrKey } from './ocr-corrections';
 import { normalizeMatchDur } from './match';
+import { fineRoleAffinity } from './heroes';
+import { aggregateHeroStats } from './hero-stats';
+import type { HeroAggregate } from './hero-stats';
+import { computeRelations } from './relations';
+import type { SynergyStat, NemesisStat } from './relations';
+import { mapWinRates } from './map-stats';
+import type { MapWinRate } from './map-stats';
+import { kdaFor, getRecentMatches } from './profile';
+import type { FineRole } from './types';
+
+// Firestore 중첩 배열 금지 → 팀을 객체 배열로 저장 (matches 컬렉션과 동일한 방식)
+type PackedPick = { id: string; hero: string };
+type StoredMatch = Omit<Match, 'date' | 'createdAt' | 'blueTeam' | 'redTeam'> & {
+  date: string;
+  createdAt: string;
+  blueTeam: PackedPick[];
+  redTeam: PackedPick[];
+};
+
+function packMatchForStore(m: Match): StoredMatch {
+  const { date, createdAt, blueTeam, redTeam, ...rest } = m;
+  return {
+    ...rest,
+    date: date.toISOString(),
+    createdAt: createdAt.toISOString(),
+    blueTeam: blueTeam.map(([id, hero]) => ({ id, hero })),
+    redTeam: redTeam.map(([id, hero]) => ({ id, hero })),
+  };
+}
+
+export function unpackStoredMatch(m: StoredMatch): Omit<Match, 'date' | 'createdAt'> & { date: string; createdAt: string } {
+  const { blueTeam, redTeam, ...rest } = m;
+  return {
+    ...rest,
+    blueTeam: blueTeam.map(p => [p.id, p.hero] as [string, string]),
+    redTeam: redTeam.map(p => [p.id, p.hero] as [string, string]),
+  };
+}
+
+export interface PrecomputedProfile {
+  streamerName: string;
+  profileImageUrl?: string;
+  gameNames?: string[];
+  accountLevel?: number;
+  kda: number | null;
+  roleAffinity: { role: FineRole; games: number; pct: number }[];
+  heroAggregates: HeroAggregate[];
+  synergy: SynergyStat[];
+  nemesis: NemesisStat[];
+  maps: MapWinRate[];
+  recentMatches: StoredMatch[];
+  allMatches: StoredMatch[];
+}
 
 // --- 클라이언트 세션 캐시 ---
 // SPA 내비게이션마다 같은 데이터를 다시 요청하고 로딩 스피너를 띄우는 걸 막는다.
@@ -32,7 +85,11 @@ import { normalizeMatchDur } from './match';
 const isClient = typeof window !== 'undefined';
 let streamersCache: Streamer[] | null = null;
 let matchesCache: Match[] | null = null;
-let statsCache: { playerStats: PlayerStats[]; heroTiers: HeroTierStat[] } | null = null;
+let statsCache: {
+  playerStats: PlayerStats[];
+  heroTiers: HeroTierStat[];
+  profiles?: Record<string, PrecomputedProfile>;
+} | null = null;
 
 // 페이지가 첫 렌더에서 동기적으로 읽어 스피너 없이 즉시 그리기 위한 getter. 없으면 null.
 export function getCachedStreamers(): Streamer[] | null {
@@ -234,7 +291,11 @@ export const saveCuratedTiers = saveCuratedTierLists;
 // --- 사전집계 통계 ---
 
 // 사전집계된 티어 데이터 조회 — 없으면 null (폴백: 전체 컬렉션 읽기)
-export async function getPrecomputedStats(): Promise<{ playerStats: PlayerStats[]; heroTiers: HeroTierStat[] } | null> {
+export async function getPrecomputedStats(): Promise<{
+  playerStats: PlayerStats[];
+  heroTiers: HeroTierStat[];
+  profiles?: Record<string, PrecomputedProfile>;
+} | null> {
   if (isClient && statsCache) return statsCache;
   const d = await getDoc(doc(db, 'stats', 'current'));
   if (!d.exists()) return null;
@@ -242,6 +303,7 @@ export async function getPrecomputedStats(): Promise<{ playerStats: PlayerStats[
   const result = {
     playerStats: (data.playerStats ?? []) as PlayerStats[],
     heroTiers: (data.heroTiers ?? []) as HeroTierStat[],
+    profiles: (data.profiles ?? undefined) as Record<string, PrecomputedProfile> | undefined,
   };
   if (isClient) statsCache = result;
   return result;
@@ -256,11 +318,34 @@ export async function refreshStats(): Promise<void> {
     ]);
     const playerStats = calcPlayerStats(streamers, matches);
     const heroTiers = calcHeroTiers(matches);
+
+    // 스트리머별 프로필 사전집계 (프로필 페이지 Firestore read 최소화)
+    const profiles: Record<string, PrecomputedProfile> = {};
+    for (const s of streamers) {
+      const played = getRecentMatches(s.id, matches, Infinity);
+      const { synergy, nemesis } = computeRelations(s.id, streamers, matches);
+      profiles[s.id] = {
+        streamerName: s.name,
+        ...(s.profileImageUrl !== undefined ? { profileImageUrl: s.profileImageUrl } : {}),
+        ...(s.gameNames !== undefined ? { gameNames: s.gameNames } : {}),
+        ...(s.accountLevel !== undefined ? { accountLevel: s.accountLevel } : {}),
+        kda: kdaFor(matches, s.id),
+        roleAffinity: fineRoleAffinity(matches, s.id),
+        heroAggregates: aggregateHeroStats(s.id, matches),
+        synergy,
+        nemesis,
+        maps: mapWinRates(s.id, matches),
+        recentMatches: played.slice(0, 6).map(packMatchForStore),
+        allMatches: played.map(packMatchForStore),
+      };
+    }
+
     // undefined 필드 제거 (Firestore는 undefined 값 거부)
     const clean = (v: unknown) => JSON.parse(JSON.stringify(v));
     await setDoc(doc(db, 'stats', 'current'), {
       playerStats: clean(playerStats),
       heroTiers: clean(heroTiers),
+      profiles: clean(profiles),
       updatedAt: Timestamp.now(),
     });
     statsCache = null;
