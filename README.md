@@ -2,6 +2,20 @@
 
 > 치지직 스트리머들의 히어로즈 오브 더 스톰(HotS) 내전 전적 기록 & 티어리스트 서비스
 
+## 프로젝트 개요
+
+치지직 스트리머들이 연 1회 HotS 대회를 준비하며 진행하는 **내전 운영 도구**다.
+
+내전은 연 2-3주 집중적으로 운영된다. 이 기간 동안 다음 세 가지가 필요하다.
+
+1. **전적 기록** — 경기 결과를 입력하고 타임라인으로 확인
+2. **팀 편성 보조** — 티어리스트를 참고해 운영자가 수동으로 밸런스 잡힌 팀 구성
+3. **참여 동기 부여** — 스트리머 본인의 개인 전적·영웅 풀·역할군 분포 확인
+
+**대상**: 시청자(전적 조회), 참여 스트리머(경기 입력·본인 전적 확인), 운영자(팀 편성·티어 관리) 모두 접근 가능한 공개 서비스.
+
+**운영 특성**: 대부분의 기간은 트래픽 0. 이벤트 기간에만 집중적으로 사용. Firebase Spark 무료 플랜으로 유휴 시 비용 0원을 유지하면서, 이벤트 일 1,000명 동시접속도 Spark 한도 내에서 처리 가능하도록 reads를 최적화했다.
+
 ## 스크린샷
 
 |         홈 (티어리스트)          |                 경기 기록                  |                   경기 입력                    |
@@ -68,27 +82,6 @@ npm run dev
 
 [http://localhost:3000](http://localhost:3000)에서 확인.
 
-## Firebase 설정
-
-1. [Firebase 콘솔](https://console.firebase.google.com)에서 새 프로젝트 생성
-2. Firestore Database → 프로덕션 모드로 생성
-3. 웹 앱 추가 → SDK 설정값을 `.env.local`에 복사
-4. 서비스 계정 → 비공개 키 생성 → `FIREBASE_ADMIN_*` 환경변수에 설정
-5. Firestore 보안 규칙: 읽기만 허용, 쓰기는 차단 (서버 API 라우트가 Admin SDK로 처리)
-
-```
-// Firestore 보안 규칙 권장 설정
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read: if true;
-      allow write: if false;  // 쓰기는 Admin SDK(서버)만 허용
-    }
-  }
-}
-```
-
 ## 설계 판단
 
 ### 왜 Firebase Spark(무료 플랜)인가
@@ -107,11 +100,11 @@ service cloud.firestore {
 
 이를 세 단계로 해결했다.
 
-| 페이지 | 방식 | 방문 1회 |
-|--------|------|---------|
-| 홈 (티어리스트) | `stats/current` 사전집계 문서 | 1 read |
-| 프로필 (`/streamers/[id]`) | `stats/current.profiles` 필드 확장 | 1 read |
-| 경기기록 (`/matches`) | 서버 컴포넌트 + `unstable_cache` | ~0 reads (캐시 히트 시) |
+| 페이지                     | 방식                               | 방문 1회                |
+| -------------------------- | ---------------------------------- | ----------------------- |
+| 홈 (티어리스트)            | `stats/current` 사전집계 문서      | 1 read                  |
+| 프로필 (`/streamers/[id]`) | `stats/current.profiles` 필드 확장 | 1 read                  |
+| 경기기록 (`/matches`)      | 서버 컴포넌트 + `unstable_cache`   | ~0 reads (캐시 히트 시) |
 
 **`stats/current` 패턴**: 경기 추가·수정·삭제 시 `refreshStats()`가 전체 데이터를 재집계해 Firestore 단일 문서에 저장. 방문자는 그 1문서만 읽는다.
 
