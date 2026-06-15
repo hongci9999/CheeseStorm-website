@@ -144,4 +144,4 @@ precomputed가 있으면 `getMatchesCached()` 미호출.
 ## 잔여 과제
 
 - Blaze 전환 + 예산 알람($5) — 경기기록 페이지 방어
-- 경기기록 페이지 최적화 (필요 시): `/api/matches` route + `revalidate`, 또는 경기 목록도 stats/current에 별도 필드로 저장 (단, 문서 크기 주의)
+- 경기기록 페이지 최적화: ADR-0013 참조 (서버 컴포넌트 전환 + revalidateTag 계획)
