@@ -59,7 +59,7 @@ export function HexAvatar({
         }}>
           {showImg ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt={name}
+            <img src={imageUrl} alt={name} draggable={false}
               onError={() => setBroken(true)}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (

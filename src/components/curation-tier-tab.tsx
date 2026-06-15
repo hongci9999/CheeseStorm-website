@@ -119,6 +119,7 @@ function CuratedPlayerCell({
     transition: 'transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), opacity var(--dur-fast)',
     opacity: dragging ? 0.45 : 1,
     cursor: editMode ? 'grab' : 'pointer',
+    userSelect: editMode ? 'none' : undefined,
   };
 
   if (editMode) {
@@ -385,11 +386,11 @@ export function CurationTierTab({
     let cancelled = false;
     (async () => {
       try {
-        const [s, m] = await Promise.all([
-          getStreamers({ fresh: true }),
+        const [s, m, raw] = await Promise.all([
+          getStreamers(),
           getMatches(),
+          getCuratedTierLists(),
         ]);
-        const raw = await getCuratedTierLists(s.map((x) => x.id));
         if (cancelled) return;
         setRoster(s);
         setMatchList(m);
