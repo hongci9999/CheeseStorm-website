@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { updateTag } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 import { requireRole } from '@/lib/api-auth';
 import { addStreamer } from '@/lib/firestore-admin';
 import type { Streamer } from '@/lib/types';
@@ -10,6 +10,6 @@ export async function POST(req: NextRequest) {
 
   const data = (await req.json()) as Omit<Streamer, 'id' | 'createdAt'>;
   const id = await addStreamer(data);
-  updateTag('streamers');
+  revalidateTag('streamers');
   return NextResponse.json({ id });
 }

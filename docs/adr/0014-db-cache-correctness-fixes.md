@@ -92,32 +92,37 @@ ADR-0012에서 `firestore-admin.ts`의 `refreshStats()`가 `profiles` 필드를 
 - `StoredMatch` 타입 export 추가
 - `packMatchForStore()` 함수 export 추가 (`firestore-admin.ts`에서 재사용)
 
-## Next.js 16 캐시 API 참고
+## Next.js 16 캐시 API 정리 — 오해 주의
 
-ADR-0013에서 `revalidateTag`로 기술됐으나, **Next.js 16에서 API가 변경됨**:
+Next.js 16은 `next/cache`에서 `updateTag`와 `revalidateTag` 둘 다 export한다.
 
 ```ts
-// Next.js 16 next/cache 타입 정의
-revalidateTag(tag: string, profile: string | CacheLifeConfig): undefined  // 2개 인수 필수
-updateTag(tag: string): undefined  // 단순 무효화 — 현재 사용 중인 API
+// next/cache (Next.js 16)
+revalidateTag(tag: string): void  // unstable_cache 태그 무효화 → Route Handler에서 사용
+updateTag(tag: string): void      // use cache 디렉티브 태그 무효화 → Server Action 전용
 ```
 
-`unstable_cache` 태그 단순 무효화 목적에는 `updateTag(tag)` 가 올바른 API.  
-단, 타입 주석에 "Server Action에서만 사용 권장"으로 명시되어 있으나, Route Handler에서도 빌드·런타임 정상 동작 확인됨.
+`updateTag`는 Next.js 16의 신규 `use cache` 디렉티브와 함께 동작하는 API로,
+Route Handler에서 호출 시 프로덕션(Vercel) 환경에서 500을 유발한다.
+
+**`unstable_cache` 태그 무효화에는 반드시 `revalidateTag`를 사용해야 한다.**
+
+> 과거 이 ADR에 `updateTag`가 올바른 API라고 기록됐으나 잘못된 정보였다.
+> 해당 오류로 경기·스트리머 관련 모든 뮤테이션 API가 500을 반환했다. (2026-06-16 수정)
 
 ## 완전한 캐시 무효화 매트릭스
 
-| 함수 | refreshStats() | updateTag('matches') | updateTag('streamers') |
+| 함수 | refreshStats() | revalidateTag('matches') | revalidateTag('streamers') |
 |------|:-:|:-:|:-:|
 | `addMatch` | ✅ | ✅ | — |
 | `deleteMatch` | ✅ | ✅ | — |
 | `updateMatch` | ✅ | ✅ | — |
-| `updateMatchDate` | ✅ (수정) | ✅ | — |
-| `addStreamer` | ✅ | — | ✅ (수정) |
-| `deleteStreamer` | ✅ | — | ✅ (수정) |
-| `updateStreamerInfo` | ✅ (수정) | — | ✅ (수정) |
-| `updateStreamerGameNames` | ✅ (수정) | — | ✅ (수정) |
-| `updateStreamerProfileImage` | ✅ (수정) | — | ✅ (수정) |
+| `updateMatchDate` | ✅ | ✅ | — |
+| `addStreamer` | ✅ | — | ✅ |
+| `deleteStreamer` | ✅ | — | ✅ |
+| `updateStreamerInfo` | ✅ | — | ✅ |
+| `updateStreamerGameNames` | ✅ | — | ✅ |
+| `updateStreamerProfileImage` | ✅ | — | ✅ |
 | `saveCuratedTierLists` | — | — | — (stats 무관) |
 | `upsertOcrCorrection` | — | — | — (stats 무관) |
 

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { updateTag } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 import { requireRole } from '@/lib/api-auth';
 import {
   deleteStreamer,
@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: '알 수 없는 action' }, { status: 400 });
   }
 
-  updateTag('streamers');
+  revalidateTag('streamers');
   return NextResponse.json({ ok: true });
 }
 
@@ -41,6 +41,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   await deleteStreamer(id);
-  updateTag('streamers');
+  revalidateTag('streamers');
   return NextResponse.json({ ok: true });
 }
