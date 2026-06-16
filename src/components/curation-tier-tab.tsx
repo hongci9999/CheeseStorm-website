@@ -438,6 +438,11 @@ export function CurationTierTab({
 
   async function handleToggleEdit() {
     if (editMode) {
+      if (JSON.stringify(lists) === JSON.stringify(snapshot)) {
+        setEditMode(false);
+        setSnapshot(null);
+        return;
+      }
       const ok = await persist(lists);
       if (ok) {
         setEditMode(false);
