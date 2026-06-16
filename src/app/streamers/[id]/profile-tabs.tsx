@@ -179,7 +179,7 @@ function MatchRow({ m, streamerId }: { m: SerializedMatch; streamerId: string })
             marginLeft: 'var(--sp-2)', whiteSpace: 'nowrap' }}>
             <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 9.5,
               letterSpacing: '0.08em', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
-              KAD
+              K/A/D
             </span>
             <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 15, fontWeight: 700,
               color: 'var(--text-high)', fontVariantNumeric: 'tabular-nums' }}>

@@ -291,11 +291,6 @@ function EditGameNamesModal({
           </div>
         </div>
 
-        <p style={{ fontSize: 11.5, color: 'var(--text-faint)', fontFamily: 'var(--font-ui)',
-          margin: 0, lineHeight: 1.5 }}>
-          OCR이 읽은 인게임 이름(배틀넷 닉네임)을 등록하면 다음부터 자동 매칭됩니다.
-          미매칭 슬롯을 직접 지정하면 자동으로 추가됩니다.
-        </p>
 
         {/* 등록된 태그 목록 */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minHeight: 32 }}>
@@ -326,11 +321,12 @@ function EditGameNamesModal({
 
         {/* 태그 추가 입력 */}
         <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+          
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-            placeholder="Cheese"
+            placeholder="배틀넷 닉네임"
             style={{
               flex: 1, height: 36, padding: '0 10px',
               borderRadius: 'var(--r-sm)', border: '1px solid var(--border-line)',

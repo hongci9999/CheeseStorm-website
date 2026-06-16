@@ -191,10 +191,10 @@ export default function GuidePage() {
           <SectionTitle icon="🧀" title="치즈스톰이란?" />
           <p style={{
             margin: 0, fontFamily: 'var(--font-ui)', fontSize: 14.5,
-            color: 'var(--text-muted)', lineHeight: 1.75, maxWidth: 680,
+            color: 'var(--text-muted)', lineHeight: 1.75, maxWidth: 700,
           }}>
             치지직 스트리머들의 <strong style={{ color: 'var(--text-high)' }}>히어로즈 오브 더 스톰(HotS) 내전</strong> 결과를
-            기록하고 티어리스트를 확인할 수 있는 웹사이트입니다.
+            기록하고 티어리스트를 확인할 수 있는 웹사이트입니다.<br />
             언젠가 돌아올 히오스 대회를 대비해 내전 전적을 추적하고, 팀 구성 시 참고 자료로 활용합니다.<br />
             이 사이트에 등록된 스트리머는 스트리머 권한을 얻으며 다른 스트리머를 등록하고 경기를 기록하는 등의 권한을 얻습니다.
           </p>
@@ -526,12 +526,12 @@ export default function GuidePage() {
               {
                 role: '스트리머',
                 color: 'var(--cheese-green)',
-                desc: 'streamers 컬렉션에 등록된 치지직 계정으로 로그인하면 자동 부여됩니다. 스트리머 추가·수정, 경기 입력·수정·삭제, 큐레이션 티어 편집이 가능합니다.',
+                desc: '웹사이트에 등록된 스트리머 계정으로 로그인하면 자동 부여됩니다. 스트리머 추가·수정, 경기 입력·수정·삭제, 큐레이션 티어 편집이 가능합니다.',
               },
               {
                 role: '운영자',
                 color: 'var(--tier-s)',
-                desc: '스트리머의 모든 권한에 더해 스트리머 삭제 권한을 가집니다.',
+                desc: '스트리머의 모든 권한에 더해 스트리머 삭제 권한을 가집니다. 운영자 권한은 개발자를 통해서만 추가 가능합니다',
               },
             ].map(({ role, color, desc }) => (
               <div
