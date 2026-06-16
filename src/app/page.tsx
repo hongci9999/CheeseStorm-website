@@ -18,6 +18,51 @@ type MainTab = 'auto' | 'curation' | 'hero';
 
 const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
 
+// ── 초기 로딩 스켈레톤 — stats/matches 첫 fetch 동안 표시 ──────────
+const SKEL: React.CSSProperties = {
+  borderRadius: 'var(--r-sm)',
+  background: 'var(--surface-raise)',
+  animation: 'skel-pulse 1.5s ease-in-out infinite',
+};
+
+function TierRowSkeleton({ avatarCount }: { avatarCount: number }) {
+  return (
+    <div style={{
+      position: 'relative', display: 'flex', alignItems: 'stretch', overflow: 'hidden',
+      borderRadius: 'var(--r-lg)', background: 'var(--surface-card)',
+      border: '1px solid var(--border-line)',
+    }}>
+      <div style={{
+        width: 148, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 'var(--sp-3) var(--sp-4)', borderRight: '1px solid var(--border-faint)',
+      }}>
+        <div style={{ ...SKEL, width: 56, height: 56, borderRadius: '50%' }} />
+      </div>
+      <div style={{
+        flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
+        alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)', minHeight: 88,
+      }}>
+        {Array.from({ length: avatarCount }).map((_, i) => (
+          <div key={i} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 78,
+          }}>
+            <div style={{ ...SKEL, width: 54, height: 54, borderRadius: '50%' }} />
+            <div style={{ ...SKEL, width: 60, height: 11 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TierListSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+      {[6, 5, 4, 3, 2].map((count, i) => <TierRowSkeleton key={i} avatarCount={count} />)}
+    </div>
+  );
+}
+
 // ── TierBadge — DS 스펙 그대로: 꽉 찬 헥사곤 + glow + 어두운 텍스트
 function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
   const dims = { sm: 28, md: 40, lg: 56, xl: 84 }[size] ?? 40;
@@ -426,7 +471,16 @@ export default function HomePage() {
   }, []);
 
   if (loading) {
-    return <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 80 }}>불러오는 중...</div>;
+    return (
+      <div>
+        {/* 페이지 헤더 */}
+        <div style={{ padding: 'var(--sp-7) 0 var(--sp-6)' }}>
+          <div style={{ ...SKEL, width: 160, height: 36, borderRadius: 'var(--r-sm)' }} />
+          <div style={{ ...SKEL, width: 200, height: 14, marginTop: 10 }} />
+        </div>
+        <TierListSkeleton />
+      </div>
+    );
   }
 
   return (

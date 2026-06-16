@@ -35,7 +35,20 @@ export default function ProfileLoading() {
             border: '1px solid var(--border-line)', padding: 'var(--sp-6)',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--sp-3)',
           }}>
-            <div style={{ ...SKEL, width: 104, height: 104, borderRadius: '50%' }} />
+            <div style={{ position: 'relative', width: 104, height: 104 }}>
+              <div style={{ ...SKEL, width: '100%', height: '100%', borderRadius: '50%' }} />
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  border: '3px solid color-mix(in srgb, var(--hots-purple) 30%, transparent)',
+                  borderTopColor: 'var(--hots-purple)',
+                  animation: 'spin 0.7s linear infinite',
+                }} />
+              </div>
+            </div>
             <div style={{ ...SKEL, width: '55%', height: 22 }} />
             <div style={{ ...SKEL, width: '38%', height: 13 }} />
             <div style={{ ...SKEL, width: '28%', height: 20, borderRadius: 'var(--r-pill)' }} />

@@ -56,7 +56,7 @@ function fmtNum(n: number | null): string {
 function kdaOfMatch(m: SerializedMatch, streamerId: string): string | null {
   const s = statOf(m as unknown as Match, streamerId);
   if (!s) return null;
-  return `${s.kills} / ${s.deaths} / ${s.assists}`;
+  return `${s.kills} / ${s.assists} / ${s.deaths}`;
 }
 
 // ── 공유 컴포넌트 ──────────────────────────────────────────────
@@ -175,10 +175,16 @@ function MatchRow({ m, streamerId }: { m: SerializedMatch; streamerId: string })
             color: 'var(--text-high)', whiteSpace: 'nowrap' }}>{m.map ?? '—'}</span>
         </div>
         {kdaStr && (
-          <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 15, fontWeight: 700,
-            color: 'var(--text-high)', fontVariantNumeric: 'tabular-nums',
-            whiteSpace: 'nowrap', marginLeft: 'var(--sp-2)' }}>
-            {kdaStr}
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 4,
+            marginLeft: 'var(--sp-2)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 9.5,
+              letterSpacing: '0.08em', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+              KAD
+            </span>
+            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 15, fontWeight: 700,
+              color: 'var(--text-high)', fontVariantNumeric: 'tabular-nums' }}>
+              {kdaStr}
+            </span>
           </span>
         )}
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
