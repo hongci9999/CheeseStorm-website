@@ -163,7 +163,7 @@ function TierRow({ tier, players, bp }: { tier: Tier; players: PlayerStats[]; bp
             fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.1em',
             color: 'var(--text-faint)', textAlign: 'center',
           }}>
-            미배정
+            판수 부족
           </span>
         )}
       </div>
