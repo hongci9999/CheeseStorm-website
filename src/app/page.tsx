@@ -279,6 +279,89 @@ function AutoTierNotice() {
   );
 }
 
+// ── 자동 티어 기준 안내 버튼 (! 호버/클릭 → 툴팁) ────────────────
+function AutoTierInfoButton() {
+  const [open, setOpen] = useState(false);
+
+  // 티어 구간 테이블 (src/lib/tier.ts TIER_THRESHOLDS 기준)
+  const TIERS: { tier: string; range: string; color: string }[] = [
+    { tier: 'S', range: '60% 이상',  color: 'var(--tier-s)' },
+    { tier: 'A', range: '55 ~ 60%',  color: 'var(--tier-a)' },
+    { tier: 'B', range: '45 ~ 55%',  color: 'var(--tier-b)' },
+    { tier: 'C', range: '35 ~ 45%',  color: 'var(--tier-c)' },
+    { tier: 'D', range: '35% 미만',  color: 'var(--tier-d)' },
+    { tier: '?', range: '5경기 미만', color: 'var(--text-faint)' },
+  ];
+
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-flex' }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-label="자동 티어 기준 안내"
+        aria-expanded={open}
+        onClick={() => setOpen(v => !v)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        style={{
+          width: 22, height: 22, borderRadius: '50%',
+          border: '1px solid var(--border-line)', background: 'var(--surface-rail)',
+          color: 'var(--text-muted)', cursor: 'pointer',
+          fontFamily: 'var(--font-numeral)', fontWeight: 800, fontSize: 13, lineHeight: 1,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'color var(--dur-fast), border-color var(--dur-fast)',
+        }}
+      >
+        !
+      </button>
+
+      {open && (
+        <div
+          role="tooltip"
+          style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 'var(--z-popover, 50)',
+            width: 290, maxWidth: '80vw',
+            padding: 'var(--sp-3) var(--sp-4)',
+            borderRadius: 'var(--r-md)',
+            border: '1px solid var(--border-line)',
+            background: 'var(--surface-card)',
+            boxShadow: 'var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.3))',
+            textAlign: 'left',
+          }}
+        >
+          <p style={{
+            margin: '0 0 8px', fontFamily: 'var(--font-ui)', fontWeight: 700,
+            fontSize: 13, color: 'var(--text-strong)',
+          }}>
+            자동 티어 산정 기준
+          </p>
+          <p style={{
+            margin: '0 0 10px', fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.6,
+            color: 'var(--text-muted)',
+          }}>
+            경기 <b style={{ color: 'var(--text-high)' }}>승패</b>와 경기 내
+            <b style={{ color: 'var(--text-high)' }}> 스탯(딜·힐·공성 등)</b>을 함께 반영한
+            종합 점수로 티어를 매깁니다. 현재는 스탯 가중치를 높게 설정된 상태이고, 표본
+            <b style={{ color: 'var(--text-high)' }}> 5경기 이상</b>부터 티어가 부여되고
+            미만은 <b style={{ color: 'var(--text-high)' }}>?</b> 티어입니다.
+          </p>
+
+          <p style={{
+            margin: 0, fontFamily: 'var(--font-ui)', fontSize: 11, lineHeight: 1.55,
+            color: 'var(--text-faint)',
+          }}>
+            ※ 내전은 팀이 의도적으로 밸런싱되므로 승률만으로 개인 실력을 측정할 수 없습니다.
+            자동 티어는 실력 지표가 아닌 <b>전적 요약</b>이며 참고용입니다.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 자동 티어리스트 탭 콘텐츠 ───────────────────────────────────
 function AutoTierTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
   const [role, setRole] = useState('전체');
@@ -293,7 +376,14 @@ function AutoTierTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
   return (
     <div>
       <AutoTierNotice />
-      <FilterBar role={role} onRole={setRole} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-3)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <FilterBar role={role} onRole={setRole} />
+        </div>
+        <div style={{ flexShrink: 0, height: 32, display: 'flex', alignItems: 'center' }}>
+          <AutoTierInfoButton />
+        </div>
+      </div>
       {groups.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
           검색 결과가 없습니다.
