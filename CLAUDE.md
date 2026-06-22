@@ -18,8 +18,8 @@
 ```
 src/
 ├── app/
-│   ├── layout.tsx              # 글로벌 레이아웃 (SiteHeader 포함)
-│   ├── page.tsx                # 메인 (티어리스트)
+│   ├── layout.tsx              # 글로벌 레이아웃 (SiteHeader + SiteFooter 포함)
+│   ├── page.tsx                # 메인 (티어리스트 3탭: 자동·큐레이션·영웅)
 │   ├── api/
 │   │   ├── auth/               # 인증 엔드포인트
 │   │   │   ├── login/route.ts        # 로그인 시작
@@ -27,6 +27,18 @@ src/
 │   │   │   ├── logout/route.ts       # 로그아웃
 │   │   │   ├── me/route.ts           # 현재 세션 조회
 │   │   │   └── dev-login/route.ts    # 개발용 임시 로그인
+│   │   ├── matches/
+│   │   │   ├── route.ts        # 경기 목록 CRUD (Admin SDK)
+│   │   │   └── [id]/route.ts   # 경기 단건 조회·삭제
+│   │   ├── streamers/
+│   │   │   ├── route.ts        # 스트리머 목록 CRUD (Admin SDK)
+│   │   │   └── [id]/route.ts   # 스트리머 단건 조회·수정·삭제
+│   │   ├── curated-tiers/
+│   │   │   └── route.ts        # 큐레이션 티어 조회·저장 (Admin SDK)
+│   │   ├── chzzk-profile/
+│   │   │   └── route.ts        # 치지직 Open API 채널 정보 조회 (서버 전용)
+│   │   ├── ocr-corrections/
+│   │   │   └── route.ts        # OCR 인게임명 보정 저장
 │   │   └── parse-screenshot/
 │   │       └── route.ts        # Gemini API 스크린샷 파싱 엔드포인트
 │   ├── dev-login/
@@ -34,31 +46,70 @@ src/
 │   ├── guide/
 │   │   └── page.tsx            # 사용방법 안내 페이지
 │   ├── matches/
-│   │   ├── page.tsx            # 경기 결과 목록 (타임라인)
-│   │   └── new/page.tsx        # 경기 결과 입력 (슬롯 기반 + OCR)
+│   │   ├── page.tsx            # 경기 결과 목록 (타임라인, 서버 컴포넌트)
+│   │   ├── loading.tsx         # 매치 목록 로딩 스켈레톤
+│   │   ├── new/page.tsx        # 경기 결과 입력 (슬롯 기반 + OCR)
+│   │   └── [id]/page.tsx       # 경기 상세 페이지
 │   └── streamers/
-│       ├── page.tsx            # 스트리머 추가/삭제 (포지션 선택 포함)
-│       └── [id]/page.tsx       # 개인 전적 프로필
+│       ├── page.tsx            # 스트리머 추가/삭제
+│       └── [id]/
+│           ├── page.tsx        # 개인 전적 프로필 (서버 컴포넌트)
+│           ├── loading.tsx     # 프로필 로딩 스켈레톤
+│           ├── profile-layout.tsx  # 프로필 상단 레이아웃 (아바타·요약)
+│           └── profile-tabs.tsx    # 프로필 탭 (개요·영웅)
 ├── components/
-│   └── site-header.tsx         # 클라이언트 헤더 (네비 + 테마 토글)
+│   ├── site-header.tsx         # 클라이언트 헤더 (네비 + 테마 토글)
+│   ├── site-footer.tsx         # 사이트 푸터
+│   ├── bottom-tab-bar.tsx      # 모바일 하단 탭 바
+│   ├── auth-toast.tsx          # 인증 안내 토스트 (?auth=required/error 처리)
+│   ├── hexagon-avatar.tsx      # 육각형 프로필 아바타 (치지직 이미지 or 이니셜 폴백)
+│   ├── curation-tier-tab.tsx   # 큐레이션 티어 탭 (드래그앤드롭)
+│   ├── matches-client.tsx      # 경기 목록 클라이언트 컴포넌트 (확장 상세)
+│   ├── match-detail.tsx        # 경기 상세 (팀별 스탯 테이블)
+│   ├── level-badge.tsx         # 계정 레벨 배지
+│   ├── pro-sticker.tsx         # 전프로 스트리머 트로피 스티커
+│   └── ui/                     # shadcn/ui 기본 컴포넌트 (button, card, dialog 등)
 ├── hooks/
-│   └── use-auth.ts             # 클라이언트 인증 상태 훅
+│   ├── use-auth.ts             # 클라이언트 인증 상태 훅
+│   └── use-breakpoint.ts       # 반응형 브레이크포인트 훅
 ├── lib/
-│   ├── firebase.ts             # Firebase 초기화
-│   ├── firestore.ts            # Firestore CRUD
-│   ├── tier.ts                 # 티어 계산 로직 (승률 기반)
+│   ├── firebase.ts             # Firebase 클라이언트 SDK 초기화
+│   ├── firebase-config.ts      # SDK import 없는 순수 설정 플래그 (번들 분리용)
+│   ├── firebase-admin.ts       # Firebase Admin SDK 초기화 (서비스 계정)
+│   ├── firestore.ts            # Firestore CRUD (클라이언트 캐시 포함)
+│   ├── firestore.server.ts     # 서버 컴포넌트 전용 next/cache 래퍼 (server-only)
+│   ├── firestore-admin.ts      # Admin SDK 경유 Firestore 쓰기 (API 라우트 전용)
+│   ├── api-auth.ts             # API 라우트 인증 헬퍼 (requireRole)
+│   ├── api-client.ts           # 클라이언트 fetch 래퍼 (API 라우트 호출)
+│   ├── tier.ts                 # 스트리머 자동 티어 계산 (혼합 점수)
+│   ├── hero-tier.ts            # 영웅 티어 계산 (베이지안 승률)
+│   ├── curated-tier.ts         # 큐레이션 티어 로직 (배치 sanitize 등)
+│   ├── stat-score.ts           # 역할별 가중치 + 경기별 스탯 점수 계산
+│   ├── sample.ts               # MIN_SAMPLE=5, hasSufficientSample, INSUFFICIENT_DATA
 │   ├── match.ts                # 단일 경기 질의 (outcomeFor, heroOf, statOf)
 │   ├── heroes.ts               # 영웅→역할군 매핑, deriveRole, roleAffinity
-│   ├── profile.ts              # getStreamerProfile, getRecentMatches, currentStreak, kdaFor
+│   ├── hero-stats.ts           # 영웅별 집계 (승패·통계 aggregation)
+│   ├── hero-image.ts           # 영웅명 → public/heroes/<slug>.webp 매핑
+│   ├── profile.ts              # getStreamerProfile, currentStreak, kdaFor
+│   ├── relations.ts            # 시너지 팀원·천적 집계 (MIN_RELATION=3)
+│   ├── map-stats.ts            # 맵별 승률 집계 (MIN_MAP_SAMPLE=3)
+│   ├── pro-streamers.ts        # 전프로 스트리머 목록 (프로필 스티커용)
 │   ├── streamer.ts             # validateStreamerForm, parseChzzkId
+│   ├── chzzk.ts                # 치지직 Open API 채널 조회 (서버 전용)
+│   ├── chzzk-auth.ts           # 치지직 OAuth 2.0 클라이언트
+│   ├── chzzk-profile.ts        # 프로필 이미지 TTL 갱신 로직
+│   ├── ocr-corrections.ts      # OCR 인게임명 보정 (자가학습)
+│   ├── dedupe.ts               # 경기 중복 탐지
 │   ├── theme.ts                # resolveTheme (다크/라이트)
 │   ├── auth-permissions.ts     # 권한 레벨 정의 (viewer/streamer/admin)
-│   ├── chzzk-auth.ts           # 치지직 OAuth 2.0 클라이언트
 │   ├── session.ts              # JWT 세션 관리 (jose 기반)
+│   ├── utils.ts                # 공통 유틸리티
 │   └── types.ts                # TypeScript 타입
 ├── middleware.ts               # 인증 미들웨어 (보호된 라우트)
 ├── styles/tokens/              # DS 토큰 CSS 파일 모음
-└── test/fixtures/              # Vitest용 목 데이터
+└── test/
+    ├── fixtures/               # Vitest용 목 데이터 (matches, streamers, stats)
+    └── (lib/__tests__/ 아래 유닛 테스트)
 ```
 
 ## Firestore 컬렉션 구조
