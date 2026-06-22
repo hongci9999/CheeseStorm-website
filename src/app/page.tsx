@@ -283,15 +283,7 @@ function AutoTierNotice() {
 function AutoTierInfoButton() {
   const [open, setOpen] = useState(false);
 
-  // 티어 구간 테이블 (src/lib/tier.ts TIER_THRESHOLDS 기준)
-  const TIERS: { tier: string; range: string; color: string }[] = [
-    { tier: 'S', range: '60% 이상',  color: 'var(--tier-s)' },
-    { tier: 'A', range: '55 ~ 60%',  color: 'var(--tier-a)' },
-    { tier: 'B', range: '45 ~ 55%',  color: 'var(--tier-b)' },
-    { tier: 'C', range: '35 ~ 45%',  color: 'var(--tier-c)' },
-    { tier: 'D', range: '35% 미만',  color: 'var(--tier-d)' },
-    { tier: '?', range: '5경기 미만', color: 'var(--text-faint)' },
-  ];
+  
 
   return (
     <div
