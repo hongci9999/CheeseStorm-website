@@ -11,7 +11,7 @@ export interface HeroTierStat {
   games: number;
   winRate: number;
   recentWinRate?: number;  // 최근 10경기 내 이 영웅 승률 (3판 미만이면 undefined)
-  tier: Tier;          // 스트리머와 동일 기준 (calcTier, 최소 3경기)
+  tier: Tier;          // 스트리머와 동일 기준 (calcTier, 최소 5경기 = MIN_SAMPLE)
   role: Role | null;   // 알 수 없는 영웅은 null
   fineRole: FineRole | null; // 세분 역할군 (암살자 원거리/근접 구별) — 역할 필터용
 }
@@ -19,7 +19,7 @@ export interface HeroTierStat {
 /**
  * 내전 전체 기록에서 영웅별 승률·티어를 집계한다.
  * - 어떤 영웅이 플레이된 모든 경기의 승/패로 승률을 낸다 (스트리머 무관).
- * - 표본 과대평가 방지를 위해 최소 3경기(MIN_SAMPLE) 미만은 unranked.
+ * - 표본 과대평가 방지를 위해 최소 5경기(MIN_SAMPLE) 미만은 unranked.
  * - 반환: 티어 순(S→unranked), 동률이면 승률 내림차순, 그다음 판수 내림차순.
  */
 export function calcHeroTiers(matches: Match[]): HeroTierStat[] {

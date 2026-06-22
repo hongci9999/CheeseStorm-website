@@ -97,8 +97,8 @@ matchStatScore = Σ (statWeight[role][stat] × stat/min)
 normalized = (score - min) / (max - min)
 ```
 
-- 역할 내 플레이어 2명 미만 → 정규화 건너뜀, raw 점수 사용
-- 알 수 없는 영웅 역할 → 해당 경기 스탯 점수 0으로 처리
+- 역할 내 플레이어 2명 미만(min=max) → 정규화 불가, 모든 스탯을 중립값 0.5로 처리 (점수 0.5)
+- 알 수 없는 영웅 역할 → 스탯 누적에서 제외 (0점 부여가 아니라 집계 제외 → 커버리지 하락)
 
 ---
 
@@ -152,7 +152,7 @@ export function calcAllStatScores(
 // coverage → α (winRate 가중치). 스탯 신뢰도 낮을수록 승률 비중 높임.
 export function statAlpha(coverage: number): number;
 
-// stat score(0~1) → 가상 승률(0.3~0.7)
+// stat score(0~1) → 가상 승률(0.2~0.8)
 export function statToWinRate(statScore: number): number;
 ```
 
