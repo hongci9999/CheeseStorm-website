@@ -21,14 +21,17 @@ export function HexAvatar({
   ring = 'var(--ink-500)',
   size = 54,
   ringWidth = 2,
+  ringFixed = false,
   children,
   style,
 }: {
   name: string;
   imageUrl?: string;
-  ring?: string;       // 외곽 헥사곤 색 (티어색·롤색 등)
+  ring?: string;       // 외곽 헥사곤 색 (티어색·롤색 등). 그라데이션 문자열도 허용.
   size?: number;
   ringWidth?: number;
+  ringFixed?: boolean; // true면 ring 배경을 뷰포트 고정(background-attachment:fixed)
+                       // → 커서 추적 스포트라이트 글로우를 카드 전체에서 연속으로 표현
   children?: ReactNode;
   style?: CSSProperties;
 }) {
@@ -46,10 +49,11 @@ export function HexAvatar({
   const initialsColor = `color-mix(in srgb, ${ring} 45%, var(--text-high))`;
   return (
     <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size, ...style }}>
-      {/* 외곽 링 — 색 헥사곤 */}
+      {/* 외곽 링 — 색 헥사곤 (ringFixed면 배경을 뷰포트 고정해 스포트라이트 추적) */}
       <span style={{
         position: 'absolute', inset: 0,
         background: ring, clipPath: HEX_CLIP, padding: ringWidth, display: 'flex',
+        ...(ringFixed ? { backgroundAttachment: 'fixed' as const } : null),
       }}>
         {/* 내부 헥사곤 — 이미지 또는 이니셜 */}
         <span style={{

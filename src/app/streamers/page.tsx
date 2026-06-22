@@ -45,8 +45,30 @@ function StreamerCard({
   const [hover, setHover] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [navigating, setNavigating] = useState(false);
-  // 테두리는 히오스 보라로 통일 (티어색 미사용)
+  // 테두리 기본색 — 히오스 보라(스피너·호버 글로우 등 단색 필요처에 사용)
   const ring = 'var(--hots-purple)';
+  // 테두리 스포트라이트 — 커서를 따라 빛나는 글로우. 카드 로컬 좌표(--gx/--gy) 사용.
+  // background-attachment:fixed는 ancestor transform/filter(호버 확대)에 깨지므로 미사용.
+  // 색은 브랜드 색역(green 160° → blue → purple 260°) 안에서만 이동해 테마와 어울림.
+  // 커서에서 멀어진 부분은 hots-purple로 수렴 → 평소 테두리색 유지.
+  // 기본 위치는 화면 밖(-9999px) → 커서 올리기 전/벗어난 후엔 스포트라이트 안 보이고
+  // 테두리는 순수 hots-purple. 잔상 방지.
+  const ringSpot = `radial-gradient(
+    220px 220px at calc(var(--gx, -9999px)) calc(var(--gy, -9999px)),
+    var(--cheese-green) 0%,
+    var(--hots-purple) 62%
+  )`;
+
+  // 커서 위치를 카드 로컬 좌표로 환산해 CSS 변수에 기록 → 테두리 글로우가 커서 추적.
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const s = e.currentTarget.style;
+    s.setProperty('--gx', `${x.toFixed(1)}px`);
+    s.setProperty('--gy', `${y.toFixed(1)}px`);
+    s.setProperty('--gxp', (x / r.width).toFixed(3));
+  }
 
   function handleClick() {
     setNavigating(true);
@@ -59,8 +81,14 @@ function StreamerCard({
   return (
     <div
       onClick={handleClick}
+      onPointerMove={handlePointerMove}
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => { setHover(false); setPressed(false); }}
+      onMouseLeave={e => {
+        setHover(false); setPressed(false);
+        // 스포트라이트 화면 밖으로 → 벗어난 방향에 글로우 잔상 남는 버그 방지
+        e.currentTarget.style.setProperty('--gx', '-9999px');
+        e.currentTarget.style.setProperty('--gy', '-9999px');
+      }}
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
       style={{
@@ -129,7 +157,7 @@ function StreamerCard({
         <HexAvatar
           name={streamer.name}
           imageUrl={streamer.profileImageUrl}
-          ring={ring}
+          ring={ringSpot}
           ringWidth={6}
           size={cardHex}
         >
