@@ -61,6 +61,9 @@ function StreamerCard({
 
   // 커서 위치를 카드 로컬 좌표로 환산해 CSS 변수에 기록 → 테두리 글로우가 커서 추적.
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    // 터치는 커서가 없어 스포트라이트 의미 없음 + lift 시 mouseleave가 없어
+    // 초록 글로우가 테두리에 잔존 → 터치 포인터는 추적 제외
+    if (e.pointerType === 'touch') return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - r.left;
     const y = e.clientY - r.top;
