@@ -45,10 +45,18 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* 모바일 탭 시 잔존하는 파란색 하이라이트 제거 */
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-[var(--bg-app)] text-[var(--text-body)];
     font-family: var(--font-ui);
+  }
+  /* 터치(포인터) 탭으로 생긴 포커스 링은 유지하지 않음 — 키보드 포커스만 링 표시 */
+  @media (hover: none) and (pointer: coarse) {
+    :focus:not(:focus-visible) {
+      outline: none;
+    }
   }
 }
 
