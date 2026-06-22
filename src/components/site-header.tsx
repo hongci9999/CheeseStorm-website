@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { resolveTheme, type Theme } from '@/lib/theme';
-import { isFirebaseConfigured } from '@/lib/firestore';
+import { isFirebaseConfigured } from '@/lib/firebase-config';
 import { useAuth, invalidateAuthCache } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import type { AppRole } from '@/lib/session';
