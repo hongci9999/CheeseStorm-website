@@ -53,7 +53,8 @@ function StreamerCard({
     onOpen();
   }
 
-  const scale = pressed ? 'scale(0.95)' : hover ? 'translateY(-3px)' : 'none';
+  // 호버하면 살짝 커지고, 호버 유지되는 동안 커진 상태 유지. 벗어나면 다시 축소.
+  const scale = pressed ? 'scale(0.95)' : hover ? 'scale(1.06)' : 'none';
 
   return (
     <div

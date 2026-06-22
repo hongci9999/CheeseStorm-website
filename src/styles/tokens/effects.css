@@ -46,7 +46,7 @@
   /* ---- Motion ------------------------------------------------------- */
   --ease-out:   cubic-bezier(0.22, 1, 0.36, 1);    /* @kind other */
   --ease-snap:  cubic-bezier(0.34, 1.56, 0.64, 1); /* @kind other */
-  --dur-fast:   120ms; /* @kind other */
+  --dur-fast:   300ms; /* @kind other */
   --dur-base:   200ms; /* @kind other */
   --dur-slow:   360ms; /* @kind other */
 
