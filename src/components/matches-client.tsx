@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { deleteMatch } from '@/lib/api-client';
+import { getMatch } from '@/lib/firestore';
 import { participants, displaySides } from '@/lib/match';
 import type { Match, Streamer } from '@/lib/types';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
@@ -174,6 +175,43 @@ function MatchRow({
   );
 }
 
+// ── MatchDetailSkeleton ───────────────────────────────────────
+// 상세 단건 fetch 동안 표시 — 두 팀 블록 형태의 펄스 스켈레톤
+const SKEL: React.CSSProperties = {
+  borderRadius: 'var(--r-xs)', background: 'var(--surface-raise)',
+  animation: 'skel-pulse 1.5s ease-in-out infinite',
+};
+
+function TeamBlockSkeleton() {
+  return (
+    <div style={{ flex: 1, minWidth: 0, border: '1px solid var(--border-faint)',
+      borderRadius: 'var(--r-sm)', padding: 'var(--sp-3)' }}>
+      <div style={{ ...SKEL, width: 80, height: 24, marginBottom: 'var(--sp-3)' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8,
+            minHeight: 56, padding: '0 12px', borderRadius: 'var(--r-sm)',
+            background: 'var(--surface-card)', borderLeft: '3px solid var(--border-line)' }}>
+            <div style={{ ...SKEL, width: 48, height: 48, borderRadius: '50%' }} />
+            <div style={{ ...SKEL, flex: 1, height: 12 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MatchDetailSkeleton() {
+  return (
+    <div style={{ padding: 'var(--sp-4) var(--sp-5) var(--sp-5)',
+      borderTop: '1px solid var(--border-faint)', display: 'flex', gap: 'var(--sp-4)',
+      alignItems: 'flex-start' }}>
+      <TeamBlockSkeleton />
+      <TeamBlockSkeleton />
+    </div>
+  );
+}
+
 // ── MatchesClient ─────────────────────────────────────────────
 export default function MatchesClient({
   matches,
@@ -188,6 +226,18 @@ export default function MatchesClient({
   const bp = useBreakpoint();
   const [openId, setOpenId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  // 펼칠 때 단건 fetch한 상세(스탯 포함) 캐시 — 목록 payload엔 스탯이 없음
+  const [detailCache, setDetailCache] = useState<Record<string, Match>>({});
+
+  function handleToggle(id: string) {
+    if (openId === id) { setOpenId(null); return; }
+    setOpenId(id);
+    if (!detailCache[id]) {
+      getMatch(id).then((full) => {
+        if (full) setDetailCache((c) => ({ ...c, [id]: full }));
+      });
+    }
+  }
 
   const getName = (id: string) =>
     streamers.find(s => s.id === id)?.name ?? id.replace('__unknown__', '');
@@ -279,13 +329,15 @@ export default function MatchesClient({
                         match={m}
                         open={isOpen}
                         idx={numberById.get(m.id) ?? 0}
-                        onClick={() => setOpenId(isOpen ? null : m.id)}
+                        onClick={() => handleToggle(m.id)}
                         onDelete={() => handleDelete(m.id, numberById.get(m.id) ?? 0)}
                         onEdit={() => router.push(`/matches/new?edit=${m.id}`)}
                         canEdit={isStreamer}
                         bp={bp}
                       />
-                      {isOpen && <MatchDetail match={m} streamers={streamers} />}
+                      {isOpen && (detailCache[m.id]
+                        ? <MatchDetail match={detailCache[m.id]} streamers={streamers} />
+                        : <MatchDetailSkeleton />)}
                     </div>
                   );
                 })}
