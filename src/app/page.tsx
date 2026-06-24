@@ -273,7 +273,7 @@ function AutoTierNotice() {
         margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
         color: 'var(--tier-b)', fontWeight: 600, lineHeight: 1.55,
       }}>
-        본 티어표는 승률과 스탯 전반적인 수치를 종합하여 자동으로 설정된 티어표입니다. 스트리머 티어표 탭에서 티어표를 만들어주세요
+        본 티어표는 승률과 스탯 전반적인 수치를 종합하여 자동으로 설정된 티어표입니다. 부정확한 티어표 이므로 재미로만 보시고 참조용으로만 활용하시기 바랍니다.
       </p>
     </div>
   );
