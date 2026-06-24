@@ -486,7 +486,7 @@ export function CurationTierTab({
 
   const groups = useMemo(
     () => groupCuratedByTier(filtered, {
-      showEmptyTiers: editMode,
+      showEmptyTiers: true,
       includeUnranked: !editMode,
     }),
     [filtered, editMode],
