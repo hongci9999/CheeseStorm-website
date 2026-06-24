@@ -301,7 +301,7 @@ function RosterPanel({
           marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 12,
           color: 'var(--text-muted)', lineHeight: 1.45,
         }}>
-          등록된 스트리머 {players.length}명 · 왼쪽 티어로 드래그
+          미배정 {players.length}명 · 왼쪽 티어로 드래그
         </div>
       </div>
       <div style={{
@@ -478,6 +478,12 @@ export function CurationTierTab({
     [players, role],
   );
 
+  // 미배정 패널 — 티어에 배정된 스트리머는 제외 (unranked만)
+  const unassigned = useMemo(
+    () => filtered.filter((p) => p.tier === 'unranked'),
+    [filtered],
+  );
+
   const groups = useMemo(
     () => groupCuratedByTier(filtered, {
       showEmptyTiers: editMode,
@@ -591,7 +597,7 @@ export function CurationTierTab({
       {/* 오른쪽 미배정 패널 — 편집 모드에서만 */}
       {editMode && (
         <RosterPanel
-          players={filtered}
+          players={unassigned}
           editMode={editMode}
           dragOver={dragOverTier === 'unranked'}
           draggingId={draggingId}
