@@ -147,7 +147,7 @@ export function groupStatsByTier(
 ): { tier: Tier | 'unranked'; players: PlayerStats[] }[] {
   return TIER_ORDER
     .map((tier) => ({ tier, players: stats.filter((s) => s.tier === tier) }))
-    .filter((g) => g.tier === 'S' || g.players.length > 0); // S는 빈 칸도 항상 표시
+    .filter((g) => g.tier !== 'unranked' || g.players.length > 0); // S~D는 빈 칸도 항상 표시, unranked는 있을 때만
 }
 
 

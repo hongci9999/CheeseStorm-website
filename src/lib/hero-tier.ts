@@ -88,11 +88,11 @@ export function calcHeroTiers(matches: Match[]): HeroTierStat[] {
     });
 }
 
-// 티어별로 영웅을 묶는다 (빈 티어 제외).
+// 티어별로 영웅을 묶는다 (S~D는 빈 티어도 표시, unranked는 있을 때만).
 export function groupHeroesByTier(
   stats: HeroTierStat[],
 ): { tier: Tier; heroes: HeroTierStat[] }[] {
   return TIER_ORDER
     .map((tier) => ({ tier, heroes: stats.filter((s) => s.tier === tier) }))
-    .filter((g) => g.heroes.length > 0);
+    .filter((g) => g.tier !== 'unranked' || g.heroes.length > 0);
 }

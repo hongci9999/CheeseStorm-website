@@ -121,23 +121,20 @@ describe('groupStatsByTier', () => {
     expect(sGroup.players).toEqual([p1, p3]);
   });
 
-  // 2. 순서 보장
+  // 2. 순서 보장 (S~D는 빈 티어도 항상 표시)
   it('S → A → B → C → D → unranked 순서로 반환한다', () => {
     const stats = [makeStat('unranked'), makeStat('C'), makeStat('S'), makeStat('A')];
     const groups = groupStatsByTier(stats);
     const tiers = groups.map(g => g.tier);
-    expect(tiers).toEqual(['S', 'A', 'C', 'unranked']);
+    expect(tiers).toEqual(['S', 'A', 'B', 'C', 'D', 'unranked']);
   });
 
-  // 1. 빈 티어 제외
-  it('데이터 없는 티어는 결과에 포함하지 않는다', () => {
+  // 1. S~D는 비어 있어도 포함, unranked만 비면 제외
+  it('데이터 없는 S~D 티어도 결과에 포함한다', () => {
     const stats = [makeStat('S'), makeStat('C')];
     const groups = groupStatsByTier(stats);
     const tiers = groups.map(g => g.tier);
-    expect(tiers).toContain('S');
-    expect(tiers).toContain('C');
-    expect(tiers).not.toContain('A');
-    expect(tiers).not.toContain('B');
-    expect(tiers).not.toContain('D');
+    expect(tiers).toEqual(['S', 'A', 'B', 'C', 'D']);
+    expect(tiers).not.toContain('unranked');
   });
 });

@@ -87,16 +87,16 @@ describe('calcHeroTiers', () => {
 });
 
 describe('groupHeroesByTier', () => {
-  it('티어별로 묶고 빈 티어는 제외한다', () => {
+  it('S~D는 빈 티어도 표시하고 unranked만 비면 제외한다', () => {
     const matches: Match[] = [
       mk('a1', '갓영웅', 'blue'),
       mk('a2', '갓영웅', 'blue'),
       mk('a3', '갓영웅', 'blue'),
     ];
     const groups = groupHeroesByTier(calcHeroTiers(matches));
-    // 갓영웅(S) + placeholder 'y'(레드, 3패 D) → 최소 S, D 존재, B/C 없음
     const tiers = groups.map((g) => g.tier);
-    expect(tiers).toContain('S');
-    expect(groups.every((g) => g.heroes.length > 0)).toBe(true);
+    // S~D는 비어 있어도 항상 포함 (unranked는 placeholder 'y'가 있어 표시)
+    expect(tiers.slice(0, 5)).toEqual(['S', 'A', 'B', 'C', 'D']);
+    expect(groups.find((g) => g.tier === 'A')!.heroes).toEqual([]);
   });
 });
