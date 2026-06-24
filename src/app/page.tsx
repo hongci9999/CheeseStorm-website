@@ -215,8 +215,8 @@ function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void
 
 // ── 상위 탭 바 — FilterBar와 계층이 명확히 다른 스타일 ────────────
 const MAIN_TAB_LABELS: Record<MainTab, string> = {
-  auto:     '스트리머 자동',
   curation: '스트리머 티어표',
+  auto:     '스트리머 자동',
   hero:     '영웅',
 };
 
@@ -523,7 +523,7 @@ export default function HomePage() {
   const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
   const [matches, setMatches] = useState<Match[]>(cachedMatches ?? []);
   const [loading, setLoading] = useState(initial === null);
-  const [mainTab, setMainTab] = useState<MainTab>('auto');
+  const [mainTab, setMainTab] = useState<MainTab>('curation');
   const bp = useBreakpoint();
 
   useEffect(() => {
