@@ -215,9 +215,9 @@ function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void
 
 // ── 상위 탭 바 — FilterBar와 계층이 명확히 다른 스타일 ────────────
 const MAIN_TAB_LABELS: Record<MainTab, string> = {
-  curation: '스트리머 티어표',
-  auto:     '스트리머 자동',
-  hero:     '영웅',
+  curation: '스트리머 수동 티어표',
+  auto:     '스트리머 자동 티어표',
+  hero:     '영웅 티어표',
 };
 
 function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void }) {

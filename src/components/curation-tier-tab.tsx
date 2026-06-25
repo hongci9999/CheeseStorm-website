@@ -356,7 +356,7 @@ function CurationTierNotice() {
     }}>
       <p style={{
         margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
-        color: 'var(--cheese-green)', fontWeight: 600, lineHeight: 1.55,
+        color: 'white', fontWeight: 600, lineHeight: 1.55,
       }}>
         사이트에 등록된 스트리머가 수정하는 티어표 입니다. 모든 이용자가 하나의 티어표를 공유합니다.
       </p>
@@ -544,14 +544,15 @@ export function CurationTierTab({
                   disabled={saving}
                   style={{
                     height: 36, padding: '0 16px', borderRadius: 'var(--r-sm)',
-                    border: `1px solid ${editMode ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+                    border: `1px solid var(--cheese-green)`,
                     background: editMode
                       ? 'color-mix(in srgb, var(--cheese-green) 18%, transparent)'
-                      : 'var(--surface-raise)',
-                    color: editMode ? 'var(--cheese-green)' : 'var(--text-high)',
+                      : 'var(--cheese-green)',
+                    color: editMode ? 'var(--cheese-green)' : '#0a0a0a',
                     fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 13,
                     cursor: saving ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
                     opacity: saving ? 0.6 : 1,
+                    boxShadow: editMode ? 'none' : '0 2px 8px color-mix(in srgb, var(--cheese-green) 35%, transparent)',
                   }}
                 >
                   {saving ? '저장 중...' : editMode ? '편집 완료' : '티어 편집'}
