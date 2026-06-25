@@ -378,22 +378,22 @@ function PlaceholderNoticeOverlay({ onClose }: { onClose: () => void }) {
       borderRadius: 'var(--r-lg)',
     }}>
       <div style={{
-        maxWidth: 460, width: 'calc(100% - 32px)', textAlign: 'center',
+        maxWidth: 540, width: 'calc(100% - 32px)', textAlign: 'center',
         borderRadius: 'var(--r-lg)',
         border: '1px solid color-mix(in srgb, var(--cheese-green) 45%, var(--border-line))',
         background: 'var(--surface-card)',
         boxShadow: 'var(--glow-green-soft), var(--shadow-lg)',
-        padding: 'var(--sp-6) var(--sp-5)',
+        padding: 'var(--sp-7) var(--sp-6)',
       }}>
         <p style={{
-          margin: 0, fontSize: 14.5, fontFamily: 'var(--font-ui)', fontWeight: 700,
+          margin: 0, fontSize: 18.5, fontFamily: 'var(--font-ui)', fontWeight: 700,
           color: 'var(--text-high)', lineHeight: 1.7,
         }}>
           스트리머들의 티어가 책정되지 않은 상태입니다{br}
           {' '}지금은 임의로 배정된 예시 티어로 구성되어 있습니다
         </p>
         <p style={{
-          margin: 'var(--sp-3) 0 0', fontSize: 13, fontFamily: 'var(--font-ui)', fontWeight: 500,
+          margin: 'var(--sp-3) 0 0', fontSize: 15.5, fontFamily: 'var(--font-ui)', fontWeight: 500,
           color: 'var(--text-muted)', lineHeight: 1.7,
         }}>
           현재 히오스는 티어와 승률로 실력을 판단하기 어렵습니다.{br}
