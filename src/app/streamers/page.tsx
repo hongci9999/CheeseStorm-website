@@ -32,6 +32,7 @@ const LABEL: React.CSSProperties = {
 // 하단 그라데이션 위에 닉네임 + 계정레벨(주요 정보) 기입.
 function StreamerCard({
   streamer, onOpen, onDelete, onEditGameNames, canEdit, canDelete, cardHex, nameFontSize,
+  ringWidth = 6, compact = false,
 }: {
   streamer: Streamer;
   onOpen: () => void;
@@ -41,6 +42,8 @@ function StreamerCard({
   canDelete: boolean;
   cardHex: number;
   nameFontSize: number;
+  ringWidth?: number;
+  compact?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   const [pressed, setPressed] = useState(false);
@@ -161,7 +164,7 @@ function StreamerCard({
           name={streamer.name}
           imageUrl={streamer.profileImageUrl}
           ring={ringSpot}
-          ringWidth={6}
+          ringWidth={ringWidth}
           size={cardHex}
         >
           {/* 하단 그라데이션 + 닉네임 + 계정레벨 */}
@@ -180,7 +183,8 @@ function StreamerCard({
               {streamer.name}
             </span>
             {streamer.accountLevel != null && (
-              <LevelBadge level={streamer.accountLevel} />
+              <LevelBadge level={streamer.accountLevel}
+                style={compact ? { height: 15, padding: '0 5px', fontSize: 8.5, gap: 2 } : undefined} />
             )}
           </span>
         </HexAvatar>
@@ -201,10 +205,10 @@ function StreamerCard({
 //   세로 행간격   ROW_MT = -0.25·H + 0.866·GAP   (브릭 반칸 오프셋 기준)
 const GAP = 20; // 육각형 가장자리 간격 (상하=좌우)
 
-function Honeycomb({ children, rowFull, cardHex }: { children: ReactElement[]; rowFull: number; cardHex: number }) {
-  const stepX = Math.round(cardHex * 0.866 + GAP);       // 가로 칸 간격(중심간격)
+function Honeycomb({ children, rowFull, cardHex, gap = GAP }: { children: ReactElement[]; rowFull: number; cardHex: number; gap?: number }) {
+  const stepX = Math.round(cardHex * 0.866 + gap);       // 가로 칸 간격(중심간격)
   const stepMargin = stepX - cardHex;                     // 박스 폭과 차이(음수) → marginLeft
-  const rowMt = Math.round(-cardHex * 0.25 + GAP * 0.866); // 세로 맞물림
+  const rowMt = Math.round(-cardHex * 0.25 + gap * 0.866); // 세로 맞물림
 
   const rows: ReactElement[][] = [];
   for (let i = 0; i < children.length; i += rowFull)
@@ -525,11 +529,12 @@ export default function StreamersPage() {
   const { isStreamer, isAdmin } = useAuth();
   const bp = useBreakpoint();
 
-  // bp별 카드 크기 · 행 개수 · 닉네임 폰트 크기
-  const { cardHex, rowFull, nameFontSize } = useMemo(() => {
-    if (bp === 'mobile')  return { cardHex: 120, rowFull: 2, nameFontSize: 13 };
-    if (bp === 'tablet')  return { cardHex: 160, rowFull: 3, nameFontSize: 14 };
-    return                       { cardHex: 200, rowFull: 5, nameFontSize: 16 };
+  // bp별 카드 크기 · 행 개수 · 닉네임 폰트 · 테두리 굵기 · 카드 간격
+  const isMobile = bp === 'mobile';
+  const { cardHex, rowFull, nameFontSize, ringWidth, gap } = useMemo(() => {
+    if (bp === 'mobile')  return { cardHex: 96, rowFull: 3, nameFontSize: 12, ringWidth: 3, gap: 8 };
+    if (bp === 'tablet')  return { cardHex: 160, rowFull: 3, nameFontSize: 14, ringWidth: 6, gap: 20 };
+    return                       { cardHex: 200, rowFull: 5, nameFontSize: 16, ringWidth: 6, gap: 20 };
   }, [bp]);
 
   // 캐시가 있으면 첫 렌더부터 데이터로 그려 스피너·재요청을 건너뛴다 (SPA 재방문 시)
@@ -623,7 +628,7 @@ export default function StreamersPage() {
           {search ? '검색 결과가 없습니다.' : '등록된 스트리머가 없습니다.'}
         </div>
       ) : (
-        <Honeycomb rowFull={rowFull} cardHex={cardHex}>
+        <Honeycomb rowFull={rowFull} cardHex={cardHex} gap={gap}>
           {filtered.map(s => (
             <StreamerCard
               key={s.id}
@@ -635,6 +640,8 @@ export default function StreamersPage() {
               canDelete={isAdmin}
               cardHex={cardHex}
               nameFontSize={nameFontSize}
+              ringWidth={ringWidth}
+              compact={isMobile}
             />
           ))}
         </Honeycomb>

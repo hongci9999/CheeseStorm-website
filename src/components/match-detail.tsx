@@ -1,7 +1,10 @@
+'use client';
+
 import { statOf, displaySides } from '@/lib/match';
 import type { Match, PlayerMatchStat, Streamer } from '@/lib/types';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 
 // 영웅 육각 프로필 — 육각형 + 보라 테두리. 영웅 사진 있으면 표시, 없으면 이니셜 폴백.
 export function HeroHex({ hero, size = 30 }: { hero: string; size?: number }) {
@@ -37,6 +40,11 @@ export function HeroTeamStack({ heroes, won, size = 30, glow = false }:
     </div>
   );
 }
+
+// 스탯표 8열 그리드 — 라벨행과 StatRow가 공유. 모바일은 폭 축소(배틀ID·영웅명 제거).
+// 프사 | 이름 | 영웅 | K/A/D | 영웅딜 | 공성딜 | 힐/자힐 | 경험치
+const GRID_COLS_DESKTOP = '52px 1fr 1fr 60px 58px 58px 66px 58px';
+const GRID_COLS_MOBILE = '36px 60px 30px 52px 50px 50px 56px 50px';
 
 // 숫자를 k 단위로 축약 (예: 12345 → 12.3k)
 function fmtNum(n: number): string {
@@ -84,7 +92,7 @@ function StatNumCell({ display, color, align = 'right', size = 16 }: {
 // ── StatRow ────────────────────────────────────────────────────
 // 플레이어 한 줄 — 프사·이름·영웅 + 개인 스탯 셀
 function StatRow({
-  id, hero, stat, won, getName, gameName, imageUrl, tops,
+  id, hero, stat, won, getName, gameName, imageUrl, tops, isMobile,
 }: {
   id: string; hero: string; stat: PlayerMatchStat | null;
   won: boolean;
@@ -92,6 +100,7 @@ function StatRow({
   gameName?: string;
   imageUrl?: string;
   tops: TeamTops;
+  isMobile: boolean;
 }) {
   // 팀 최고값과 같으면(0 초과) 초록으로 강조
   const isTop = (key: keyof TeamTops) =>
@@ -99,30 +108,29 @@ function StatRow({
   return (
     <div style={{
       display: 'grid',
-      // 프사 | 이름+배틀태그 | 영웅(육각+이름) | K/A/D | 영웅딜 | 공성딜 | 힐/자힐 | 경험치
-      gridTemplateColumns: '52px 1fr 1fr 60px 58px 58px 66px 58px',
+      gridTemplateColumns: isMobile ? GRID_COLS_MOBILE : GRID_COLS_DESKTOP,
       alignItems: 'center', gap: 0,
-      minHeight: 56, padding: '0 12px',
+      minHeight: isMobile ? 44 : 56, padding: isMobile ? '0 8px' : '0 12px',
       borderRadius: 'var(--r-sm)', background: 'var(--surface-card)',
       // 팀 색깔 없음 — 이긴 행만 win 색 좌측바로 강조
       borderLeft: `3px solid ${won ? 'var(--win)' : 'var(--border-line)'}`,
     }}>
-      {/* 스트리머 육각 프사 — Nexus 보라 테두리 */}
+      {/* 스트리머 육각 프사 — Nexus 보라 테두리. 모바일은 축소 */}
       <span style={{ display: 'flex', alignItems: 'center' }}>
-        <HexAvatar name={getName(id)} imageUrl={imageUrl} ring="var(--hots-purple)" size={48} ringWidth={1.5} />
+        <HexAvatar name={getName(id)} imageUrl={imageUrl} ring="var(--hots-purple)"
+          size={isMobile ? 30 : 48} ringWidth={1.5} />
       </span>
 
-      {/* 이름 + 배틀넷 아이디(흐릿하게) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden',
+      {/* 이름 (+ 배틀넷 아이디 — 모바일에선 숨김). 이름은 잘리지 않게 전체 표시(줄바꿈 허용) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0,
         paddingLeft: 4, paddingRight: 6 }}>
         <span style={{
-          fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13.5,
-          color: 'var(--text-high)', overflow: 'hidden',
-          textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: isMobile ? 10.5 : 12.5,
+          color: 'var(--text-high)', lineHeight: 1.2, whiteSpace: 'nowrap',
         }}>
           {getName(id)}
         </span>
-        {gameName && (
+        {gameName && !isMobile && (
           <span style={{
             fontFamily: 'var(--font-numeral)', fontSize: 10.5,
             color: 'var(--text-faint)', overflow: 'hidden',
@@ -133,17 +141,19 @@ function StatRow({
         )}
       </div>
 
-      {/* 영웅 — 육각 프로필 + 이름(아래 작게) */}
+      {/* 영웅 — 육각 프로필 (+ 이름 — 모바일에선 숨김) */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-        overflow: 'hidden', paddingRight: 6 }}>
-        <HeroHex hero={hero} size={30} />
-        <span style={{
-          fontFamily: 'var(--font-ui)', fontSize: 10.5, fontWeight: 600,
-          color: 'var(--text-muted)', whiteSpace: 'nowrap', maxWidth: '100%',
-          overflow: 'hidden', textOverflow: 'ellipsis',
-        }}>
-          {hero || '—'}
-        </span>
+        overflow: 'hidden', paddingRight: isMobile ? 0 : 6 }}>
+        <HeroHex hero={hero} size={isMobile ? 26 : 30} />
+        {!isMobile && (
+          <span style={{
+            fontFamily: 'var(--font-ui)', fontSize: 10.5, fontWeight: 600,
+            color: 'var(--text-muted)', whiteSpace: 'nowrap', maxWidth: '100%',
+            overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {hero || '—'}
+          </span>
+        )}
       </div>
 
       {/* K/A/D — 중요 정보 (막대 없음) */}
@@ -177,7 +187,7 @@ function StatRow({
 // ── TeamStatBlock ─────────────────────────────────────────────
 // 팀 한 블록: 헤더 + 컬럼 레이블 + StatRow 목록
 function TeamStatBlock({
-  roster, won, hasStats, level, getName, getGameName, getImage, match, side,
+  roster, won, hasStats, level, getName, getGameName, getImage, match, side, isMobile,
 }: {
   roster: [string, string][];
   won: boolean; hasStats: boolean;
@@ -187,6 +197,7 @@ function TeamStatBlock({
   getImage: (id: string) => string | undefined;
   match: Match;
   side: 'left' | 'right';
+  isMobile: boolean;
 }) {
   // 팀 내 최고값(영웅딜·공성딜·경험치) 계산 → 해당 셀 강조 기준
   const rowStats = roster.map(([id]) => statOf(match, id));
@@ -227,12 +238,15 @@ function TeamStatBlock({
         {side === 'left' ? <>{badgeEl}{levelEl}</> : <>{levelEl}{badgeEl}</>}
       </div>
 
+      {/* 모바일: 고정폭 8열 그리드가 폰 너비 초과 → 가로 스크롤로 형태 유지 */}
+      <div style={isMobile ? { overflowX: 'auto', overflowY: 'hidden' } : undefined}>
+      <div style={isMobile ? { minWidth: 400 } : undefined}>
       {/* 컬럼 레이블 (스탯 있을 때만) — StatRow와 동일한 8열 그리드 */}
       {hasStats && (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '52px 1fr 1fr 60px 58px 58px 66px 58px',
-          padding: '0 12px', marginBottom: 4,
+          gridTemplateColumns: isMobile ? GRID_COLS_MOBILE : GRID_COLS_DESKTOP,
+          padding: isMobile ? '0 8px' : '0 12px', marginBottom: 4,
         }}>
           <span />
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5, color: 'var(--text-faint)',
@@ -265,8 +279,11 @@ function TeamStatBlock({
             gameName={getGameName(id)}
             imageUrl={getImage(id)}
             tops={tops}
+            isMobile={isMobile}
           />
         ))}
+      </div>
+      </div>
       </div>
 
       {/* 스탯 없는 경기 안내 */}
@@ -286,6 +303,7 @@ function TeamStatBlock({
 // ── MatchDetail ───────────────────────────────────────────────
 // 한 경기의 팀별 로스터·개인 스탯 상세. 목록 펼침·경기 상세 페이지에서 공용.
 export function MatchDetail({ match, streamers }: { match: Match; streamers: Streamer[] }) {
+  const isMobile = useBreakpoint() === 'mobile';
   // blueStats/redStats 중 하나라도 있으면 스탯 있음으로 판단
   const hasStats = !!(match.blueStats?.length || match.redStats?.length);
 
@@ -304,7 +322,8 @@ export function MatchDetail({ match, streamers }: { match: Match; streamers: Str
   return (
     <div style={{ padding: 'var(--sp-4) var(--sp-5) var(--sp-5)',
       borderTop: '1px solid var(--border-faint)' }}>
-      <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        gap: 'var(--sp-4)', alignItems: isMobile ? 'stretch' : 'flex-start' }}>
         <TeamStatBlock
           roster={left.roster}
           won={left.won}
@@ -315,8 +334,10 @@ export function MatchDetail({ match, streamers }: { match: Match; streamers: Str
           getImage={getImage}
           match={match}
           side="left"
+          isMobile={isMobile}
         />
-        <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'stretch', paddingTop: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+          alignSelf: isMobile ? 'center' : 'stretch', paddingTop: isMobile ? 0 : 18 }}>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18,
             color: 'var(--text-faint)', letterSpacing: '0.06em' }}>VS</span>
         </div>
@@ -330,6 +351,7 @@ export function MatchDetail({ match, streamers }: { match: Match; streamers: Str
           getImage={getImage}
           match={match}
           side="right"
+          isMobile={isMobile}
         />
       </div>
       {match.note && (

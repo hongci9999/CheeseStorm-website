@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { getCuratedTierLists, getStreamers, getMatches } from '@/lib/firestore';
 import { saveCuratedTierLists } from '@/lib/api-client';
 import {
@@ -158,7 +159,7 @@ function CuratedPlayerCell({
 
 // ── 티어 행 (드롭 존) ─────────────────────────────────────────
 function CuratedTierRow({
-  tier, players, editMode, dragOver, draggingId, dragOverCellId,
+  tier, players, editMode, dragOver, draggingId, dragOverCellId, isMobile,
   onDragEnter, onDragLeave, onDropAppend,
   onDragStart, onDragEnd, onCellDragEnter, onDropBefore,
 }: {
@@ -168,6 +169,7 @@ function CuratedTierRow({
   dragOver: boolean;
   draggingId: string | null;
   dragOverCellId: string | null;
+  isMobile: boolean;
   onDragEnter: () => void;
   onDragLeave: () => void;
   onDropAppend: () => void;
@@ -200,13 +202,13 @@ function CuratedTierRow({
         background: color, boxShadow: `0 0 14px ${color}`,
       }} />
       <div style={{
-        width: 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
+        width: isMobile ? 72 : 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 10,
-        padding: 'var(--sp-3) var(--sp-4)',
+        padding: isMobile ? 'var(--sp-2) var(--sp-2)' : 'var(--sp-3) var(--sp-4)',
         borderRight: '1px solid var(--border-faint)',
         background: isS ? 'var(--grad-sweep)' : 'transparent',
       }}>
-        <TierBadge tier={tier} size="lg" />
+        <TierBadge tier={tier} size={isMobile ? 'sm' : 'lg'} />
         {tier === 'unranked' && (
           <span style={{
             fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.1em',
@@ -218,7 +220,8 @@ function CuratedTierRow({
       </div>
       <div style={{
         flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
-        alignContent: 'center', padding: 'var(--sp-2) var(--sp-4)',
+        alignContent: 'center',
+        padding: isMobile ? 'var(--sp-1) var(--sp-2)' : 'var(--sp-2) var(--sp-4)',
         minHeight: 88,
       }}>
         {players.length === 0 && editMode && (
@@ -235,6 +238,7 @@ function CuratedTierRow({
             p={p}
             tier={tier}
             editMode={editMode}
+            compact={isMobile}
             dragging={draggingId === p.streamerId}
             dragOver={editMode && dragOverCellId === p.streamerId && draggingId !== p.streamerId}
             onDragStart={onDragStart}
@@ -369,6 +373,7 @@ export function CurationTierTab({
   matches: Match[];
 }) {
   const { isStreamer } = useAuth();
+  const isMobile = useBreakpoint() === 'mobile';
   const [roster, setRoster] = useState<Streamer[]>(streamersProp);
   const [matchList, setMatchList] = useState<Match[]>(matchesProp);
   const [lists, setLists] = useState<CuratedTierLists>(emptyTierLists());
@@ -578,6 +583,7 @@ export function CurationTierTab({
                 tier={tier}
                 players={rowPlayers}
                 editMode={editMode}
+                isMobile={isMobile}
                 dragOver={dragOverTier === tier && !dragOverCellId}
                 draggingId={draggingId}
                 dragOverCellId={dragOverCellId}
