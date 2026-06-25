@@ -366,11 +366,13 @@ function CurationTierNotice() {
 
 // ── 임시 티어 안내 오버레이 (티어표 위를 덮음) ─────────────────
 function PlaceholderNoticeOverlay({ onClose }: { onClose: () => void }) {
+  const isMobile = useBreakpoint() === 'mobile';
+  const br = isMobile ? null : <br />; // 모바일은 자연 줄바꿈
   return (
     <div style={{
       position: 'absolute', inset: 0, zIndex: 20,
       display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      paddingTop: '12vh',
+      paddingTop: isMobile ? '6vh' : '12vh',
       background: 'color-mix(in srgb, var(--surface-base) 72%, transparent)',
       backdropFilter: 'blur(3px)',
       borderRadius: 'var(--r-lg)',
@@ -387,16 +389,16 @@ function PlaceholderNoticeOverlay({ onClose }: { onClose: () => void }) {
           margin: 0, fontSize: 14.5, fontFamily: 'var(--font-ui)', fontWeight: 700,
           color: 'var(--text-high)', lineHeight: 1.7,
         }}>
-          스트리머들의 티어가 책정되지 않은 상태입니다<br />
-          지금은 임의로 배정된 예시 티어로 구성되어 있습니다
+          스트리머들의 티어가 책정되지 않은 상태입니다{br}
+          {' '}지금은 임의로 배정된 예시 티어로 구성되어 있습니다
         </p>
         <p style={{
           margin: 'var(--sp-3) 0 0', fontSize: 13, fontFamily: 'var(--font-ui)', fontWeight: 500,
           color: 'var(--text-muted)', lineHeight: 1.7,
         }}>
-          현재 히오스는 티어와 승률로 실력을 판단하기 어렵습니다. <br />
-          스트리머분들의 주관적 경험을 통해 티어표를 완성해주세요<br />
-          왼쪽 상단 <span style={{ color: 'var(--cheese-green)', fontWeight: 700 }}>티어편집</span> 버튼을 통해 편집모드로 진입할 수 있습니다
+          현재 히오스는 티어와 승률로 실력을 판단하기 어렵습니다.{br}
+          {' '}스트리머분들의 주관적 경험을 통해 티어표를 완성해주세요{br}
+          {' '}왼쪽 상단 <span style={{ color: 'var(--cheese-green)', fontWeight: 700 }}>티어편집</span> 버튼을 통해 편집모드로 진입할 수 있습니다
         </p>
         <button
           onClick={onClose}
