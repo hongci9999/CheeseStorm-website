@@ -161,6 +161,7 @@ function RoleBadge({ role, color }: { role: string; color: string }) {
       border: `1px solid color-mix(in srgb, ${color} 35%, transparent)`,
       color: color,
       fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12,
+      flexShrink: 0, whiteSpace: 'nowrap',
     }}>
       {role}
     </span>
@@ -227,6 +228,113 @@ export default function GuidePage() {
                 </span>
               </Link>
             ))}
+          </div>
+        </SectionCard>
+
+        {/* ── 로그인 & 권한 ──────────────────────────────────────── */}
+        <SectionCard>
+          <SectionTitle icon="🔐" title="로그인 & 권한" sub="AUTH · CHZZK OAUTH" />
+
+          <p style={{
+            margin: '0 0 var(--sp-5)', fontFamily: 'var(--font-ui)', fontSize: 14,
+            color: 'var(--text-muted)', lineHeight: 1.7,
+          }}>
+            치지직 계정으로 로그인합니다. 권한은 계정에 따라 자동으로 부여됩니다.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
+            {[
+              {
+                role: '일반 시청자',
+                color: 'var(--text-muted)',
+                desc: '로그인 없이 티어리스트, 내전기록실, 스트리머 프로필을 모두 볼 수 있습니다.',
+              },
+              {
+                role: '스트리머',
+                color: 'var(--cheese-green)',
+                desc: '웹사이트에 등록된 스트리머 계정으로 로그인하면 자동 부여됩니다. 스트리머 추가·수정, 경기 입력·수정·삭제, 큐레이션 티어 편집이 가능합니다.',
+              },
+              {
+                role: '운영자',
+                color: 'var(--tier-s)',
+                desc: '스트리머의 모든 권한에 더해 스트리머 삭제 권한을 가집니다. 운영자 권한은 개발자를 통해서만 추가 가능합니다',
+              },
+            ].map(({ role, color, desc }) => (
+              <div
+                key={role}
+                style={{
+                  display: 'flex', gap: 'var(--sp-4)', alignItems: 'flex-start',
+                  padding: 'var(--sp-3) var(--sp-4)',
+                  borderRadius: 'var(--r-md)', background: 'var(--surface-raise)',
+                  border: '1px solid var(--border-faint)',
+                }}
+              >
+                <RoleBadge role={role} color={color} />
+                <p style={{
+                  margin: 0, fontFamily: 'var(--font-ui)', fontSize: 13.5,
+                  color: 'var(--text-muted)', lineHeight: 1.65, paddingTop: 2,
+                }}>
+                  {desc}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* 닉네임 시각 효과 미리보기 */}
+          <div style={{
+            marginTop: 'var(--sp-5)',
+            borderRadius: 'var(--r-md)',
+            border: '1px solid var(--border-faint)',
+            background: 'var(--surface-raise)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: 'var(--sp-2) var(--sp-4)',
+              borderBottom: '1px solid var(--border-faint)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10.5, letterSpacing: '0.1em', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                헤더 닉네임 미리보기
+              </span>
+            </div>
+            <div style={{ padding: 'var(--sp-3) var(--sp-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+              {/* 일반 시청자 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>시청자</span>
+                <span style={{
+                  fontFamily: 'var(--font-ui)', fontSize: 13,
+                  color: 'var(--text-muted)', fontWeight: 400,
+                }}>
+                  홍길동
+                </span>
+              </div>
+              {/* 스트리머 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>스트리머</span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--accent)' }}>
+                  홍길동
+                </span>
+              </div>
+              {/* 운영자 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
+                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>운영자</span>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: '#facc15' }}>
+                  홍길동
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            marginTop: 'var(--sp-4)', padding: 'var(--sp-3) var(--sp-4)',
+            borderRadius: 'var(--r-md)',
+            border: '1px solid color-mix(in srgb, var(--cheese-green) 30%, var(--border-line))',
+            background: 'color-mix(in srgb, var(--cheese-green) 8%, var(--surface-card))',
+          }}>
+            <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 13.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              헤더 우측의 <strong style={{ color: 'var(--cheese-green)' }}>스트리머 로그인</strong> 버튼을 누르면 치지직 OAuth 인증 페이지로 이동합니다.
+              인증 완료 후 자동으로 돌아옵니다.
+            </p>
           </div>
         </SectionCard>
 
@@ -502,113 +610,6 @@ export default function GuidePage() {
               title="스트리머 추가·수정 (스트리머 이상) / 삭제 (운영자 전용)"
               desc="스트리머 이상 권한으로 로그인하면 스트리머 추가 양식과 게임 이름 수정 버튼이 나타납니다. 스트리머 삭제는 운영자만 가능합니다."
             />
-          </div>
-        </SectionCard>
-
-        {/* ── 로그인 & 권한 ──────────────────────────────────────── */}
-        <SectionCard>
-          <SectionTitle icon="🔐" title="로그인 & 권한" sub="AUTH · CHZZK OAUTH" />
-
-          <p style={{
-            margin: '0 0 var(--sp-5)', fontFamily: 'var(--font-ui)', fontSize: 14,
-            color: 'var(--text-muted)', lineHeight: 1.7,
-          }}>
-            치지직 계정으로 로그인합니다. 권한은 계정에 따라 자동으로 부여됩니다.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-            {[
-              {
-                role: '일반 시청자',
-                color: 'var(--text-muted)',
-                desc: '로그인 없이 티어리스트, 내전기록실, 스트리머 프로필을 모두 볼 수 있습니다.',
-              },
-              {
-                role: '스트리머',
-                color: 'var(--cheese-green)',
-                desc: '웹사이트에 등록된 스트리머 계정으로 로그인하면 자동 부여됩니다. 스트리머 추가·수정, 경기 입력·수정·삭제, 큐레이션 티어 편집이 가능합니다.',
-              },
-              {
-                role: '운영자',
-                color: 'var(--tier-s)',
-                desc: '스트리머의 모든 권한에 더해 스트리머 삭제 권한을 가집니다. 운영자 권한은 개발자를 통해서만 추가 가능합니다',
-              },
-            ].map(({ role, color, desc }) => (
-              <div
-                key={role}
-                style={{
-                  display: 'flex', gap: 'var(--sp-4)', alignItems: 'flex-start',
-                  padding: 'var(--sp-3) var(--sp-4)',
-                  borderRadius: 'var(--r-md)', background: 'var(--surface-raise)',
-                  border: '1px solid var(--border-faint)',
-                }}
-              >
-                <RoleBadge role={role} color={color} />
-                <p style={{
-                  margin: 0, fontFamily: 'var(--font-ui)', fontSize: 13.5,
-                  color: 'var(--text-muted)', lineHeight: 1.65, paddingTop: 2,
-                }}>
-                  {desc}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* 닉네임 시각 효과 미리보기 */}
-          <div style={{
-            marginTop: 'var(--sp-5)',
-            borderRadius: 'var(--r-md)',
-            border: '1px solid var(--border-faint)',
-            background: 'var(--surface-raise)',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              padding: 'var(--sp-2) var(--sp-4)',
-              borderBottom: '1px solid var(--border-faint)',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10.5, letterSpacing: '0.1em', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
-                헤더 닉네임 미리보기
-              </span>
-            </div>
-            <div style={{ padding: 'var(--sp-3) var(--sp-4)', display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-              {/* 일반 시청자 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
-                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>시청자</span>
-                <span style={{
-                  fontFamily: 'var(--font-ui)', fontSize: 13,
-                  color: 'var(--text-muted)', fontWeight: 400,
-                }}>
-                  홍길동
-                </span>
-              </div>
-              {/* 스트리머 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
-                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>스트리머</span>
-                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--accent)' }}>
-                  홍길동
-                </span>
-              </div>
-              {/* 운영자 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-4)' }}>
-                <span style={{ width: 60, fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>운영자</span>
-                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: '#facc15' }}>
-                  홍길동
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{
-            marginTop: 'var(--sp-4)', padding: 'var(--sp-3) var(--sp-4)',
-            borderRadius: 'var(--r-md)',
-            border: '1px solid color-mix(in srgb, var(--cheese-green) 30%, var(--border-line))',
-            background: 'color-mix(in srgb, var(--cheese-green) 8%, var(--surface-card))',
-          }}>
-            <p style={{ margin: 0, fontFamily: 'var(--font-ui)', fontSize: 13.5, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              헤더 우측의 <strong style={{ color: 'var(--cheese-green)' }}>스트리머 로그인</strong> 버튼을 누르면 치지직 OAuth 인증 페이지로 이동합니다.
-              인증 완료 후 자동으로 돌아옵니다.
-            </p>
           </div>
         </SectionCard>
 

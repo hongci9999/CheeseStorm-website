@@ -217,7 +217,7 @@ function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void
 const MAIN_TAB_LABELS: Record<MainTab, string> = {
   curation: '스트리머 수동 티어표',
   auto:     '스트리머 자동 티어표',
-  hero:     '영웅 티어표',
+  hero:     '내전 영웅 티어표',
 };
 
 function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void }) {
