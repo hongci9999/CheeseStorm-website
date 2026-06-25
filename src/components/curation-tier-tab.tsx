@@ -397,7 +397,7 @@ function PlaceholderNoticeOverlay({ onClose }: { onClose: () => void }) {
           color: 'var(--text-muted)', lineHeight: 1.7,
         }}>
           현재 히오스는 티어와 승률로 실력을 판단하기 어렵습니다.{br}
-          {' '}스트리머분들의 주관적 경험을 통해 티어표를 완성해주세요{br}
+          {' '}스트리머분들의 <span style={{ color: 'var(--cheese-green)', fontWeight: 700 }}>주관적 경험</span>을 통해 티어표를 완성해주세요{br}
           {' '}오른쪽 상단 <span style={{ color: 'var(--cheese-green)', fontWeight: 700 }}>티어편집</span> 버튼을 통해 편집모드로 진입할 수 있습니다
         </p>
         <button
