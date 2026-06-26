@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { HexAvatar } from '@/components/hexagon-avatar';
+import { useBreakpoint } from '@/hooks/use-breakpoint';
 import { heroImageUrl } from '@/lib/hero-image';
 import { outcomeFor, heroOf, statOf } from '@/lib/match';
 import { fineRoleOfHero } from '@/lib/heroes';
@@ -149,7 +150,7 @@ function TabBtn({ active, onClick, children }: {
 }
 
 // ── 매치 행 ───────────────────────────────────────────────────
-function MatchRow({ m, streamerId }: { m: SerializedMatch; streamerId: string }) {
+function MatchRow({ m, streamerId, isMobile }: { m: SerializedMatch; streamerId: string; isMobile: boolean }) {
   const win = outcomeFor(m as unknown as Match, streamerId) === 'win';
   const hero = heroOf(m as unknown as Match, streamerId) ?? '—';
   const kdaStr = kdaOfMatch(m, streamerId);
@@ -169,14 +170,17 @@ function MatchRow({ m, streamerId }: { m: SerializedMatch; streamerId: string })
         gap: 'var(--sp-3)', padding: '0 var(--sp-3)' }}>
         <HeroAvatar name={hero} size={36} />
         <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
-          color: 'var(--text-high)', minWidth: 72, whiteSpace: 'nowrap' }}>{hero}</span>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 96 }}>
+          color: 'var(--text-high)', minWidth: isMobile ? 0 : 72, flexShrink: 0,
+          whiteSpace: 'nowrap' }}>{hero}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1,
+          minWidth: isMobile ? 0 : 96, flex: isMobile ? 1 : undefined }}>
           <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
-            color: 'var(--text-high)', whiteSpace: 'nowrap' }}>{m.map ?? '—'}</span>
+            color: 'var(--text-high)', whiteSpace: 'nowrap',
+            overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.map ?? '—'}</span>
         </div>
         {kdaStr && (
-          <span style={{ display: 'flex', alignItems: 'baseline', gap: 4,
-            marginLeft: 'var(--sp-2)', whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexShrink: 0,
+            marginLeft: isMobile ? 'auto' : 'var(--sp-2)', whiteSpace: 'nowrap' }}>
             <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 9.5,
               letterSpacing: '0.08em', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
               K/A/D
@@ -187,24 +191,27 @@ function MatchRow({ m, streamerId }: { m: SerializedMatch; streamerId: string })
             </span>
           </span>
         )}
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-          <span style={{ fontFamily: 'var(--font-numeral)',
-            fontSize: 11.5, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
-            {m.dur ? `${m.dur} · ` : ''}{fmtDate(m.date)}
+        {/* 모바일은 가로폭에 맞춰 KDA까지만 표시 (시간·날짜 숨김) */}
+        {!isMobile && (
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+            <span style={{ fontFamily: 'var(--font-numeral)',
+              fontSize: 11.5, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
+              {m.dur ? `${m.dur} · ` : ''}{fmtDate(m.date)}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>›</span>
           </span>
-          <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>›</span>
-        </span>
+        )}
       </div>
     </a>
   );
 }
 
 // ── 영웅 스탯 테이블 ──────────────────────────────────────────
-function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
+function HeroStatsTable({ rows, isMobile }: { rows: HeroAggregate[]; isMobile: boolean }) {
   if (rows.length === 0) {
     return <EmptyHint>경기 기록이 없습니다.</EmptyHint>;
   }
-  const cols: { label: string; sub?: string; align: 'left' | 'right' }[] = [
+  const allCols: { label: string; sub?: string; align: 'left' | 'right' }[] = [
     { label: '영웅', align: 'left' },
     { label: '승률', sub: '(전적)', align: 'right' },
     { label: 'KDA', align: 'right' },
@@ -214,6 +221,8 @@ function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
     { label: '자가힐', align: 'right' },
     { label: '경험치', align: 'right' },
   ];
+  // 모바일은 가로폭에 맞춰 영웅·승률만 표시 (스탯 컬럼 숨김)
+  const cols = isMobile ? allCols.slice(0, 2) : allCols;
   const cellBase: React.CSSProperties = {
     padding: 'var(--sp-2) var(--sp-3)',
     fontFamily: 'var(--font-numeral)',
@@ -223,7 +232,7 @@ function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
   };
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? undefined : 620 }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-faint)' }}>
             {cols.map((c, i) => (
@@ -267,15 +276,19 @@ function HeroStatsTable({ rows }: { rows: HeroAggregate[] }) {
                     {h.wins}승 {h.losses}패
                   </span>
                 </td>
-                <td style={{ ...cellBase, textAlign: 'right', fontWeight: 700,
-                  color: hasStats ? 'var(--text-high)' : 'var(--text-faint)' }}>
-                  {h.avgKda !== null ? h.avgKda.toFixed(2) : '—'}
-                </td>
-                <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgHeroDmg)}</td>
-                <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgSiegeDmg)}</td>
-                <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgHealing)}</td>
-                <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgSelfHeal)}</td>
-                <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgXp)}</td>
+                {!isMobile && (
+                  <>
+                    <td style={{ ...cellBase, textAlign: 'right', fontWeight: 700,
+                      color: hasStats ? 'var(--text-high)' : 'var(--text-faint)' }}>
+                      {h.avgKda !== null ? h.avgKda.toFixed(2) : '—'}
+                    </td>
+                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgHeroDmg)}</td>
+                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgSiegeDmg)}</td>
+                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgHealing)}</td>
+                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgSelfHeal)}</td>
+                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgXp)}</td>
+                  </>
+                )}
               </tr>
             );
           })}
@@ -425,6 +438,7 @@ export function ProfileTabs({
 }: ProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'heroes' | 'matches'>(initialTab);
   const [visibleCount, setVisibleCount] = useState(MATCHES_PAGE);
+  const isMobile = useBreakpoint() === 'mobile';
 
   // URL의 ?tab= 파라미터를 탭 전환 시 동기화 (페이지 리로드 없이)
   useEffect(() => {
@@ -471,7 +485,7 @@ export function ProfileTabs({
             ) : (
               <>
                 <div style={{ display: 'grid',
-                  gridTemplateColumns: `repeat(${Math.max(top3.length, 1)}, 1fr)`,
+                  gridTemplateColumns: isMobile ? '1fr' : `repeat(${Math.max(top3.length, 1)}, 1fr)`,
                   gap: 'var(--sp-4)' }}>
                   {top3.map((h, i) => {
                     const total = heroTotal(h);
@@ -516,8 +530,8 @@ export function ProfileTabs({
                             {total > 0 ? `${Math.round((h.wins / total) * 100)}%` : '—'}
                           </span>
                         </div>
-                        {/* 평균 스탯 */}
-                        {hasStats ? (
+                        {/* 평균 스탯 — 모바일은 승률만 보이도록 숨김 */}
+                        {isMobile ? null : hasStats ? (
                           <div style={{ marginTop: 'var(--sp-3)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--sp-2)' }}>
                               <div style={{ flex: 1, height: 1, background: 'var(--border-faint)' }} />
@@ -594,7 +608,8 @@ export function ProfileTabs({
           </div>
 
           {/* 시너지 / 천적 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-5)' }}>
+          <div style={{ display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 'var(--sp-5)' }}>
             <div style={{
               background: 'var(--surface-card)', borderRadius: 'var(--r-lg)',
               border: '1px solid var(--border-line)', padding: 'var(--sp-5)',
@@ -640,7 +655,7 @@ export function ProfileTabs({
               <EmptyHint>경기 기록이 없습니다.</EmptyHint>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {recentMatches.map(m => <MatchRow key={m.id} m={m} streamerId={streamerId} />)}
+                {recentMatches.map(m => <MatchRow key={m.id} m={m} streamerId={streamerId} isMobile={isMobile} />)}
               </div>
             )}
           </div>
@@ -662,7 +677,7 @@ export function ProfileTabs({
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {allMatches.slice(0, visibleCount).map(m => (
-                  <MatchRow key={m.id} m={m} streamerId={streamerId} />
+                  <MatchRow key={m.id} m={m} streamerId={streamerId} isMobile={isMobile} />
                 ))}
               </div>
               {visibleCount < allMatches.length && (
@@ -702,7 +717,7 @@ export function ProfileTabs({
           <SectionHead ko="영웅 전체 스탯" en="All hero stats"
             right={<span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12,
               color: 'var(--text-faint)' }}>판수 내림차순</span>} />
-          <HeroStatsTable rows={heroAggregates} />
+          <HeroStatsTable rows={heroAggregates} isMobile={isMobile} />
         </div>
       )}
     </div>
