@@ -84,6 +84,31 @@ describe('calcHeroTiers', () => {
   it('빈 경기 목록은 빈 배열', () => {
     expect(calcHeroTiers([])).toEqual([]);
   });
+
+  it('동일 전적이면 소수 독점 영웅이 다양한 사용 영웅보다 점수가 낮다 (다양성 페널티)', () => {
+    // blueHero 슬롯의 스트리머 id를 바꿀 수 있는 헬퍼
+    const mkSid = (id: string, sid: string, hero: string): Match => ({
+      id, date: new Date('2025-06-01'), createdAt: new Date('2025-06-01'),
+      blueTeam: [[sid, hero], ['s2', 'x'], ['s3', 'x'], ['s4', 'x'], ['s5', 'x']],
+      redTeam: [['s6', 'y'], ['s7', 'y'], ['s8', 'y'], ['s9', 'y'], ['s10', 'y']],
+      winner: 'blue',
+    });
+    // 독점영웅: 3승 전부 a1 / 다양영웅: 3승 a1·a2·a3
+    const matches: Match[] = [
+      mkSid('m1', 'a1', '독점영웅'),
+      mkSid('m2', 'a1', '독점영웅'),
+      mkSid('m3', 'a1', '독점영웅'),
+      mkSid('n1', 'a1', '다양영웅'),
+      mkSid('n2', 'a2', '다양영웅'),
+      mkSid('n3', 'a3', '다양영웅'),
+    ];
+    const result = calcHeroTiers(matches);
+    const solo = result.find((h) => h.hero === '독점영웅')!;
+    const varied = result.find((h) => h.hero === '다양영웅')!;
+    expect(solo.score).toBeLessThan(varied.score);
+    expect(result.findIndex((h) => h.hero === '다양영웅'))
+      .toBeLessThan(result.findIndex((h) => h.hero === '독점영웅'));
+  });
 });
 
 describe('groupHeroesByTier', () => {
