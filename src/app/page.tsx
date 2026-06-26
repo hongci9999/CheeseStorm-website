@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { getStreamers, getMatches, getCachedStreamers, getCachedMatches, getPrecomputedStats } from '@/lib/firestore';
 import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
@@ -279,11 +279,11 @@ function AutoTierNotice() {
   );
 }
 
-// ── 자동 티어 기준 안내 버튼 (! 호버/클릭 → 툴팁) ────────────────
-function AutoTierInfoButton() {
+// ── 티어 기준 안내 버튼 (! 호버/클릭 → 툴팁) — 자동·영웅 탭 공용 ──
+function TierInfoButton({ ariaLabel, title, children }: {
+  ariaLabel: string; title: string; children: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
-
-  
 
   return (
     <div
@@ -293,7 +293,7 @@ function AutoTierInfoButton() {
     >
       <button
         type="button"
-        aria-label="자동 티어 기준 안내"
+        aria-label={ariaLabel}
         aria-expanded={open}
         onClick={() => setOpen(v => !v)}
         onFocus={() => setOpen(true)}
@@ -328,29 +328,61 @@ function AutoTierInfoButton() {
             margin: '0 0 8px', fontFamily: 'var(--font-ui)', fontWeight: 700,
             fontSize: 13, color: 'var(--text-strong)',
           }}>
-            자동 티어 산정 기준
+            {title}
           </p>
-          <p style={{
-            margin: '0 0 10px', fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.6,
-            color: 'var(--text-muted)',
-          }}>
-            경기 <b style={{ color: 'var(--text-high)' }}>승패</b>와 경기 내
-            <b style={{ color: 'var(--text-high)' }}> 스탯(딜·힐·공성 등)</b>을 함께 반영한
-            종합 점수로 티어를 매깁니다. 현재는 스탯 가중치를 높게 설정된 상태이고, 표본
-            <b style={{ color: 'var(--text-high)' }}> 5경기 이상</b>부터 티어가 부여되고
-            미만은 <b style={{ color: 'var(--text-high)' }}>?</b> 티어입니다.
-          </p>
-
-          <p style={{
-            margin: 0, fontFamily: 'var(--font-ui)', fontSize: 11, lineHeight: 1.55,
-            color: 'var(--text-faint)',
-          }}>
-            ※ 내전은 팀이 의도적으로 밸런싱되므로 승률만으로 개인 실력을 측정할 수 없습니다.
-            자동 티어는 실력 지표가 아닌 <b>전적 요약</b>이며 참고용입니다.
-          </p>
+          {children}
         </div>
       )}
     </div>
+  );
+}
+
+function AutoTierInfoButton() {
+  return (
+    <TierInfoButton ariaLabel="자동 티어 기준 안내" title="자동 티어 산정 기준">
+      <p style={{
+        margin: '0 0 10px', fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.6,
+        color: 'var(--text-muted)',
+      }}>
+        경기 <b style={{ color: 'var(--text-high)' }}>승패</b>와 경기 내
+        <b style={{ color: 'var(--text-high)' }}> 스탯(딜·힐·공성 등)</b>을 함께 반영한
+        종합 점수로 티어를 매깁니다. 현재는 스탯 가중치를 높게 설정된 상태이고, 표본
+        <b style={{ color: 'var(--text-high)' }}> 5경기 이상</b>부터 티어가 부여되고
+        미만은 <b style={{ color: 'var(--text-high)' }}>?</b> 티어입니다.
+      </p>
+      <p style={{
+        margin: 0, fontFamily: 'var(--font-ui)', fontSize: 11, lineHeight: 1.55,
+        color: 'var(--text-faint)',
+      }}>
+        ※ 내전은 팀이 의도적으로 밸런싱되므로 승률만으로 개인 실력을 측정할 수 없습니다.
+        자동 티어는 실력 지표가 아닌 <b>전적 요약</b>이며 참고용입니다.
+      </p>
+    </TierInfoButton>
+  );
+}
+
+// ── 영웅 티어 기준 안내 버튼 ───────────────────────────────────
+function HeroTierInfoButton() {
+  return (
+    <TierInfoButton ariaLabel="영웅 티어 기준 안내" title="영웅 티어 산정 기준">
+      <p style={{
+        margin: '0 0 10px', fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.6,
+        color: 'var(--text-muted)',
+      }}>
+        해당 영웅이 플레이된 모든 경기의 <b style={{ color: 'var(--text-high)' }}>승률</b>로
+        티어를 매깁니다. 표본이 적을 땐 극단값을 막기 위해 승률을 50%에 가깝게
+        <b style={{ color: 'var(--text-high)' }}> 보정</b>하고, 표본
+        <b style={{ color: 'var(--text-high)' }}> 5경기 이상</b>부터 티어가 부여되며
+        미만은 <b style={{ color: 'var(--text-high)' }}>?</b> 티어입니다.
+      </p>
+      <p style={{
+        margin: 0, fontFamily: 'var(--font-ui)', fontSize: 11, lineHeight: 1.55,
+        color: 'var(--text-faint)',
+      }}>
+        ※ 소수의 스트리머가 독점한 영웅은 표본 편향이 크므로 점수를 조금 낮춥니다.
+        여러 스트리머가 고루 사용할수록 보정이 사라집니다.
+      </p>
+    </TierInfoButton>
   );
 }
 
@@ -488,7 +520,14 @@ function HeroTierTab({ heroTiers, bp }: { heroTiers: HeroTierStat[]; bp: Bp }) {
 
   return (
     <div>
-      <FilterBar role={role} onRole={setRole} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-3)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <FilterBar role={role} onRole={setRole} />
+        </div>
+        <div style={{ flexShrink: 0, height: 32, display: 'flex', alignItems: 'center' }}>
+          <HeroTierInfoButton />
+        </div>
+      </div>
       {groups.length === 0 ? (
         <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
           집계된 영웅이 없습니다.
