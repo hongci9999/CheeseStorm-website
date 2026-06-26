@@ -50,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body
-        className={`${saira.variable} ${sairaCondensed.variable} cheese-static-bg min-h-screen`}
+        className={`${saira.variable} ${sairaCondensed.variable} cheese-static-bg min-h-screen flex flex-col`}
         style={{ fontFamily: 'var(--font-ui)' }}
       >
         <SiteHeader />
@@ -70,6 +70,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </div>
         <main
           style={{
+            flex: 1,            // 콘텐츠 짧아도 main이 늘어 푸터를 최하단으로 밀어냄
+            width: '100%',
             maxWidth: 'var(--container)',
             margin: '0 auto',
             padding: 'var(--sp-3) var(--sp-6) calc(var(--sp-3) + 60px)',
