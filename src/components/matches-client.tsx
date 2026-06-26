@@ -228,6 +228,8 @@ export default function MatchesClient({
   const [search, setSearch] = useState('');
   // 펼칠 때 단건 fetch한 상세(스탯 포함) 캐시 — 목록 payload엔 스탯이 없음
   const [detailCache, setDetailCache] = useState<Record<string, Match>>({});
+  // 낙관적 삭제 — 서버 재집계(refreshStats)를 기다리지 않고 즉시 목록에서 숨김
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   function handleToggle(id: string) {
     if (openId === id) { setOpenId(null); return; }
@@ -244,12 +246,20 @@ export default function MatchesClient({
 
   async function handleDelete(id: string, idx: number) {
     if (!confirm(`#${idx} 경기를 삭제하시겠습니까?\n\n삭제된 경기는 복구할 수 없습니다.`)) return;
-    await deleteMatch(id);
     if (openId === id) setOpenId(null);
-    router.refresh();
+    setDeletedIds(prev => new Set(prev).add(id)); // 즉시 숨김
+    try {
+      await deleteMatch(id);
+    } catch (err) {
+      // 실패 시 롤백 — 다시 목록에 표시
+      setDeletedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      console.error('경기 삭제 실패:', err);
+      alert('삭제에 실패했습니다. 다시 시도해주세요.');
+    }
   }
 
   const filtered = matches.filter(m => {
+    if (deletedIds.has(m.id)) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     const players = participants(m);
