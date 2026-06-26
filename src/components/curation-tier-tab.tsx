@@ -389,8 +389,7 @@ function PlaceholderNoticeOverlay({ onClose }: { onClose: () => void }) {
           margin: 0, fontSize: 18.5, fontFamily: 'var(--font-ui)', fontWeight: 700,
           color: 'var(--text-high)', lineHeight: 1.7,
         }}>
-          스트리머들의 티어가 책정되지 않은 상태입니다{br}
-          {' '}지금은 임의로 배정된 예시 티어로 구성되어 있습니다
+          스트리머분들의 참여로 티어표를 완성해주세요
         </p>
         <p style={{
           margin: 'var(--sp-3) 0 0', fontSize: 15.5, fontFamily: 'var(--font-ui)', fontWeight: 500,
