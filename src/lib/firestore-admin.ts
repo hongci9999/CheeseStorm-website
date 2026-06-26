@@ -98,11 +98,62 @@ function scheduleRefresh(): void {
   }
 }
 
-export async function saveCuratedTierLists(lists: CuratedTierLists): Promise<void> {
-  await getAdminDb().collection('curatedTiers').doc('current').set(
+// 큐레이션 티어 수정자 — 누가 저장했는지 로그용 (없으면 시스템 자동 정리)
+type TierEditor = { chzzkId: string; name: string };
+const UNPLACED = '(미배정)';
+
+// 티어별 ID 목록을 "스트리머ID → 티어" 맵으로 뒤집는다 (diff 계산용)
+function tierByStreamer(lists?: CuratedTierLists): Map<string, string> {
+  const m = new Map<string, string>();
+  if (!lists) return m;
+  for (const tier of CURATED_TIER_ORDER) {
+    for (const id of lists[tier] ?? []) m.set(id, tier);
+  }
+  return m;
+}
+
+// 이전↔새 배치를 비교해 티어가 바뀐 스트리머만 추린다.
+function diffTierChanges(
+  prev: CuratedTierLists | undefined,
+  next: CuratedTierLists,
+  nameOf: Map<string, string>,
+): { streamerId: string; name: string; from: string; to: string }[] {
+  const before = tierByStreamer(prev);
+  const after = tierByStreamer(next);
+  const ids = new Set([...before.keys(), ...after.keys()]);
+  const changes: { streamerId: string; name: string; from: string; to: string }[] = [];
+  for (const id of ids) {
+    const from = before.get(id) ?? UNPLACED;
+    const to = after.get(id) ?? UNPLACED;
+    if (from !== to) changes.push({ streamerId: id, name: nameOf.get(id) ?? id, from, to });
+  }
+  return changes;
+}
+
+export async function saveCuratedTierLists(
+  lists: CuratedTierLists,
+  editor?: TierEditor,
+): Promise<void> {
+  const db = getAdminDb();
+  const ref = db.collection('curatedTiers').doc('current');
+
+  // diff용: 저장 전 현재 배치 + 스트리머 이름 맵을 먼저 읽는다
+  const [prevSnap, streamers] = await Promise.all([ref.get(), getStreamersAdmin()]);
+  const prevLists = prevSnap.exists ? (prevSnap.data()?.lists as CuratedTierLists | undefined) : undefined;
+  const nameOf = new Map(streamers.map(s => [s.id, s.name]));
+  const changes = diffTierChanges(prevLists, lists, nameOf);
+
+  await ref.set(
     { lists, updatedAt: FieldValue.serverTimestamp() },
     { merge: true },
   );
+  // 수정 이력 로그 — 누가·언제·누구를 어디로 옮겼는지 기록 (Firestore 콘솔 확인).
+  await db.collection('curatedTiersHistory').add({
+    editedBy: editor?.chzzkId ?? '(system)',
+    editedByName: editor?.name ?? '(시스템 자동 정리)',
+    editedAt: FieldValue.serverTimestamp(),
+    changes,
+  });
 }
 
 async function removeCuratedPlacement(streamerId: string): Promise<void> {

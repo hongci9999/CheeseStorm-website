@@ -8,6 +8,9 @@ export async function PUT(req: NextRequest) {
   if (!auth.ok) return auth.res;
 
   const lists = (await req.json()) as CuratedTierLists;
-  await saveCuratedTierLists(lists);
+  await saveCuratedTierLists(lists, {
+    chzzkId: auth.session.chzzkId,
+    name: auth.session.name,
+  });
   return NextResponse.json({ ok: true });
 }
