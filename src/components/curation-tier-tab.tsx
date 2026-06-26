@@ -87,7 +87,7 @@ function CuratedPlayerCell({
 }) {
   const [hover, setHover] = useState(false);
   const color = `var(${TIER_COLOR_VAR[tier]})`;
-  const size = compact ? 44 : 54;
+  const size = compact ? 40 : 54;
 
   const body = (
     <>
@@ -99,8 +99,8 @@ function CuratedPlayerCell({
         size={size}
       />
       <span style={{
-        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: compact ? 11.5 : 12.5,
-        color: 'var(--text-high)', maxWidth: compact ? 68 : 74,
+        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: compact ? 11 : 12.5,
+        color: 'var(--text-high)', maxWidth: compact ? 56 : 74,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         textAlign: 'center',
       }}>
@@ -110,8 +110,8 @@ function CuratedPlayerCell({
   );
 
   const sharedStyle: CSSProperties = {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: compact ? 4 : 6,
-    width: compact ? 72 : 78, padding: compact ? '6px 2px' : 'var(--sp-3) 4px',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+    width: compact ? 60 : 78, padding: 'var(--sp-3) 4px',
     borderRadius: 'var(--r-md)',
     background: dragOver
       ? 'color-mix(in srgb, var(--cheese-green) 18%, var(--surface-raise))'
