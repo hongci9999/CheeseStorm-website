@@ -245,7 +245,6 @@ async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
               {affinity.map((r, i) => {
                 const top = i === 0; // 최다 플레이 = 주 포지션. 나머지는 회색 바
-                const wr = r.games > 0 ? Math.round((r.wins / r.games) * 100) : 0;
                 return (
                 <div key={r.role} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
                   <span style={{ width: 46, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
@@ -270,7 +269,7 @@ async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
                   </div>
                   <span style={{ width: 70, textAlign: 'right', fontFamily: 'var(--font-numeral)',
                     fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    {wr}% · {r.games}판
+                    {r.pct}% · {r.games}판
                   </span>
                 </div>
                 );
