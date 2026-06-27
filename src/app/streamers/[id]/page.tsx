@@ -4,6 +4,7 @@ import { getStreamers, getMatchesCached, getPrecomputedStats, unpackStoredMatch 
 import type { PrecomputedProfile } from '@/lib/firestore';
 import { getStreamerProfile, getRecentMatches, kdaFor } from '@/lib/profile';
 import { fineRoleAffinity } from '@/lib/heroes';
+import { MIN_SAMPLE } from '@/lib/sample';
 import { aggregateHeroStats } from '@/lib/hero-stats';
 import { computeRelations } from '@/lib/relations';
 import { mapWinRates } from '@/lib/map-stats';
@@ -276,10 +277,11 @@ async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
               })}
             </div>
             {(() => {
-              // 승률이 가장 높은 포지션 — 동률이면 판수 많은 쪽
-              const best = [...affinity].sort((a, b) =>
-                (b.wins / b.games) - (a.wins / a.games) || b.games - a.games)[0];
-              const wr = Math.round((best.wins / best.games) * 100);
+              // 승률 최고 포지션 — MIN_SAMPLE판 이상만 후보, 동률이면 판수 많은 쪽
+              const best = affinity
+                .filter((r) => r.games >= MIN_SAMPLE)
+                .sort((a, b) => (b.wins / b.games) - (a.wins / a.games) || b.games - a.games)[0];
+              if (!best) return null; // 5판 이상 포지션 없으면 문구 숨김
               return (
                 <div style={{ marginTop: 'var(--sp-4)', paddingTop: 'var(--sp-3)',
                   borderTop: '1px solid var(--border-faint)',
@@ -288,7 +290,7 @@ async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
                     background: 'var(--cheese-green)', boxShadow: '0 0 8px var(--cheese-green)' }} />
                   <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--text-muted)' }}>
                     승률 최고 포지션 <b style={{ color: 'var(--text-high)' }}>{best.role}</b>
-                    {' '}· {wr}%
+                    {' '}· {Math.round((best.wins / best.games) * 100)}%
                   </span>
                 </div>
               );
