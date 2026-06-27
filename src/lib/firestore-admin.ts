@@ -148,7 +148,9 @@ export async function saveCuratedTierLists(
     { merge: true },
   );
   // 수정 이력 로그 — 누가·언제·누구를 어디로 옮겼는지 기록 (Firestore 콘솔 확인).
-  await db.collection('curatedTiersHistory').add({
+  // 콘솔은 문서 ID 오름차순 정렬 → 역타임스탬프를 ID로 써서 최신이 맨 위로.
+  const reverseId = String(9_999_999_999_999 - Date.now()).padStart(13, '0');
+  await db.collection('curatedTiersHistory').doc(reverseId).set({
     editedBy: editor?.chzzkId ?? '(system)',
     editedByName: editor?.name ?? '(시스템 자동 정리)',
     editedAt: FieldValue.serverTimestamp(),
