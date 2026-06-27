@@ -101,7 +101,7 @@ function PlayerCell({ p, tier, bp }: { p: PlayerStats; tier: Tier; bp: Bp }) {
       onMouseLeave={() => setHover(false)}
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-        width: isMobile ? 60 : 78, padding: 'var(--sp-3) 4px', borderRadius: 'var(--r-md)', cursor: 'pointer',
+        width: isMobile ? 60 : 78, padding: 'var(--sp-2) 4px', borderRadius: 'var(--r-md)', cursor: 'pointer',
         background: hover ? 'var(--surface-raise)' : 'transparent',
         transform: hover ? 'translateY(-2px)' : 'none',
         transition: 'transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out)',
@@ -114,7 +114,7 @@ function PlayerCell({ p, tier, bp }: { p: PlayerStats; tier: Tier; bp: Bp }) {
         imageUrl={p.profileImageUrl}
         ring={`var(${TIER_COLOR_VAR[tier]})`}
         ringWidth={tier !== 'unranked' ? 2 : 1.5}
-        size={isMobile ? 40 : 54}
+        size={isMobile ? 46 : 60}
       />
 
       {/* 이름 */}
@@ -436,9 +436,9 @@ function HeroCell({ h, tier, bp }: { h: HeroTierStat; tier: Tier; bp: Bp }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-      width: isMobile ? 60 : 78, padding: 'var(--sp-3) 4px', borderRadius: 'var(--r-md)',
+      width: isMobile ? 60 : 78, padding: 'var(--sp-2) 4px', borderRadius: 'var(--r-md)',
     }}>
-      <HeroTile name={h.hero} ring={ring} size={isMobile ? 40 : 54} />
+      <HeroTile name={h.hero} ring={ring} size={isMobile ? 46 : 60} />
       <span style={{
         fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: isMobile ? 11 : 12.5,
         color: 'var(--text-high)', maxWidth: isMobile ? 56 : 74,

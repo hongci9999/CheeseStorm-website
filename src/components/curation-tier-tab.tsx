@@ -91,7 +91,7 @@ function CuratedPlayerCell({
 }) {
   const [hover, setHover] = useState(false);
   const color = `var(${TIER_COLOR_VAR[tier]})`;
-  const size = compact ? 40 : 54;
+  const size = compact ? 46 : 60;
 
   const body = (
     <>
@@ -115,7 +115,7 @@ function CuratedPlayerCell({
 
   const sharedStyle: CSSProperties = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-    width: compact ? 60 : 78, padding: 'var(--sp-3) 4px',
+    width: compact ? 60 : 78, padding: 'var(--sp-2) 4px',
     borderRadius: 'var(--r-md)',
     background: dragOver
       ? 'color-mix(in srgb, var(--cheese-green) 18%, var(--surface-raise))'
