@@ -70,7 +70,7 @@ export interface PrecomputedProfile {
   gameNames?: string[];
   accountLevel?: number;
   kda: number | null;
-  roleAffinity: { role: FineRole; games: number; pct: number }[];
+  roleAffinity: { role: FineRole; games: number; wins: number; pct: number }[];
   heroAggregates: HeroAggregate[];
   synergy: SynergyStat[];
   nemesis: NemesisStat[];

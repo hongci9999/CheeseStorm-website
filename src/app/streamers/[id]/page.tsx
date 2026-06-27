@@ -181,14 +181,18 @@ function StaticProfileCard({ streamer }: { streamer: Streamer }) {
 async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
   streamerId: string;
   streamers?: Streamer[];
-  precomputed?: { profile: PlayerStats; kda: number | null; affinity: { role: string; games: number; pct: number }[] };
+  precomputed?: { profile: PlayerStats; kda: number | null; affinity: { role: string; games: number; wins: number; pct: number }[] };
 }) {
   let profile: PlayerStats | null;
   let kda: number | null;
-  let affinity: { role: string; games: number; pct: number }[];
+  let affinity: { role: string; games: number; wins: number; pct: number }[];
 
   if (precomputed) {
     ({ profile, kda, affinity } = precomputed);
+    // wins 추가 전에 만들어진 옛 통계 캐시면 matches로 즉석 재집계 (재집계 전까지 self-heal)
+    if (affinity.some((r) => r.wins === undefined)) {
+      affinity = fineRoleAffinity(await getMatchesCached(), streamerId);
+    }
   } else {
     const matches = await getMatchesCached();
     profile = getStreamerProfile(streamerId, streamers!, matches);
@@ -238,35 +242,57 @@ async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
         ) : (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
-              {affinity.map((r, i) => (
+              {affinity.map((r, i) => {
+                const top = i === 0; // 최다 플레이 = 주 포지션. 나머지는 회색 바
+                const wr = r.games > 0 ? Math.round((r.wins / r.games) * 100) : 0;
+                return (
                 <div key={r.role} style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
                   <span style={{ width: 46, fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 13,
-                    color: i === 0 ? 'var(--text-high)' : 'var(--text-muted)' }}>{r.role}</span>
+                    color: top ? 'var(--text-high)' : 'var(--text-muted)' }}>{r.role}</span>
+                  {/* 트랙 = 전체 판수, 채움 = 이긴 판수. 최상단만 초록, 나머지는 회색 */}
                   <div style={{ flex: 1, height: 12, borderRadius: 999,
                     background: 'var(--surface-raise)', overflow: 'hidden' }}>
                     <div style={{
                       width: `${(r.games / maxAff) * 100}%`, height: '100%', borderRadius: 999,
-                      background: i === 0 ? 'var(--cheese-green)' : 'var(--text-muted)',
-                      boxShadow: i === 0 ? 'var(--glow-green-soft)' : 'none',
-                    }} />
+                      background: top
+                        ? 'color-mix(in srgb, var(--cheese-green) 28%, var(--surface-raise))'
+                        : 'color-mix(in srgb, var(--text-muted) 25%, var(--surface-raise))',
+                      position: 'relative', overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        width: r.games > 0 ? `${(r.wins / r.games) * 100}%` : '0%', height: '100%',
+                        borderRadius: 999,
+                        background: top ? 'var(--cheese-green)' : 'var(--text-muted)',
+                        boxShadow: top ? 'var(--glow-green-soft)' : 'none',
+                      }} />
+                    </div>
                   </div>
                   <span style={{ width: 70, textAlign: 'right', fontFamily: 'var(--font-numeral)',
                     fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    {r.pct}% · {r.games}판
+                    {wr}% · {r.games}판
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
-            <div style={{ marginTop: 'var(--sp-4)', paddingTop: 'var(--sp-3)',
-              borderTop: '1px solid var(--border-faint)',
-              display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%',
-                background: 'var(--cheese-green)', boxShadow: '0 0 8px var(--cheese-green)' }} />
-              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--text-muted)' }}>
-                주 포지션 <b style={{ color: 'var(--text-high)' }}>{affinity[0].role}</b>
-                {' '}· 전체 판수의 {affinity[0].pct}%
-              </span>
-            </div>
+            {(() => {
+              // 승률이 가장 높은 포지션 — 동률이면 판수 많은 쪽
+              const best = [...affinity].sort((a, b) =>
+                (b.wins / b.games) - (a.wins / a.games) || b.games - a.games)[0];
+              const wr = Math.round((best.wins / best.games) * 100);
+              return (
+                <div style={{ marginTop: 'var(--sp-4)', paddingTop: 'var(--sp-3)',
+                  borderTop: '1px solid var(--border-faint)',
+                  display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%',
+                    background: 'var(--cheese-green)', boxShadow: '0 0 8px var(--cheese-green)' }} />
+                  <span style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--text-muted)' }}>
+                    승률 최고 포지션 <b style={{ color: 'var(--text-high)' }}>{best.role}</b>
+                    {' '}· {wr}%
+                  </span>
+                </div>
+              );
+            })()}
           </>
         )}
       </div>

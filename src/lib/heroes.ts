@@ -1,5 +1,5 @@
 import type { Match, Role, FineRole } from './types';
-import { heroOf } from './match';
+import { heroOf, outcomeFor } from './match';
 
 // HotS 영웅 → 역할군 (구 5분류: 탱커/투사/암살자/지원가/전문가)
 // OCR 표기 변형은 별칭으로 추가. 모르는 영웅은 roleOfHero가 null 반환.
@@ -119,19 +119,22 @@ export function deriveRole(matches: Match[], streamerId: string, alreadySortedDe
 export function fineRoleAffinity(
   matches: Match[],
   streamerId: string,
-): { role: FineRole; games: number; pct: number }[] {
-  const counts = new Map<FineRole, number>();
+): { role: FineRole; games: number; wins: number; pct: number }[] {
+  const counts = new Map<FineRole, { games: number; wins: number }>();
   let total = 0;
   for (const m of matches) {
     const hero = heroOf(m, streamerId);
     if (!hero) continue;
     const role = fineRoleOfHero(hero);
     if (!role) continue;
-    counts.set(role, (counts.get(role) ?? 0) + 1);
+    const agg = counts.get(role) ?? { games: 0, wins: 0 };
+    agg.games++;
+    if (outcomeFor(m, streamerId) === 'win') agg.wins++;
+    counts.set(role, agg);
     total++;
   }
   return Array.from(counts.entries())
-    .map(([role, games]) => ({ role, games, pct: Math.round((games / total) * 100) }))
+    .map(([role, { games, wins }]) => ({ role, games, wins, pct: Math.round((games / total) * 100) }))
     .sort((a, b) => b.games - a.games);
 }
 
