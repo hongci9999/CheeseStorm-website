@@ -590,18 +590,7 @@ export default function StreamersPage() {
   );
 
   return (
-    <div>
-      {/* 헤더 */}
-      <div style={{ padding: 'var(--sp-7) 0 var(--sp-6)' }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-3xl)',
-          color: 'var(--text-strong)', letterSpacing: '-0.015em', lineHeight: 1, margin: 0 }}>
-          스트리머
-        </h1>
-        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 15, color: 'var(--text-muted)', marginTop: 6 }}>
-          ROSTER · {streamers.length}명 등록됨
-        </p>
-      </div>
-
+    <div style={{ paddingTop: 'var(--sp-7)' }}>
       {/* 검색 — 상단 */}
       <div style={{ display: 'flex', alignItems: 'center',
         flexWrap: 'wrap', gap: 'var(--sp-3)', marginBottom: 'var(--sp-5)' }}>

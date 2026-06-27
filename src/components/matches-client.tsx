@@ -280,17 +280,7 @@ export default function MatchesClient({
     .forEach((m, i) => numberById.set(m.id, i + 1));
 
   return (
-    <div>
-      <div style={{ padding: 'var(--sp-7) 0 var(--sp-6)' }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-3xl)',
-          color: 'var(--text-strong)', letterSpacing: '-0.015em', lineHeight: 1, margin: 0 }}>
-          내전기록실
-        </h1>
-        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 15, color: 'var(--text-muted)', marginTop: 6 }}>
-          MATCH ROOM · {matches.length}경기 기록됨
-        </p>
-      </div>
-
+    <div style={{ paddingTop: 'var(--sp-7)' }}>
       <MatchFilters search={search} onSearch={setSearch} isStreamer={isStreamer} bp={bp} />
 
       {filtered.length === 0 ? (

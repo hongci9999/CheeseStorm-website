@@ -605,20 +605,7 @@ export default function HomePage() {
   }
 
   return (
-    <div>
-      {/* 페이지 헤더 */}
-      <div style={{ padding: 'var(--sp-7) 0 var(--sp-6)' }}>
-        <h1 style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-3xl)',
-          color: 'var(--text-strong)', letterSpacing: '-0.015em', lineHeight: 1, margin: 0,
-        }}>
-          티어리스트
-        </h1>
-        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 15, color: 'var(--text-muted)', marginTop: 6 }}>
-          TIER LIST
-        </p>
-      </div>
-
+    <div style={{ paddingTop: 'var(--sp-7)' }}>
       {/* 상위 3대 탭 — 역할 필터와 시각적 계층 구분 */}
       <MainTabBar tab={mainTab} onTab={setMainTab} />
 

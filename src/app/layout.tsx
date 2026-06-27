@@ -20,12 +20,26 @@ const sairaCondensed = Saira_Condensed({
   weight: ['400', '500', '600', '700', '800'],
 });
 
+// 배포 도메인 — 환경변수로 덮어쓸 수 있고, 없으면 Vercel 기본 도메인
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://cheesestorm.vercel.app';
+
 export const metadata: Metadata = {
-  title: 'Cheesestorm — HOTS 내전 전적',
-  description: '치지직 스트리머들의 히어로즈 오브 더 스톰 내전 결과 및 티어리스트',
+  metadataBase: new URL(SITE_URL),
+  // 한글 "치즈스톰"을 제목·설명에 포함해야 해당 검색어에 매칭됨
+  title: '치즈스톰 (Cheesestorm) — 치지직 히오스 내전 전적·티어표',
+  description: '치즈스톰 — 치지직 스트리머들의 히어로즈 오브 더 스톰(HOTS) 내전 전적과 티어리스트',
+  keywords: ['치즈스톰', 'Cheesestorm', '치지직', 'HOTS', '히어로즈 오브 더 스톰','히오스', '내전', '티어표', '티어리스트'],
   icons: {
     icon: '/assets/logo-emblem.png',
     apple: '/assets/logo-emblem.png',
+  },
+  openGraph: {
+    title: '치즈스톰 (Cheesestorm) — 치지직 HOTS 내전 전적·티어표',
+    description: '치지직 스트리머들의 히어로즈 오브 더 스톰(HOTS) 내전 전적과 티어리스트',
+    url: SITE_URL,
+    siteName: '치즈스톰',
+    locale: 'ko_KR',
+    type: 'website',
   },
 };
 
