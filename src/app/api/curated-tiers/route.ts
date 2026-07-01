@@ -11,6 +11,8 @@ export async function PUT(req: NextRequest) {
   await saveCuratedTierLists(lists, {
     chzzkId: auth.session.chzzkId,
     name: auth.session.name,
+    // 제작자(admin) 또는 개발 세션이면 재조정 안내 유지
+    isAdmin: auth.session.role === 'admin' || auth.session.dev === true,
   });
   return NextResponse.json({ ok: true });
 }

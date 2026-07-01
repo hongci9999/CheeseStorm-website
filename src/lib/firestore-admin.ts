@@ -99,7 +99,7 @@ function scheduleRefresh(): void {
 }
 
 // 큐레이션 티어 수정자 — 누가 저장했는지 로그용 (없으면 시스템 자동 정리)
-type TierEditor = { chzzkId: string; name: string };
+type TierEditor = { chzzkId: string; name: string; isAdmin?: boolean };
 const UNPLACED = '(미배정)';
 
 // 티어별 ID 목록을 "스트리머ID → 티어" 맵으로 뒤집는다 (diff 계산용)
@@ -144,7 +144,13 @@ export async function saveCuratedTierLists(
   const changes = diffTierChanges(prevLists, lists, nameOf);
 
   await ref.set(
-    { lists, updatedAt: FieldValue.serverTimestamp() },
+    {
+      lists,
+      updatedAt: FieldValue.serverTimestamp(),
+      // 재조정 안내 노출 판단용: 마지막 수정자가 제작자(admin)인지. 비관리자 수정 시 안내 숨김.
+      // editor 없음(시스템 자동 정리)은 관리자 아님으로 취급.
+      lastEditByAdmin: editor?.isAdmin === true,
+    },
     { merge: true },
   );
   // 수정 이력 로그 — 누가·언제·누구를 어디로 옮겼는지 기록 (Firestore 콘솔 확인).

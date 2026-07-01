@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { getCuratedTierLists, getStreamers, getMatches } from '@/lib/firestore';
+import { getCuratedTierLists, getCuratedTierLastEditByAdmin, getStreamers, getMatches } from '@/lib/firestore';
 import { saveCuratedTierLists } from '@/lib/api-client';
 import {
   buildCuratedPlayers,
@@ -428,7 +428,9 @@ export function CurationTierTab({
   streamers: Streamer[];
   matches: Match[];
 }) {
-  const { isStreamer } = useAuth();
+  const { isStreamer, isAdmin, session } = useAuth();
+  // 제작자(admin) 또는 개발 세션이면 수정해도 재조정 안내 유지
+  const keepsNotice = isAdmin || session?.dev === true;
   const isMobile = useBreakpoint() === 'mobile';
   const [roster, setRoster] = useState<Streamer[]>(streamersProp);
   const [matchList, setMatchList] = useState<Match[]>(matchesProp);
@@ -444,20 +446,24 @@ export function CurationTierTab({
   const [dragOverCellId, setDragOverCellId] = useState<string | null>(null);
   // 임시 티어 안내 오버레이 — 모듈 변수 기준 초기화 (SPA 내비 유지, 새로고침에만 재등장)
   const [showPlaceholderNotice, setShowPlaceholderNotice] = useState(!placeholderNoticeDismissed);
+  // 재조정 안내: 마지막 수정자가 제작자(admin)인지. null=표시, false(비관리자 수정)=숨김.
+  const [tierLastEditByAdmin, setTierLastEditByAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [s, m, raw] = await Promise.all([
+        const [s, m, raw, lastEditByAdmin] = await Promise.all([
           getStreamers(),
           getMatches(),
           getCuratedTierLists(),
+          getCuratedTierLastEditByAdmin(),
         ]);
         if (cancelled) return;
         setRoster(s);
         setMatchList(m);
         setLists(sanitizeLists(raw, s.map((x) => x.id)));
+        setTierLastEditByAdmin(lastEditByAdmin);
       } catch {
         if (!cancelled) setError('스트리머 티어표를 불러오지 못했습니다.');
       } finally {
@@ -490,6 +496,8 @@ export function CurationTierTab({
     setError('');
     try {
       await saveCuratedTierLists(next);
+      // 방금 수정 반영: 제작자/개발 세션이면 안내 유지, 그 외 숨김
+      setTierLastEditByAdmin(keepsNotice);
       return true;
     } catch {
       setError('저장에 실패했습니다. 다시 시도해주세요.');
@@ -497,7 +505,7 @@ export function CurationTierTab({
     } finally {
       setSaving(false);
     }
-  }, []);
+  }, [keepsNotice]);
 
   async function handleToggleEdit() {
     if (editMode) {
@@ -577,6 +585,22 @@ export function CurationTierTab({
           }} />
         )}
         <CurationTierNotice />
+        {/* 재조정 안내 — 제작자 외 스트리머가 티어표를 수정하면 전체 이용자에게 숨김 */}
+        {tierLastEditByAdmin !== false && (
+          <div style={{ marginBottom: 'var(--sp-4)' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '5px 10px', borderRadius: 'var(--r-sm)',
+              border: '1px solid color-mix(in srgb, var(--cheese-green) 40%, transparent)',
+              background: 'color-mix(in srgb, var(--cheese-green) 12%, transparent)',
+              color: 'var(--cheese-green)',
+              fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12,
+            }}>
+              <span aria-hidden>📌</span>
+              2026.07.02 제작자에 의해 티어리스트가 재조정되었습니다
+            </span>
+          </div>
+        )}
         {/* 툴바: 역할 필터 + 오른쪽 위 티어 편집 */}
         <div style={{
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',

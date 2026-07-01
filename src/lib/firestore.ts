@@ -264,6 +264,15 @@ export async function getCuratedTierLists(
   return lists;
 }
 
+// 큐레이션 티어 마지막 수정자가 제작자(admin)인지 — 재조정 안내 노출 판단용.
+// 필드 없음(레거시/초기) → null: 안내 표시. false(비관리자 수정) → 안내 숨김.
+export async function getCuratedTierLastEditByAdmin(): Promise<boolean | null> {
+  const d = await getDoc(doc(db, 'curatedTiers', 'current'));
+  if (!d.exists()) return null;
+  const v = d.data().lastEditByAdmin;
+  return typeof v === 'boolean' ? v : null;
+}
+
 export async function saveCuratedTierLists(lists: CuratedTierLists): Promise<void> {
   await setDoc(doc(db, 'curatedTiers', 'current'), {
     lists,

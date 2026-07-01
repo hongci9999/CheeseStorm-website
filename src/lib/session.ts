@@ -12,6 +12,7 @@ export interface SessionPayload {
   chzzkId: string;
   name: string;
   role: AppRole;
+  dev?: boolean; // 개발용 임시 로그인 세션 표식 (재조정 안내 유지 등에 사용)
 }
 
 function getSecretKey(): Uint8Array {
@@ -37,6 +38,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       chzzkId: payload.chzzkId as string,
       name: payload.name as string,
       role: payload.role as AppRole,
+      dev: payload.dev === true,
     };
   } catch {
     return null;
