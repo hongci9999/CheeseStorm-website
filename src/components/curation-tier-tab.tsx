@@ -597,7 +597,7 @@ export function CurationTierTab({
               fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12,
             }}>
               <span aria-hidden>📌</span>
-              2026.07.02 제작자에 의해 티어리스트가 재조정되었습니다
+              2026.07.02 제작자에 의해 티어리스트가 재조정되었습니다. 자유롭게 수정해주세요
             </span>
           </div>
         )}
