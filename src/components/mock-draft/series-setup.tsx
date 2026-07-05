@@ -88,7 +88,7 @@ export function SeriesSetup({ onStart }: Props) {
 
       {/* 블루칸 | 검색+풀 | 레드칸 (옆 칸은 상자 없이 육각만) */}
       <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto minmax(340px, 1fr) auto',
-        gap: 'var(--sp-2)', alignItems: 'center' }}>
+        gap: 'var(--sp-1)', alignItems: 'start' }}>
         <TeamPanel team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
         {/* 중앙 패널 — 6열 고정 */}
@@ -186,7 +186,7 @@ function PoolCard({ streamer, assigned, onAdd, onRemove, blueFull, redFull }: {
 function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
   const c = teamColor(team);
   const S = 104;
-  const gap = 6;
+  const gap = 14;
   // 스트리머 페이지 Honeycomb과 동일한 브릭 오프셋(1열 지그재그):
   //  세로 행간격 rowMt = -0.25H + 0.866·gap, 홀수 행만 반 칸(stepX/2) 우측 오프셋 → 사선 면 맞닿음.
   const stepX = Math.round(S * 0.866 + gap);
