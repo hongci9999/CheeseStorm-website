@@ -11,7 +11,7 @@ import { SeriesSummary } from '@/components/mock-draft/series-summary';
 import { loadSeries, saveSeries, clearSeries } from '@/lib/draft/storage';
 import { startSet, finishSet, undo as undoState } from '@/lib/draft/engine';
 import { availableMaps } from '@/lib/draft/maps';
-import { card, primaryBtn, secondaryBtn, field, pageTitle, sectionTitle, selectedOutline, teamColor } from '@/components/mock-draft/ui';
+import { primaryBtn, secondaryBtn, pageTitle, sectionTitle, selectedOutline, teamColor } from '@/components/mock-draft/ui';
 import type { Series, DraftState, DraftType, Team } from '@/lib/draft/types';
 
 const DRAFT_LABELS: Record<DraftType, string> = {
@@ -97,46 +97,37 @@ export default function MockDraftPage() {
       {seriesWinner && !series.current ? (
         <SeriesSummary series={series} winner={seriesWinner} />
       ) : !series.current ? (
-        <section style={{ ...card, display: 'grid', gap: 'var(--sp-4)', maxWidth: 560 }}>
-          <strong style={sectionTitle}>세트 {series.sets.length + 1} 설정</strong>
-          <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>맵 선택</span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
-              {maps.map((m) => {
-                const img = mapImageUrl(m);
-                const isSel = m === map;
-                return (
-                  <button
-                    key={m}
-                    onClick={() => setMap(m)}
-                    title={m}
-                    style={{
-                      position: 'relative',
-                      padding: 0,
-                      borderRadius: 'var(--r-md)',
-                      overflow: 'hidden',
-                      cursor: 'pointer',
-                      outline: isSel ? selectedOutline : '1px solid var(--border-line)',
-                      outlineOffset: isSel ? 1 : 0,
-                      aspectRatio: '16 / 9',
-                      transition: 'outline-color var(--dur-fast) var(--ease-out)',
-                    }}
-                  >
-                    {img && <Image src={img} alt={m} fill sizes="120px" style={{ objectFit: 'cover' }} />}
-                    <span style={{
-                      position: 'absolute', left: 0, right: 0, bottom: 0,
-                      fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', fontWeight: 700, color: '#fff',
-                      background: 'linear-gradient(transparent, rgba(0,0,0,0.82))', padding: '10px 6px 3px', textAlign: 'left',
-                    }}>{m}</span>
-                  </button>
-                );
-              })}
-            </div>
+        <section style={{ display: 'grid', gap: 'var(--sp-4)' }}>
+          <strong style={{ ...sectionTitle, fontSize: 'var(--fs-lg)' }}>세트 {series.sets.length + 1} · 맵 선택</strong>
+
+          {/* 맵 썸네일 그리드 — 선택 ✓, 미선택은 어둡게 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 'var(--sp-3)' }}>
+            {maps.map((m) => {
+              const img = mapImageUrl(m);
+              const isSel = m === map;
+              return (
+                <button key={m} onClick={() => setMap(m)} title={m}
+                  style={{ position: 'relative', padding: 0, aspectRatio: '16 / 9', borderRadius: 'var(--r-md)',
+                    overflow: 'hidden', cursor: 'pointer',
+                    outline: isSel ? selectedOutline : '1px solid var(--border-line)', outlineOffset: isSel ? 1 : 0,
+                    transition: 'outline-color var(--dur-fast) var(--ease-out)' }}>
+                  {img && <Image src={img} alt={m} fill sizes="180px"
+                    style={{ objectFit: 'cover', filter: map && !isSel ? 'saturate(0.75) brightness(0.72)' : 'none',
+                      transition: 'filter var(--dur-fast) var(--ease-out)' }} />}
+                  <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 8px 5px', textAlign: 'left',
+                    fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', fontWeight: 700, color: '#fff',
+                    background: 'linear-gradient(transparent, rgba(0,0,0,0.85))' }}>{m}</span>
+                  {isSel && <span style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 999,
+                    background: 'var(--cheese-green)', color: 'var(--text-on-green)', display: 'grid', placeItems: 'center', fontWeight: 900 }}>✓</span>}
+                </button>
+              );
+            })}
           </div>
 
-          <div style={{ display: 'grid', gap: 'var(--sp-2)' }}>
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>선픽</span>
-            <div style={{ display: 'flex', gap: 'var(--sp-2)' }}>
+          {/* 선픽 + 시작 — 정상 흐름(고정 아님) */}
+          <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>선픽</span>
               {(['blue', 'red'] as const).map((t) => {
                 const on = firstPick === t;
                 return (
@@ -150,10 +141,9 @@ export default function MockDraftPage() {
                 );
               })}
             </div>
+            <button onClick={startCurrentSet} disabled={!map}
+              style={{ ...primaryBtn, opacity: map ? 1 : 0.45, cursor: map ? 'pointer' : 'not-allowed' }}>세트 시작</button>
           </div>
-
-          <button onClick={startCurrentSet} disabled={!map}
-            style={{ ...primaryBtn, justifySelf: 'start', opacity: map ? 1 : 0.45, cursor: map ? 'pointer' : 'not-allowed' }}>세트 시작</button>
         </section>
       ) : (
         <DraftBoard
