@@ -53,3 +53,16 @@ export function heroImageUrl(hero: string): string | undefined {
 
 // 알려진 slug 전체 (다운로드 스크립트·검증용). 중복 제거.
 export const HERO_SLUGS: string[] = Array.from(new Set(Object.values(HERO_SLUG)));
+
+// slug 기준 중복 제거한 캐노니컬 영웅명 목록 (별칭 제외, 각 slug의 첫 표기 사용, 가나다순).
+// 드래프트 영웅 그리드 등 "영웅 1종 = 항목 1개"가 필요한 곳에서 사용.
+export const CANONICAL_HEROES: string[] = (() => {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const [name, slug] of Object.entries(HERO_SLUG)) {
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    names.push(name);
+  }
+  return names.sort((a, b) => a.localeCompare(b, 'ko'));
+})();
