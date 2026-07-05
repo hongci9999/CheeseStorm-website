@@ -97,8 +97,8 @@ export function SeriesSetup({ onStart }: Props) {
           background: 'var(--surface-card)', display: 'grid', gap: 'var(--sp-3)', alignContent: 'start' }}>
           <input style={{ ...field, width: 240, justifySelf: 'start' }} value={query}
             onChange={(e) => setQuery(e.target.value)} placeholder="스트리머 검색…" />
-          <div style={{ overflowY: 'auto', maxHeight: 420,
-            display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, justifyItems: 'center', alignContent: 'start' }}>
+          <div style={{ overflowY: 'auto', maxHeight: 440, marginTop: 'var(--sp-1)', padding: 10,
+            display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, justifyItems: 'center', alignContent: 'start' }}>
             {pool.map((s) => {
               const assigned = teamOf(s.id);
               return (
@@ -190,13 +190,14 @@ function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRem
   const overlap = Math.round(S * 0.25);
   const shift = Math.round(S * 0.43);
   return (
-    <div style={{ width: S + shift * 2, display: 'grid', justifyItems: 'center' }}>
+    <div style={{ width: S + shift * 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {Array.from({ length: 5 }).map((_, i) => {
         const p = list[i];
         const dx = i % 2 === 0 ? -shift : shift;
         // 빈/채운 칸 모두 정확히 S×S 고정 → 채워도 레이아웃 불변.
+        // flex column + 음수 marginTop → 위 칸과 사선으로 겹침(허니컴).
         return (
-          <div key={i} style={{ width: S, height: S, marginTop: i === 0 ? 0 : -overlap,
+          <div key={i} style={{ flex: '0 0 auto', width: S, height: S, marginTop: i === 0 ? 0 : -overlap,
             transform: `translateX(${dx}px)`, lineHeight: 0 }}>
             {p ? (
               <button onClick={() => onRemove(p.id)} title={`${p.name} 제거`}
