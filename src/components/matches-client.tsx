@@ -132,7 +132,7 @@ function MatchRow({
       </div>
 
       <span style={{ position: 'relative', flex: 1, marginLeft: 'var(--sp-2)',
-        minWidth: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', minHeight: 40 }}>
+        minWidth: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', alignSelf: 'stretch' }}>
         {mapImg && (
           <span aria-hidden style={{
             position: 'absolute', inset: 0,
