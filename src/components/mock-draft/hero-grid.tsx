@@ -45,7 +45,7 @@ export function HeroGrid({ available, onPick }: Props) {
               title={h}
               style={{ opacity: enabled ? 1 : 0.3, display: 'grid', justifyItems: 'center', gap: 2, padding: 2 }}
             >
-              {img && <Image src={img} alt={h} width={48} height={48} style={{ borderRadius: 6 }} />}
+              {img && <Image src={img} alt={h} width={48} height={48} style={{ borderRadius: 6, width: 'auto', height: 'auto' }} />}
               <span style={{ fontSize: 10, lineHeight: 1.1, textAlign: 'center' }}>{h}</span>
             </button>
           );
