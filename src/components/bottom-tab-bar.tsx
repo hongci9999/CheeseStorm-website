@@ -7,6 +7,7 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 const TAB_ITEMS = [
   { href: '/',          label: '티어리스트', icon: '★' },
   { href: '/matches',   label: '내전기록실', icon: '⚔' },
+  { href: '/mock-draft', label: '모의밴픽',  icon: '⚑' },
   { href: '/streamers', label: '스트리머',   icon: '◈' },
   { href: '/guide',     label: '사용방법',   icon: '?' },
 ] as const;
