@@ -19,4 +19,10 @@ describe('CANONICAL_HEROES', () => {
       expect(heroImageUrl(name), `${name} 이미지 없음`).toBeTruthy();
     }
   });
+
+  it('모든 영웅명이 한글을 포함(영문 별칭 배제)', () => {
+    for (const name of CANONICAL_HEROES) {
+      expect(/[가-힣]/.test(name), `${name}에 한글 없음`).toBe(true);
+    }
+  });
 });
