@@ -91,13 +91,14 @@ export function SeriesSetup({ onStart }: Props) {
         gap: 'var(--sp-2)', alignItems: 'center' }}>
         <TeamPanel team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
-        {/* 중앙 패널 */}
-        <div style={{ border: '2px solid var(--border-strong)', borderRadius: 'var(--r-lg)', padding: 'var(--sp-4)',
+        {/* 중앙 패널 — 6열 고정 */}
+        <div style={{ justifySelf: 'center', width: '100%', maxWidth: 600,
+          border: '2px solid var(--border-strong)', borderRadius: 'var(--r-lg)', padding: 'var(--sp-4)',
           background: 'var(--surface-card)', display: 'grid', gap: 'var(--sp-3)', alignContent: 'start' }}>
           <input style={{ ...field, width: 240, justifySelf: 'start' }} value={query}
             onChange={(e) => setQuery(e.target.value)} placeholder="스트리머 검색…" />
           <div style={{ overflowY: 'auto', maxHeight: 420,
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: 10, justifyItems: 'center', alignContent: 'start' }}>
+            display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, justifyItems: 'center', alignContent: 'start' }}>
             {pool.map((s) => {
               const assigned = teamOf(s.id);
               return (
@@ -185,8 +186,9 @@ function PoolCard({ streamer, assigned, onAdd, onRemove, blueFull, redFull }: {
 function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
   const c = teamColor(team);
   const S = 104;
-  const overlap = Math.round(S * 0.30); // 세로 겹침(사이 좁게, 사선 맞물림)
-  const shift = Math.round(S * 0.30);   // 좌우 교차 오프셋
+  // 포인티탑 육각 허니컴: 세로 피치 0.75S(겹침 0.25S), 좌우 오프셋 절반폭(0.43S) → 사선 면 맞닿음.
+  const overlap = Math.round(S * 0.25);
+  const shift = Math.round(S * 0.43);
   return (
     <div style={{ width: S + shift * 2, display: 'grid', justifyItems: 'center' }}>
       {Array.from({ length: 5 }).map((_, i) => {
