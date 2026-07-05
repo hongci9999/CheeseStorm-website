@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HeroGrid } from './hero-grid';
 import {
   currentStep, isComplete, applyBan, applyPick, availableHeroes,
@@ -39,6 +39,14 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
     step?.kind === 'pick' && pickTeamPlayers.some((p) => p.id === selectedPlayer)
       ? selectedPlayer
       : '';
+
+  // 픽 스텝에 진입하면 첫 미배정 플레이어를 자동 선택 → 바로 영웅 클릭 가능.
+  // (스텝이 바뀔 때마다 cursor 기준으로 재설정하므로 스테일 선택도 정리됨)
+  useEffect(() => {
+    if (step?.kind === 'pick') setSelectedPlayer(pickTeamPlayers[0]?.id ?? '');
+    else setSelectedPlayer('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.cursor]);
 
   // 현재 스텝의 선택 가능 영웅. 픽 스텝이면 선택된 플레이어 기준(소프트 피어리스).
   const available = step
