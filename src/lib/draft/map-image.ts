@@ -18,8 +18,16 @@ const MAP_IMAGE: Record<string, string> = {
   '블랙하트 항만': 'Blackhearts_Bay_Art.webp',
 };
 
+// 공백(일반·전각·NBSP 등) 전부 제거해 정규화 — OCR/입력 표기 흔들림 흡수.
+const norm = (s: string) => s.replace(/\s+/g, '');
+
+// 정규화 키 기반 조회 테이블.
+const MAP_IMAGE_NORM: Record<string, string> = Object.fromEntries(
+  Object.entries(MAP_IMAGE).map(([k, v]) => [norm(k), v]),
+);
+
 // 맵명 → 이미지 URL. 매핑 없으면 null.
 export function mapImageUrl(name: string): string | null {
-  const file = MAP_IMAGE[name.trim()];
+  const file = MAP_IMAGE_NORM[norm(name)];
   return file ? `/maps/${file}` : null;
 }
