@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { SeriesSetup } from '@/components/mock-draft/series-setup';
 import { DraftBoard } from '@/components/mock-draft/draft-board';
+import { Scoreboard } from '@/components/mock-draft/scoreboard';
+import { PickHistory } from '@/components/mock-draft/pick-history';
 import { loadSeries, saveSeries, clearSeries } from '@/lib/draft/storage';
 import { startSet, finishSet, undo as undoState } from '@/lib/draft/engine';
 import { availableMaps } from '@/lib/draft/maps';
@@ -70,6 +72,8 @@ export default function MockDraftPage() {
         <button onClick={reset}>시리즈 초기화</button>
       </div>
 
+      <Scoreboard series={series} />
+
       {!series.current ? (
         <section style={{ display: 'grid', gap: 8, maxWidth: 480 }}>
           <strong>세트 {series.sets.length + 1} 설정</strong>
@@ -96,6 +100,8 @@ export default function MockDraftPage() {
           onFinish={finishCurrent}
         />
       )}
+
+      <PickHistory series={series} />
     </main>
   );
 }
