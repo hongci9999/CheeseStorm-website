@@ -76,7 +76,7 @@ export function SeriesSetup({ onStart }: Props) {
 
   return (
     <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 'var(--sp-6)', justifyItems: 'center' }}>
-      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 'var(--sp-6)', alignItems: 'center' }}>
+      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 'var(--sp-2)', alignItems: 'center' }}>
         {/* 좌: 블루 팀 슬롯(허니컴) */}
         <TeamSlots team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
@@ -84,12 +84,15 @@ export function SeriesSetup({ onStart }: Props) {
         <div style={{ display: 'grid', gap: 'var(--sp-4)', justifyItems: 'center' }}>
           <h1 style={{ ...pageTitle, fontSize: 'var(--fs-2xl)' }}>모의 밴픽</h1>
 
-          <Segmented value={draftType} onChange={setDraftType}
-            options={(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => [k, DRAFT_LABELS[k]])} />
-          <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
-            options={[['3', 'Bo3'], ['5', 'Bo5']]} />
+          {/* 피어리스 선택 + Bo 선택 — 같은 행 */}
+          <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <Segmented value={draftType} onChange={setDraftType}
+              options={(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => [k, DRAFT_LABELS[k]])} />
+            <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
+              options={[['3', 'Bo3'], ['5', 'Bo5']]} />
+          </div>
 
-          <input style={{ ...field, width: 240 }} value={query}
+          <input style={{ ...field, width: 240, justifySelf: 'start' }} value={query}
             onChange={(e) => setQuery(e.target.value)} placeholder="스트리머 검색…" />
 
           {/* 스트리머 카드 풀 — 호버 확대, 좌=블루/우=레드 배정. 배정돼도 자리 유지. */}
@@ -182,7 +185,7 @@ function PoolCard({ streamer, assigned, onAdd, onRemove, blueFull, redFull }: {
 // 팀 슬롯 5칸 — 육각이 사선 면을 맞대도록 지그재그로 겹쳐 배치(허니컴). 테두리 팀색.
 function TeamSlots({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
   const c = teamColor(team);
-  const S = 76;
+  const S = 96;
   const overlap = Math.round(S * 0.24); // 세로 겹침 → 사선 면 맞닿음
   const shift = Math.round(S * 0.30);   // 좌우 교차 오프셋
   return (
