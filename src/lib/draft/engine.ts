@@ -1,5 +1,6 @@
 import { buildSequence } from './sequence';
-import type { Team, DraftState, SetResult, Step } from './types';
+import { CANONICAL_HEROES } from '../hero-image';
+import type { Team, DraftState, SetResult, Step, Series } from './types';
 
 const TOTAL_STEPS = 16;
 
@@ -76,4 +77,54 @@ export function finishSet(state: DraftState, winner: Team): SetResult {
     bans: { blue: [...state.bans.blue], red: [...state.bans.red] },
     picks: { blue: [...state.picks.blue], red: [...state.picks.red] },
   };
+}
+
+// 이번 세트에서 이미 소비된(밴+픽) 영웅 집합.
+function usedThisSet(state: DraftState): Set<string> {
+  const used = new Set<string>();
+  for (const h of state.bans.blue) used.add(h);
+  for (const h of state.bans.red) used.add(h);
+  for (const [, h] of state.picks.blue) used.add(h);
+  for (const [, h] of state.picks.red) used.add(h);
+  return used;
+}
+
+// 이전 세트들에서 특정 플레이어가 픽한 영웅 집합 (소프트 피어리스용).
+function heroesPlayedBy(sets: SetResult[], playerId: string): Set<string> {
+  const played = new Set<string>();
+  for (const set of sets) {
+    for (const team of ['blue', 'red'] as Team[]) {
+      for (const [pid, hero] of set.picks[team]) {
+        if (pid === playerId) played.add(hero);
+      }
+    }
+  }
+  return played;
+}
+
+// 이전 세트들에서 누구든 픽한 영웅 집합 (하드 피어리스용).
+function heroesPickedInSeries(sets: SetResult[]): Set<string> {
+  const picked = new Set<string>();
+  for (const set of sets) {
+    for (const team of ['blue', 'red'] as Team[]) {
+      for (const [, hero] of set.picks[team]) picked.add(hero);
+    }
+  }
+  return picked;
+}
+
+// 현재 스텝에서 선택 가능한 영웅 목록.
+// forPlayerId: 소프트 피어리스에서 픽 스텝의 배정 플레이어. 밴 스텝이면 무시.
+export function availableHeroes(series: Series, state: DraftState, forPlayerId?: string): string[] {
+  const step = currentStep(state);
+  const excluded = usedThisSet(state);
+
+  if (series.draftType === 'hard') {
+    for (const h of heroesPickedInSeries(series.sets)) excluded.add(h);
+  }
+  if (series.draftType === 'soft' && step?.kind === 'pick' && forPlayerId) {
+    for (const h of heroesPlayedBy(series.sets, forPlayerId)) excluded.add(h);
+  }
+
+  return CANONICAL_HEROES.filter((h) => !excluded.has(h));
 }
