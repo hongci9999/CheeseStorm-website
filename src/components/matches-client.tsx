@@ -137,10 +137,10 @@ function MatchRow({
           <span aria-hidden style={{
             position: 'absolute', inset: 0,
             backgroundImage: `url(${mapImg})`, backgroundSize: 'cover', backgroundPosition: 'center',
-            opacity: 0.55, pointerEvents: 'none',
-            // 이름 위치(왼쪽) 투명 → 오른쪽으로 갈수록 불투명
-            WebkitMaskImage: 'linear-gradient(to right, transparent, #000)',
-            maskImage: 'linear-gradient(to right, transparent, #000)',
+            opacity: 1, pointerEvents: 'none',
+            // 왼쪽(이름) 투명 → 중앙 불투명 → 오른쪽 끝 살짝 페이드
+            WebkitMaskImage: 'linear-gradient(to right, transparent, #000 60%, #0006)',
+            maskImage: 'linear-gradient(to right, transparent, #000 60%, #0006)',
           }} />
         )}
         <span style={{ position: 'relative', fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
