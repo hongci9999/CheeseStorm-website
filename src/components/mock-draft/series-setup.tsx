@@ -89,7 +89,7 @@ export function SeriesSetup({ onStart }: Props) {
       {/* 블루칸 | 검색+풀 | 레드칸 (옆 칸은 상자 없이 육각만) */}
       {/* 콘텐츠 폭에 맞춘 3열 + 전체 가운데 정렬 → gap이 실제 옆칸~패널 거리 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', justifyContent: 'center',
-        gap: 'var(--sp-3)', alignItems: 'start' }}>
+        gap: 'var(--sp-10)', alignItems: 'start' }}>
         <TeamPanel team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
         {/* 중앙 패널 — 6열 고정 */}
@@ -118,7 +118,7 @@ export function SeriesSetup({ onStart }: Props) {
           </div>
         </div>
 
-        <TeamPanel team="red" list={red} onRemove={(id) => removeFrom('red', id)} />
+        <TeamPanel team="red" list={red} onRemove={(id) => removeFrom('red', id)} mirror />
       </div>
 
       {/* 하단 버튼 — 중앙 세로 스택, 실제 버튼 */}
@@ -184,9 +184,9 @@ function PoolCard({ streamer, assigned, onAdd, onRemove, blueFull, redFull }: {
 }
 
 // 팀 칸 — 상자 없이 5칸 육각만. 고정 피치(겹침)로 채워도 위치 안 흔들림.
-function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
+function TeamPanel({ team, list, onRemove, mirror = false }: { team: Team; list: Player[]; onRemove: (id: string) => void; mirror?: boolean }) {
   const c = teamColor(team);
-  const S = 104;
+  const S = 116;
   const gap = 14;
   // 스트리머 페이지 Honeycomb과 동일한 브릭 오프셋(1열 지그재그):
   //  세로 행간격 rowMt = -0.25H + 0.866·gap, 홀수 행만 반 칸(stepX/2) 우측 오프셋 → 사선 면 맞닿음.
@@ -200,7 +200,7 @@ function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRem
         // 빈/채운 칸 모두 정확히 S×S 고정 → 채워도 레이아웃 불변.
         return (
           <div key={i} style={{ flex: '0 0 auto', width: S, height: S,
-            marginTop: i === 0 ? 0 : rowMt, marginLeft: i % 2 === 1 ? oddOffset : 0, lineHeight: 0 }}>
+            marginTop: i === 0 ? 0 : rowMt, marginLeft: (mirror ? i % 2 === 0 : i % 2 === 1) ? oddOffset : 0, lineHeight: 0 }}>
             {p ? (
               <button onClick={() => onRemove(p.id)} title={`${p.name} 제거`}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: S, height: S }}>
