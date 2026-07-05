@@ -31,7 +31,6 @@ export function SeriesSetup({ onStart }: Props) {
   const [streamers, setStreamers] = useState<Streamer[]>([]);
   const [blue, setBlue] = useState<Player[]>([]);
   const [red, setRed] = useState<Player[]>([]);
-  const [manualName, setManualName] = useState('');
   const [query, setQuery] = useState('');
 
   useEffect(() => {
@@ -42,24 +41,17 @@ export function SeriesSetup({ onStart }: Props) {
     blue.some((p) => p.id === id) || red.some((p) => p.id === id);
 
   // 팀에 플레이어 추가(5명 초과 방지, 중복 방지).
-  function addTo(team: 'blue' | 'red', player: Player) {
+  function addTo(team: Team, player: Player) {
     const list = team === 'blue' ? blue : red;
     const setList = team === 'blue' ? setBlue : setRed;
     if (list.length >= 5 || inRoster(player.id)) return;
     setList([...list, player]);
   }
 
-  function removeFrom(team: 'blue' | 'red', id: string) {
+  function removeFrom(team: Team, id: string) {
     const setList = team === 'blue' ? setBlue : setRed;
     const list = team === 'blue' ? blue : red;
     setList(list.filter((p) => p.id !== id));
-  }
-
-  function addManual(team: 'blue' | 'red') {
-    const name = manualName.trim();
-    if (!name) return;
-    addTo(team, { id: `manual:${crypto.randomUUID()}`, name });
-    setManualName('');
   }
 
   const canStart = blue.length === 5 && red.length === 5;
@@ -71,7 +63,7 @@ export function SeriesSetup({ onStart }: Props) {
 
   // 스트리머 지정 없이 기본 플레이어(블루 1~5 / 레드 1~5)로 바로 시작.
   function handleQuickStart() {
-    const fill = (team: 'blue' | 'red'): Player[] =>
+    const fill = (team: Team): Player[] =>
       Array.from({ length: 5 }, (_, i) => ({
         id: `auto:${team}:${i + 1}`,
         name: `${team === 'blue' ? '블루' : '레드'} ${i + 1}`,
@@ -83,12 +75,12 @@ export function SeriesSetup({ onStart }: Props) {
   const available = streamers.filter((s) => !inRoster(s.id) && (!q || s.name.includes(q)));
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', paddingBottom: 88,
-      display: 'grid', gridTemplateColumns: '1fr minmax(300px, 360px) 1fr', gap: 'var(--sp-6)', alignItems: 'start' }}>
-      {/* 블루 로스터 — 중앙을 바라보도록 우측 정렬 */}
-      <TeamRoster team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} align="end" />
+    <div style={{ maxWidth: 1080, margin: '0 auto', paddingBottom: 96,
+      display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 'var(--sp-6)', alignItems: 'start' }}>
+      {/* 좌: 블루 팀 슬롯 */}
+      <TeamSlots team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
-      {/* 중앙 설정 */}
+      {/* 중앙: 설정 + 스트리머 풀 */}
       <div style={{ display: 'grid', gap: 'var(--sp-4)', justifyItems: 'center' }}>
         <h1 style={{ ...pageTitle, fontSize: 'var(--fs-2xl)' }}>모의 밴픽</h1>
 
@@ -97,85 +89,109 @@ export function SeriesSetup({ onStart }: Props) {
         <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
           options={[['3', 'Bo3'], ['5', 'Bo5']]} />
 
-        {/* 스트리머 검색 + 고정 높이 스크롤 리스트(추가박스 안 밀림) */}
-        <div style={{ width: '100%', display: 'grid', gap: 6 }}>
-          <input style={{ ...field, width: '100%' }} value={query}
-            onChange={(e) => setQuery(e.target.value)} placeholder="스트리머 검색…" />
-          <div style={{ height: 220, overflowY: 'auto', display: 'grid', gap: 4, alignContent: 'start' }}>
-            {available.map((s) => (
-              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '5px 8px 5px 10px', borderRadius: 'var(--r-sm)', background: 'var(--surface-input)',
-                fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-body)' }}>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                  <button onClick={() => addTo('blue', toPlayer(s))} disabled={blue.length >= 5}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 'var(--fs-xs)', color: teamColor('blue'), opacity: blue.length >= 5 ? 0.4 : 1 }}>＋블루</button>
-                  <button onClick={() => addTo('red', toPlayer(s))} disabled={red.length >= 5}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 'var(--fs-xs)', color: teamColor('red'), opacity: red.length >= 5 ? 0.4 : 1 }}>＋레드</button>
-                </span>
-              </div>
-            ))}
-            {available.length === 0 && (
-              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', textAlign: 'center', padding: 'var(--sp-3)' }}>결과 없음</span>
-            )}
-          </div>
+        <input style={{ ...field, width: '100%', maxWidth: 560 }} value={query}
+          onChange={(e) => setQuery(e.target.value)} placeholder="스트리머 검색…" />
 
-          {/* 수동 이름 추가 */}
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input style={{ ...field, flex: 1 }} value={manualName}
-              onChange={(e) => setManualName(e.target.value)} placeholder="수동 이름" />
-            <button onClick={() => addManual('blue')} style={{ ...secondaryBtn, height: 40, padding: '0 12px', color: teamColor('blue') }}>블루</button>
-            <button onClick={() => addManual('red')} style={{ ...secondaryBtn, height: 40, padding: '0 12px', color: teamColor('red') }}>레드</button>
-          </div>
+        {/* 스트리머 카드 풀 — 호버 시 확대, 좌=블루 / 우=레드 배정 */}
+        <div style={{ width: '100%', maxWidth: 560, maxHeight: 360, overflowY: 'auto', padding: 6,
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: 10, justifyItems: 'center' }}>
+          {available.map((s) => (
+            <PoolCard key={s.id} streamer={s}
+              blueFull={blue.length >= 5} redFull={red.length >= 5}
+              onAdd={(team) => addTo(team, toPlayer(s))} />
+          ))}
+          {available.length === 0 && (
+            <span style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 'var(--sp-4)',
+              fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>
+              {streamers.length === 0 ? '스트리머 없음 — 아래 빠른 시작 사용' : '검색 결과 없음'}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* 레드 로스터 — 좌측 정렬 */}
-      <TeamRoster team="red" list={red} onRemove={(id) => removeFrom('red', id)} align="start" />
+      {/* 우: 레드 팀 슬롯 */}
+      <TeamSlots team="red" list={red} onRemove={(id) => removeFrom('red', id)} />
 
       {/* 고정 액션바 */}
       <div style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 10,
         display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center', padding: 'var(--sp-4)',
         background: 'linear-gradient(transparent, var(--bg-app) 42%)' }}>
         <button onClick={handleStart} disabled={!canStart}
-          style={{ ...primaryBtn, opacity: canStart ? 1 : 0.45, cursor: canStart ? 'pointer' : 'not-allowed' }}>
+          style={{ ...primaryBtn, opacity: canStart ? 1 : 0.5, cursor: canStart ? 'pointer' : 'not-allowed' }}>
           {canStart ? '시리즈 시작' : '양 팀 5명씩 채워주세요'}
         </button>
-        <button onClick={handleQuickStart} style={secondaryBtn}>스트리머 없이 빠른 시작</button>
+        <button onClick={handleQuickStart} style={secondaryBtn}>스트리머 없이 바로 시작</button>
       </div>
     </div>
   );
 }
 
-// 팀 로스터 — 5칸 육각 슬롯(채움/빈칸). align='end'면 중앙을 바라보게 우측 정렬.
-function TeamRoster({ team, list, onRemove, align }: {
-  team: Team; list: Player[]; onRemove: (id: string) => void; align: 'start' | 'end';
+// 스트리머 풀 카드 — 호버 시 확대 + 마우스 위치(좌/우)로 팀 배정.
+// 좌측 호버: 파란 그라데이션 → 블루 추가 / 우측: 빨강 → 레드 추가.
+function PoolCard({ streamer, onAdd, blueFull, redFull }: {
+  streamer: Streamer; onAdd: (team: Team) => void; blueFull: boolean; redFull: boolean;
 }) {
-  const c = teamColor(team);
-  const rowDir = align === 'end' ? 'row-reverse' : 'row';
+  const [side, setSide] = useState<Team | null>(null);
+  const ring = side === 'blue' ? teamColor('blue') : side === 'red' ? teamColor('red') : 'var(--cheese-green)';
+  const overlay = side === 'blue'
+    ? `linear-gradient(90deg, color-mix(in srgb, ${teamColor('blue')} 78%, transparent), transparent 70%)`
+    : side === 'red'
+      ? `linear-gradient(270deg, color-mix(in srgb, ${teamColor('red')} 78%, transparent), transparent 70%)`
+      : undefined;
+
   return (
-    <div style={{ display: 'grid', gap: 'var(--sp-3)', justifyItems: align === 'end' ? 'end' : 'start' }}>
-      <strong style={{ color: c, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-lg)', letterSpacing: 'var(--ls-wide)' }}>
-        {team === 'blue' ? '블루' : '레드'} <span style={{ color: 'var(--text-faint)', fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{list.length}/5</span>
+    <div style={{ display: 'grid', justifyItems: 'center', gap: 4 }}>
+      <div
+        onMouseLeave={() => setSide(null)}
+        style={{ position: 'relative', width: 64, height: 64,
+          transform: side ? 'scale(1.12)' : 'scale(1)',
+          transition: 'transform var(--dur-fast) var(--ease-out)' }}
+      >
+        <HexAvatar name={streamer.name} imageUrl={streamer.profileImageUrl} ring={ring} size={64} />
+        {overlay && (
+          <span aria-hidden style={{ position: 'absolute', inset: 0, clipPath: HEX_CLIP, background: overlay, pointerEvents: 'none' }} />
+        )}
+        {/* 좌/우 히트 영역 */}
+        <button aria-label="블루 추가" disabled={blueFull}
+          onMouseEnter={() => !blueFull && setSide('blue')} onClick={() => onAdd('blue')}
+          style={{ position: 'absolute', left: 0, top: 0, width: '50%', height: '100%', zIndex: 2,
+            background: 'none', border: 'none', cursor: blueFull ? 'not-allowed' : 'pointer' }} />
+        <button aria-label="레드 추가" disabled={redFull}
+          onMouseEnter={() => !redFull && setSide('red')} onClick={() => onAdd('red')}
+          style={{ position: 'absolute', right: 0, top: 0, width: '50%', height: '100%', zIndex: 2,
+            background: 'none', border: 'none', cursor: redFull ? 'not-allowed' : 'pointer' }} />
+      </div>
+      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: side ? ring : 'var(--text-muted)',
+        maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>
+        {streamer.name}
+      </span>
+    </div>
+  );
+}
+
+// 팀 슬롯 5칸(세로) — 빈칸 회색 육각, 채우면 아바타. 클릭 시 제거.
+function TeamSlots({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
+  const c = teamColor(team);
+  return (
+    <div style={{ display: 'grid', gap: 'var(--sp-3)', justifyItems: 'center' }}>
+      <strong style={{ color: c, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)', letterSpacing: 'var(--ls-wide)' }}>
+        {team === 'blue' ? '블루' : '레드'} <span style={{ color: 'var(--text-faint)', fontWeight: 600, fontSize: 'var(--fs-xs)' }}>{list.length}/5</span>
       </strong>
       {Array.from({ length: 5 }).map((_, i) => {
         const p = list[i];
+        if (!p) {
+          return (
+            <span key={i} style={{ width: 60, height: 60, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              clipPath: HEX_CLIP, background: `color-mix(in srgb, ${c} 7%, var(--surface-raise))`, color: 'var(--text-faint)', fontSize: 20 }} />
+          );
+        }
         return (
-          <div key={i} style={{ display: 'flex', flexDirection: rowDir, alignItems: 'center', gap: 10 }}>
-            {p ? (
-              <HexAvatar name={p.name} imageUrl={p.imageUrl} ring={c} size={52} />
-            ) : (
-              <span style={{ width: 52, height: 52, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                clipPath: HEX_CLIP, background: `color-mix(in srgb, ${c} 8%, var(--surface-raise))`, color: 'var(--text-faint)', fontSize: 18 }}>＋</span>
-            )}
-            {p && (
-              <span style={{ display: 'flex', flexDirection: rowDir, alignItems: 'center', gap: 6 }}>
-                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-body)' }}>{p.name}</span>
-                <button onClick={() => onRemove(p.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 'var(--fs-xs)' }}>✕</button>
-              </span>
-            )}
-          </div>
+          <button key={p.id} onClick={() => onRemove(p.id)} title={`${p.name} 제거`}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'grid', justifyItems: 'center', gap: 2 }}>
+            <HexAvatar name={p.name} imageUrl={p.imageUrl} ring={c} size={60} />
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: 'var(--text-body)',
+              maxWidth: 72, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+          </button>
         );
       })}
     </div>
