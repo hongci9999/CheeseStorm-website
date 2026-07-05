@@ -8,7 +8,8 @@ import {
 } from '@/lib/draft/engine';
 import { mapImageUrl } from '@/lib/draft/map-image';
 import { heroImageUrl } from '@/lib/hero-image';
-import { card, primaryBtn, secondaryBtn, field, teamColor } from './ui';
+import { HexAvatar } from '@/components/hexagon-avatar';
+import { primaryBtn, secondaryBtn, field, teamColor } from './ui';
 import type { Series, DraftState, Team, Player } from '@/lib/draft/types';
 
 interface Props {
@@ -82,106 +83,103 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 180px', gap: 'var(--sp-3)', alignItems: 'start' }}>
-      <TeamColumn team="blue" series={series} state={state} />
-
-      <div style={{ ...card, display: 'grid', gap: 'var(--sp-3)' }}>
-        <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center', justifyContent: 'center' }}>
-          {mapImageUrl(state.map) && (
-            <Image src={mapImageUrl(state.map)!} alt={state.map} width={64} height={36}
-              style={{ borderRadius: 'var(--r-sm)', objectFit: 'cover', width: 64, height: 'auto' }} />
-          )}
-          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{state.map}</span>
-        </div>
-
-        {!done && step && (
-          <div style={{ textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)' }}>
-            <span style={{ color: teamColor(step.team) }}>
-              {step.team === 'blue' ? '블루' : '레드'}
-            </span>{' '}
-            <span style={{ color: 'var(--text-high)' }}>{step.kind === 'ban' ? '밴' : '픽'} 차례</span>
-          </div>
+    <div style={{ maxWidth: 1180, margin: '0 auto', display: 'grid', gap: 'var(--sp-4)', justifyItems: 'center', paddingBottom: 80 }}>
+      {/* 맵 */}
+      <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
+        {mapImageUrl(state.map) && (
+          <Image src={mapImageUrl(state.map)!} alt={state.map} width={64} height={36}
+            style={{ borderRadius: 'var(--r-sm)', objectFit: 'cover', width: 64, height: 'auto' }} />
         )}
-
-        {!done && step?.kind === 'pick' && !autoAssign && (
-          <select style={{ ...field, justifySelf: 'center', minWidth: 200 }} value={validPlayer} onChange={(e) => setSelectedPlayer(e.target.value)}>
-            <option value="">플레이어 선택</option>
-            {pickTeamPlayers.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        )}
-
-        {!done && step?.kind === 'pick' && autoAssign && pickTeamPlayers[0] && (
-          <div style={{ textAlign: 'center', fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            자동 배정 → <span style={{ color: teamColor(step.team), fontWeight: 700 }}>{pickTeamPlayers[0].name}</span>
-          </div>
-        )}
-
-        {!done && <HeroGrid available={available} selected={selectedHero} onSelect={setSelectedHero} />}
-
-        {!done && step && (
-          <button
-            onClick={handleConfirm}
-            disabled={!canConfirm}
-            style={{ ...primaryBtn, justifySelf: 'center', minWidth: 180,
-              opacity: canConfirm ? 1 : 0.4, cursor: canConfirm ? 'pointer' : 'not-allowed' }}
-          >
-            {step.kind === 'ban' ? '영웅 금지' : '영웅 선택'}
-            {heroReady ? ` — ${selectedHero}` : ''}
-          </button>
-        )}
-
-        {done && (
-          <div style={{ textAlign: 'center', display: 'grid', gap: 'var(--sp-2)' }}>
-            <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-md)', color: 'var(--text-high)' }}>드래프트 완료 — 승자 선택</strong>
-            <div style={{ display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center' }}>
-              <button onClick={() => onFinish('blue')} style={{ ...secondaryBtn, color: teamColor('blue'), borderColor: `color-mix(in srgb, ${teamColor('blue')} 45%, var(--border-line))` }}>블루 승</button>
-              <button onClick={() => onFinish('red')} style={{ ...secondaryBtn, color: teamColor('red'), borderColor: `color-mix(in srgb, ${teamColor('red')} 45%, var(--border-line))` }}>레드 승</button>
-            </div>
-          </div>
-        )}
-
-        <button onClick={onUndo} disabled={state.cursor === 0}
-          style={{ ...secondaryBtn, justifySelf: 'center', opacity: state.cursor === 0 ? 0.4 : 1,
-            cursor: state.cursor === 0 ? 'not-allowed' : 'pointer' }}>되돌리기</button>
+        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{state.map}</span>
       </div>
 
-      <TeamColumn team="red" series={series} state={state} />
+      {/* 턴 알약 */}
+      {!done && step && (
+        <div style={{ padding: '8px 22px', borderRadius: 'var(--r-pill)',
+          border: `1px solid ${teamColor(step.team)}`,
+          background: `color-mix(in srgb, ${teamColor(step.team)} 16%, transparent)`,
+          color: teamColor(step.team), fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)' }}>
+          {step.team === 'blue' ? '블루' : '레드'} {step.kind === 'ban' ? '밴' : '픽'} 차례
+        </div>
+      )}
+
+      {/* 픽 배정 대상 */}
+      {!done && step?.kind === 'pick' && !autoAssign && (
+        <select style={{ ...field, minWidth: 220 }} value={validPlayer} onChange={(e) => setSelectedPlayer(e.target.value)}>
+          <option value="">플레이어 선택</option>
+          {pickTeamPlayers.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+        </select>
+      )}
+      {!done && step?.kind === 'pick' && autoAssign && pickTeamPlayers[0] && (
+        <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+          자동 배정 → <span style={{ color: teamColor(step.team), fontWeight: 700 }}>{pickTeamPlayers[0].name}</span>
+        </div>
+      )}
+
+      {/* 팀 육각 컬럼 좌/우, 중앙 영웅 그리드 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '190px 1fr 190px', gap: 'var(--sp-5)', alignItems: 'start', width: '100%' }}>
+        <TeamColumn team="blue" series={series} state={state} align="end" />
+
+        <div style={{ display: 'grid', gap: 'var(--sp-3)', justifyItems: 'center' }}>
+          {!done && <HeroGrid available={available} selected={selectedHero} onSelect={setSelectedHero} />}
+          {done && (
+            <div style={{ textAlign: 'center', display: 'grid', gap: 'var(--sp-3)', padding: 'var(--sp-6) 0' }}>
+              <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', color: 'var(--text-high)' }}>드래프트 완료 — 승자 선택</strong>
+              <div style={{ display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center' }}>
+                <button onClick={() => onFinish('blue')} style={{ ...secondaryBtn, color: teamColor('blue'), borderColor: `color-mix(in srgb, ${teamColor('blue')} 45%, var(--border-line))` }}>블루 승</button>
+                <button onClick={() => onFinish('red')} style={{ ...secondaryBtn, color: teamColor('red'), borderColor: `color-mix(in srgb, ${teamColor('red')} 45%, var(--border-line))` }}>레드 승</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <TeamColumn team="red" series={series} state={state} align="start" />
+      </div>
+
+      {/* sticky 액션바 */}
+      <div style={{ position: 'sticky', bottom: 0, width: '100%', display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center',
+        padding: 'var(--sp-4) 0 var(--sp-3)', background: 'linear-gradient(transparent, var(--bg-app) 40%)' }}>
+        <button onClick={onUndo} disabled={state.cursor === 0}
+          style={{ ...secondaryBtn, opacity: state.cursor === 0 ? 0.4 : 1, cursor: state.cursor === 0 ? 'not-allowed' : 'pointer' }}>되돌리기</button>
+        {!done && step && (
+          <button onClick={handleConfirm} disabled={!canConfirm}
+            style={{ ...primaryBtn, minWidth: 200, opacity: canConfirm ? 1 : 0.4, cursor: canConfirm ? 'pointer' : 'not-allowed' }}>
+            {step.kind === 'ban' ? '영웅 금지' : '영웅 선택'}{heroReady ? ` — ${selectedHero}` : ''}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
-// 팀 픽/밴 슬롯 표시.
-function TeamColumn({ team, series, state }: { team: Team; series: Series; state: DraftState }) {
+// 팀 픽/밴 컬럼 — 5명 육각 아바타(배정 영웅 표시) + 밴 목록.
+function TeamColumn({ team, series, state, align }: { team: Team; series: Series; state: DraftState; align: 'start' | 'end' }) {
   const players = team === 'blue' ? series.blue : series.red;
-  const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? id;
   const accent = teamColor(team);
+  const rowDir = align === 'end' ? 'row-reverse' : 'row';
+  const pickOf = (id: string) => state.picks[team].find(([pid]) => pid === id)?.[1];
   return (
-    <div style={{ ...card, borderColor: `color-mix(in srgb, ${accent} 35%, var(--border-line))`, display: 'grid', gap: 'var(--sp-3)' }}>
-      <strong style={{ color: accent, fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: 'var(--ls-wide)' }}>
+    <div style={{ display: 'grid', gap: 'var(--sp-3)', justifyItems: align === 'end' ? 'end' : 'start' }}>
+      <strong style={{ color: accent, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)', letterSpacing: 'var(--ls-wide)' }}>
         {team === 'blue' ? '블루' : '레드'}
       </strong>
 
-      <div style={{ display: 'grid', gap: 4 }}>
-        <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', letterSpacing: 'var(--ls-caps)', textTransform: 'uppercase' }}>픽</div>
-        {state.picks[team].map(([pid, hero], i) => {
-          const img = heroImageUrl(hero);
-          return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {img && <Image src={img} alt={hero} width={24} height={24}
-                style={{ borderRadius: 'var(--r-xs)', width: 24, height: 'auto', boxShadow: `0 0 0 1px color-mix(in srgb, ${accent} 40%, transparent)` }} />}
-              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-body)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                <span style={{ color: 'var(--text-muted)' }}>{nameOf(pid)}</span> · {hero}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      {players.map((p) => {
+        const hero = pickOf(p.id);
+        return (
+          <div key={p.id} style={{ display: 'flex', flexDirection: rowDir, alignItems: 'center', gap: 8, opacity: hero ? 1 : 0.55 }}>
+            <HexAvatar name={p.name} imageUrl={hero ? heroImageUrl(hero) ?? p.imageUrl : p.imageUrl} ring={accent} size={44} />
+            <span style={{ display: 'grid', textAlign: align === 'end' ? 'right' : 'left' }}>
+              <b style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-high)' }}>{p.name}</b>
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: hero ? accent : 'var(--text-faint)' }}>{hero ?? '대기'}</span>
+            </span>
+          </div>
+        );
+      })}
 
-      <div style={{ display: 'grid', gap: 4 }}>
+      <div style={{ display: 'grid', gap: 4, justifyItems: align === 'end' ? 'end' : 'start' }}>
         <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', letterSpacing: 'var(--ls-caps)', textTransform: 'uppercase' }}>밴</div>
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: rowDir, gap: 4, flexWrap: 'wrap' }}>
           {state.bans[team].map((hero, i) => {
             const img = heroImageUrl(hero);
             return img
