@@ -87,12 +87,13 @@ export function SeriesSetup({ onStart }: Props) {
       </div>
 
       {/* 블루칸 | 검색+풀 | 레드칸 (옆 칸은 상자 없이 육각만) */}
-      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto minmax(340px, 1fr) auto',
-        gap: 'var(--sp-1)', alignItems: 'start' }}>
+      {/* 콘텐츠 폭에 맞춘 3열 + 전체 가운데 정렬 → gap이 실제 옆칸~패널 거리 */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', justifyContent: 'center',
+        gap: 'var(--sp-3)', alignItems: 'start' }}>
         <TeamPanel team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
         {/* 중앙 패널 — 6열 고정 */}
-        <div style={{ justifySelf: 'center', width: '100%', maxWidth: 600,
+        <div style={{ width: 600,
           border: '2px solid var(--border-strong)', borderRadius: 'var(--r-lg)', padding: 'var(--sp-4)',
           background: 'var(--surface-card)', display: 'grid', gap: 'var(--sp-3)', alignContent: 'start' }}>
           <input style={{ ...field, width: 240, justifySelf: 'start' }} value={query}
