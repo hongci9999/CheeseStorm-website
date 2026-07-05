@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { HeroGrid } from './hero-grid';
 import {
   currentStep, isComplete, applyBan, applyPick, availableHeroes,
@@ -40,17 +40,17 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
       ? selectedPlayer
       : '';
 
-  // 픽 스텝에 진입하면 첫 미배정 플레이어를 자동 선택 → 바로 영웅 클릭 가능.
-  // (스텝이 바뀔 때마다 cursor 기준으로 재설정하므로 스테일 선택도 정리됨)
-  useEffect(() => {
-    if (step?.kind === 'pick') setSelectedPlayer(pickTeamPlayers[0]?.id ?? '');
-    else setSelectedPlayer('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.cursor]);
+  // 자동 배정 모드(스트리머 선택 없이 빠른 시작): 픽을 첫 미배정 플레이어에 자동 배정.
+  const autoAssign = series.autoAssign === true;
 
-  // 현재 스텝의 선택 가능 영웅. 픽 스텝이면 선택된 플레이어 기준(소프트 피어리스).
+  // 픽 스텝에서 실제 배정 대상 플레이어. 자동 모드면 첫 미배정, 아니면 드롭다운 선택값.
+  const pickPlayerId = step?.kind === 'pick'
+    ? (autoAssign ? (pickTeamPlayers[0]?.id ?? '') : validPlayer)
+    : '';
+
+  // 현재 스텝의 선택 가능 영웅. 픽 스텝이면 배정 대상 플레이어 기준(소프트 피어리스).
   const available = step
-    ? availableHeroes(series, state, step.kind === 'pick' ? validPlayer || undefined : undefined)
+    ? availableHeroes(series, state, step.kind === 'pick' ? pickPlayerId || undefined : undefined)
     : [];
 
   function handlePick(hero: string) {
@@ -58,8 +58,8 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
     if (step.kind === 'ban') {
       onApply(applyBan(state, hero));
     } else {
-      if (!validPlayer) return;           // 플레이어 미선택(또는 스테일 선택) 시 무시
-      onApply(applyPick(state, hero, validPlayer));
+      if (!pickPlayerId) return;          // 플레이어 미선택(수동 모드) 또는 대상 없음 시 무시
+      onApply(applyPick(state, hero, pickPlayerId));
       setSelectedPlayer('');
     }
   }
@@ -78,13 +78,19 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
           </div>
         )}
 
-        {!done && step?.kind === 'pick' && (
+        {!done && step?.kind === 'pick' && !autoAssign && (
           <select value={validPlayer} onChange={(e) => setSelectedPlayer(e.target.value)}>
             <option value="">플레이어 선택</option>
             {pickTeamPlayers.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
+        )}
+
+        {!done && step?.kind === 'pick' && autoAssign && pickTeamPlayers[0] && (
+          <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.8 }}>
+            자동 배정 → {pickTeamPlayers[0].name}
+          </div>
         )}
 
         {!done && <HeroGrid available={available} onPick={handlePick} />}

@@ -70,7 +70,7 @@ export function SeriesSetup({ onStart }: Props) {
         id: `auto:${team}:${i + 1}`,
         name: `${team === 'blue' ? '블루' : '레드'} ${i + 1}`,
       }));
-    onStart({ draftType, bestOf, blue: fill('blue'), red: fill('red'), sets: [], current: null });
+    onStart({ draftType, bestOf, blue: fill('blue'), red: fill('red'), sets: [], current: null, autoAssign: true });
   }
 
   const available = streamers.filter((s) => !inRoster(s.id));

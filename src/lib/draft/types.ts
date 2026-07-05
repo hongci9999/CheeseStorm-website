@@ -38,6 +38,7 @@ export interface Series {
   red: Player[];                  // 길이 5
   sets: SetResult[];              // 완료된 세트
   current: DraftState | null;     // 진행 중 세트(없으면 세트 셋업 대기)
+  autoAssign?: boolean;           // true면 픽을 첫 미배정 플레이어에 자동 배정(스트리머 미지정 빠른 시작)
 }
 
 export interface Step {
