@@ -75,28 +75,28 @@ export function SeriesSetup({ onStart }: Props) {
   const pool = streamers.filter((s) => !q || s.name.includes(q));
 
   return (
-    <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 'var(--sp-6)', justifyItems: 'center' }}>
-      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 'var(--sp-2)', alignItems: 'center' }}>
-        {/* 좌: 블루 팀 슬롯(허니컴) */}
-        <TeamSlots team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
+    <div style={{ maxWidth: 1120, margin: '0 auto', display: 'grid', gap: 'var(--sp-5)', justifyItems: 'center' }}>
+      <h1 style={{ ...pageTitle, fontSize: 'var(--fs-2xl)' }}>모의 밴픽</h1>
 
-        {/* 중앙: 설정 + 스트리머 풀 */}
-        <div style={{ display: 'grid', gap: 'var(--sp-4)', justifyItems: 'center' }}>
-          <h1 style={{ ...pageTitle, fontSize: 'var(--fs-2xl)' }}>모의 밴픽</h1>
+      {/* 피어리스 + Bo 선택 — 같은 행 */}
+      <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <Segmented value={draftType} onChange={setDraftType}
+          options={(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => [k, DRAFT_LABELS[k]])} />
+        <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
+          options={[['3', 'Bo3'], ['5', 'Bo5']]} />
+      </div>
 
-          {/* 피어리스 선택 + Bo 선택 — 같은 행 */}
-          <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <Segmented value={draftType} onChange={setDraftType}
-              options={(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => [k, DRAFT_LABELS[k]])} />
-            <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
-              options={[['3', 'Bo3'], ['5', 'Bo5']]} />
-          </div>
+      {/* 3-패널: 블루칸 | 검색+풀 | 레드칸 */}
+      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) minmax(340px, 2.2fr) minmax(150px, 1fr)',
+        gap: 'var(--sp-3)', alignItems: 'stretch' }}>
+        <TeamPanel team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
+        {/* 중앙 패널 */}
+        <div style={{ border: '2px solid var(--border-strong)', borderRadius: 'var(--r-lg)', padding: 'var(--sp-4)',
+          background: 'var(--surface-card)', display: 'grid', gap: 'var(--sp-3)', alignContent: 'start' }}>
           <input style={{ ...field, width: 240, justifySelf: 'start' }} value={query}
             onChange={(e) => setQuery(e.target.value)} placeholder="스트리머 검색…" />
-
-          {/* 스트리머 카드 풀 — 호버 확대, 좌=블루/우=레드 배정. 배정돼도 자리 유지. */}
-          <div style={{ width: '100%', maxWidth: 560, minHeight: 300, maxHeight: 360, overflowY: 'auto', padding: 6,
+          <div style={{ overflowY: 'auto', maxHeight: 420,
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(76px, 1fr))', gap: 10, justifyItems: 'center', alignContent: 'start' }}>
             {pool.map((s) => {
               const assigned = teamOf(s.id);
@@ -116,8 +116,7 @@ export function SeriesSetup({ onStart }: Props) {
           </div>
         </div>
 
-        {/* 우: 레드 팀 슬롯(허니컴) */}
-        <TeamSlots team="red" list={red} onRemove={(id) => removeFrom('red', id)} />
+        <TeamPanel team="red" list={red} onRemove={(id) => removeFrom('red', id)} />
       </div>
 
       {/* 하단 버튼 — 중앙 세로 스택, 실제 버튼 */}
@@ -182,19 +181,20 @@ function PoolCard({ streamer, assigned, onAdd, onRemove, blueFull, redFull }: {
   );
 }
 
-// 팀 슬롯 5칸 — 육각이 사선 면을 맞대도록 지그재그로 겹쳐 배치(허니컴). 테두리 팀색.
-function TeamSlots({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
+// 팀 패널 — 테두리 박스 + 팀색 틴트. 5칸 육각을 사선으로 맞물리게 지그재그 배치.
+function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
   const c = teamColor(team);
-  const S = 96;
-  const overlap = Math.round(S * 0.24); // 세로 겹침 → 사선 면 맞닿음
-  const shift = Math.round(S * 0.30);   // 좌우 교차 오프셋
+  const S = 84;
+  const shift = Math.round(S * 0.32); // 좌우 교차 오프셋(사선 맞물림)
   return (
-    <div style={{ display: 'grid', justifyItems: 'center' }}>
+    <div style={{ border: `2px solid ${c}`, borderRadius: 'var(--r-lg)', padding: 'var(--sp-4) var(--sp-2)',
+      background: `color-mix(in srgb, ${c} 8%, var(--surface-card))`,
+      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--sp-2)' }}>
       {Array.from({ length: 5 }).map((_, i) => {
         const p = list[i];
         const dx = i % 2 === 0 ? -shift : shift;
         return (
-          <div key={i} style={{ marginTop: i === 0 ? 0 : -overlap, transform: `translateX(${dx}px)` }}>
+          <div key={i} style={{ transform: `translateX(${dx}px)` }}>
             {p ? (
               <button onClick={() => onRemove(p.id)} title={`${p.name} 제거`}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block' }}>
@@ -204,7 +204,7 @@ function TeamSlots({ team, list, onRemove }: { team: Team; list: Player[]; onRem
               // 빈 슬롯 — 팀색 테두리 육각
               <span style={{ width: S, height: S, display: 'flex', clipPath: HEX_CLIP, background: c, padding: 2 }}>
                 <span style={{ width: '100%', height: '100%', clipPath: HEX_CLIP,
-                  background: `color-mix(in srgb, ${c} 12%, var(--surface-raise))` }} />
+                  background: `color-mix(in srgb, ${c} 14%, var(--surface-raise))` }} />
               </span>
             )}
           </div>
