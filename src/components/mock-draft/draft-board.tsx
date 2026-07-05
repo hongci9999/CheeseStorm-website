@@ -33,9 +33,16 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
       )
     : [];
 
+  // 현재 픽 스텝의 미배정 플레이어 목록에 실제로 존재할 때만 유효한 선택으로 간주.
+  // (undo 등으로 스텝이 바뀌어 이전 팀의 선택이 남아있는 경우를 방어)
+  const validPlayer =
+    step?.kind === 'pick' && pickTeamPlayers.some((p) => p.id === selectedPlayer)
+      ? selectedPlayer
+      : '';
+
   // 현재 스텝의 선택 가능 영웅. 픽 스텝이면 선택된 플레이어 기준(소프트 피어리스).
   const available = step
-    ? availableHeroes(series, state, step.kind === 'pick' ? selectedPlayer || undefined : undefined)
+    ? availableHeroes(series, state, step.kind === 'pick' ? validPlayer || undefined : undefined)
     : [];
 
   function handlePick(hero: string) {
@@ -43,8 +50,8 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
     if (step.kind === 'ban') {
       onApply(applyBan(state, hero));
     } else {
-      if (!selectedPlayer) return;           // 플레이어 미선택 시 무시
-      onApply(applyPick(state, hero, selectedPlayer));
+      if (!validPlayer) return;           // 플레이어 미선택(또는 스테일 선택) 시 무시
+      onApply(applyPick(state, hero, validPlayer));
       setSelectedPlayer('');
     }
   }
@@ -64,7 +71,7 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
         )}
 
         {!done && step?.kind === 'pick' && (
-          <select value={selectedPlayer} onChange={(e) => setSelectedPlayer(e.target.value)}>
+          <select value={validPlayer} onChange={(e) => setSelectedPlayer(e.target.value)}>
             <option value="">플레이어 선택</option>
             {pickTeamPlayers.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
