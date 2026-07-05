@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getStreamers } from '@/lib/firestore';
 import type { Streamer } from '@/lib/types';
 import type { Series, Player, DraftType } from '@/lib/draft/types';
+import { card, primaryBtn, secondaryBtn, field, sectionTitle, pageTitle, teamColor } from './ui';
 
 const DRAFT_LABELS: Record<DraftType, string> = {
   normal: '일반',
@@ -76,38 +77,43 @@ export function SeriesSetup({ onStart }: Props) {
   const available = streamers.filter((s) => !inRoster(s.id));
 
   return (
-    <div style={{ display: 'grid', gap: 16, maxWidth: 720, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700 }}>모의 밴픽 — 시리즈 설정</h1>
+    <div style={{ display: 'grid', gap: 'var(--sp-5)', maxWidth: 720, margin: '0 auto' }}>
+      <h1 style={pageTitle}>모의 밴픽 — 시리즈 설정</h1>
 
-      <section style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <label>드래프트 종류:{' '}
-          <select value={draftType} onChange={(e) => setDraftType(e.target.value as DraftType)}>
+      <section style={{ ...card, display: 'flex', gap: 'var(--sp-4)', flexWrap: 'wrap' }}>
+        <label style={{ display: 'grid', gap: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+          드래프트 종류
+          <select style={field} value={draftType} onChange={(e) => setDraftType(e.target.value as DraftType)}>
             {(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => (
               <option key={k} value={k}>{DRAFT_LABELS[k]}</option>
             ))}
           </select>
         </label>
-        <label>방식:{' '}
-          <select value={bestOf} onChange={(e) => setBestOf(Number(e.target.value) as 3 | 5)}>
+        <label style={{ display: 'grid', gap: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>
+          방식
+          <select style={field} value={bestOf} onChange={(e) => setBestOf(Number(e.target.value) as 3 | 5)}>
             <option value={3}>Bo3</option>
             <option value={5}>Bo5</option>
           </select>
         </label>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)' }}>
         {(['blue', 'red'] as const).map((team) => {
           const list = team === 'blue' ? blue : red;
           return (
-            <div key={team} style={{ border: '1px solid #8884', borderRadius: 8, padding: 8 }}>
-              <strong style={{ color: team === 'blue' ? '#3b82f6' : '#ef4444' }}>
-                {team === 'blue' ? '블루 팀' : '레드 팀'} ({list.length}/5)
+            <div key={team} style={{ ...card, borderColor: `color-mix(in srgb, ${teamColor(team)} 35%, var(--border-line))` }}>
+              <strong style={{ color: teamColor(team), fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: 'var(--ls-wide)' }}>
+                {team === 'blue' ? '블루 팀' : '레드 팀'}{' '}
+                <span style={{ color: 'var(--text-faint)', fontWeight: 600 }}>({list.length}/5)</span>
               </strong>
-              <ul style={{ margin: '8px 0', display: 'grid', gap: 4 }}>
+              <ul style={{ margin: 'var(--sp-2) 0 0', display: 'grid', gap: 4, listStyle: 'none', padding: 0 }}>
                 {list.map((p) => (
-                  <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-body)' }}>
                     <span>{p.name}</span>
-                    <button onClick={() => removeFrom(team, p.id)}>✕</button>
+                    <button onClick={() => removeFrom(team, p.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 'var(--fs-sm)' }}>✕</button>
                   </li>
                 ))}
               </ul>
@@ -116,41 +122,43 @@ export function SeriesSetup({ onStart }: Props) {
         })}
       </section>
 
-      <section>
-        <strong>스트리머 목록에서 추가</strong>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+      <section style={card}>
+        <strong style={sectionTitle}>스트리머 목록에서 추가</strong>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 'var(--sp-3)' }}>
           {available.map((s) => (
-            <span key={s.id} style={{ display: 'inline-flex', gap: 4, border: '1px solid #8884', borderRadius: 6, padding: '2px 6px' }}>
+            <span key={s.id} style={{ display: 'inline-flex', gap: 6, alignItems: 'center',
+              border: '1px solid var(--border-line)', borderRadius: 'var(--r-pill)', padding: '3px 8px 3px 10px',
+              background: 'var(--surface-input)', fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-body)' }}>
               {s.name}
-              <button onClick={() => addTo('blue', toPlayer(s))} style={{ color: '#3b82f6' }}>블루</button>
-              <button onClick={() => addTo('red', toPlayer(s))} style={{ color: '#ef4444' }}>레드</button>
+              <button onClick={() => addTo('blue', toPlayer(s))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 'var(--fs-xs)', color: teamColor('blue') }}>블루</button>
+              <button onClick={() => addTo('red', toPlayer(s))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 'var(--fs-xs)', color: teamColor('red') }}>레드</button>
             </span>
           ))}
         </div>
+
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 'var(--sp-4)' }}>
+          <input
+            style={{ ...field, flex: 1 }}
+            value={manualName}
+            onChange={(e) => setManualName(e.target.value)}
+            placeholder="수동 이름 입력"
+          />
+          <button onClick={() => addManual('blue')} style={{ ...secondaryBtn, color: teamColor('blue') }}>블루 추가</button>
+          <button onClick={() => addManual('red')} style={{ ...secondaryBtn, color: teamColor('red') }}>레드 추가</button>
+        </div>
       </section>
 
-      <section style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <input
-          value={manualName}
-          onChange={(e) => setManualName(e.target.value)}
-          placeholder="수동 이름 입력"
-        />
-        <button onClick={() => addManual('blue')} style={{ color: '#3b82f6' }}>블루 추가</button>
-        <button onClick={() => addManual('red')} style={{ color: '#ef4444' }}>레드 추가</button>
-      </section>
-
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
         <button
           onClick={handleStart}
           disabled={!canStart}
-          style={{ padding: '8px 16px', fontWeight: 700, opacity: canStart ? 1 : 0.5 }}
+          style={{ ...primaryBtn, opacity: canStart ? 1 : 0.45, cursor: canStart ? 'pointer' : 'not-allowed' }}
         >
           {canStart ? '시리즈 시작' : '양 팀 5명씩 채워주세요'}
         </button>
-        <button
-          onClick={handleQuickStart}
-          style={{ padding: '8px 16px', fontWeight: 700 }}
-        >
+        <button onClick={handleQuickStart} style={secondaryBtn}>
           스트리머 없이 빠른 시작
         </button>
       </div>

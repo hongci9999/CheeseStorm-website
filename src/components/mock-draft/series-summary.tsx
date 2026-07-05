@@ -2,7 +2,9 @@
 
 import Image from 'next/image';
 import { mapImageUrl } from '@/lib/draft/map-image';
+import { heroImageUrl } from '@/lib/hero-image';
 import type { Series, Team } from '@/lib/draft/types';
+import { card, teamColor } from './ui';
 
 // 시리즈 종료 시 각 세트의 전체 밴/픽 기록을 표시.
 export function SeriesSummary({ series, winner }: { series: Series; winner: Team }) {
@@ -10,43 +12,66 @@ export function SeriesSummary({ series, winner }: { series: Series; winner: Team
     [...series.blue, ...series.red].find((p) => p.id === id)?.name ?? id;
 
   return (
-    <section style={{ display: 'grid', gap: 12 }}>
-      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 18 }}>
+    <section style={{ display: 'grid', gap: 'var(--sp-4)' }}>
+      <div style={{ textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-xl)',
+        color: teamColor(winner) }}>
         🏆 {winner === 'blue' ? '블루' : '레드'} 시리즈 승리 — 종료
       </div>
 
       {series.sets.map((set, i) => (
-        <div key={i} style={{ border: '1px solid #8884', borderRadius: 8, padding: 10, display: 'grid', gap: 6 }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontWeight: 700 }}>
+        <div key={i} style={{ ...card, display: 'grid', gap: 'var(--sp-3)' }}>
+          <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center', fontFamily: 'var(--font-display)', fontWeight: 800 }}>
             {mapImageUrl(set.map) && (
               <Image src={mapImageUrl(set.map)!} alt={set.map} width={56} height={32}
-                style={{ borderRadius: 4, objectFit: 'cover', width: 56, height: 'auto' }} />
+                style={{ borderRadius: 'var(--r-sm)', objectFit: 'cover', width: 56, height: 'auto' }} />
             )}
-            <span>
+            <span style={{ color: 'var(--text-high)', fontSize: 'var(--fs-md)' }}>
               세트 {i + 1} · {set.map} ·{' '}
-              <span style={{ color: set.winner === 'blue' ? '#3b82f6' : '#ef4444' }}>
+              <span style={{ color: teamColor(set.winner) }}>
                 {set.winner === 'blue' ? '블루' : '레드'} 승
               </span>
-              <span style={{ opacity: 0.6, fontWeight: 400 }}> (선픽 {set.firstPick === 'blue' ? '블루' : '레드'})</span>
+              <span style={{ color: 'var(--text-faint)', fontWeight: 500, fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)' }}> (선픽 {set.firstPick === 'blue' ? '블루' : '레드'})</span>
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {(['blue', 'red'] as const).map((team) => (
-              <div key={team} style={{ display: 'grid', gap: 4 }}>
-                <strong style={{ color: team === 'blue' ? '#3b82f6' : '#ef4444', fontSize: 13 }}>
-                  {team === 'blue' ? '블루' : '레드'}
-                </strong>
-                <div style={{ fontSize: 12, opacity: 0.7 }}>
-                  밴: {set.bans[team].join(', ') || '—'}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)' }}>
+            {(['blue', 'red'] as const).map((team) => {
+              const accent = teamColor(team);
+              return (
+                <div key={team} style={{ display: 'grid', gap: 6 }}>
+                  <strong style={{ color: accent, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-sm)', letterSpacing: 'var(--ls-wide)' }}>
+                    {team === 'blue' ? '블루' : '레드'}
+                  </strong>
+
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: 'var(--text-faint)', letterSpacing: 'var(--ls-caps)', textTransform: 'uppercase' }}>밴</span>
+                    {set.bans[team].length === 0 && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>—</span>}
+                    {set.bans[team].map((hero, k) => {
+                      const img = heroImageUrl(hero);
+                      return img
+                        ? <Image key={k} src={img} alt={hero} title={hero} width={20} height={20}
+                            style={{ borderRadius: 'var(--r-xs)', width: 20, height: 'auto', filter: 'grayscale(1)', opacity: 0.55 }} />
+                        : <span key={k} style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>{hero}</span>;
+                    })}
+                  </div>
+
+                  <div style={{ display: 'grid', gap: 3 }}>
+                    {set.picks[team].map(([pid, hero], j) => {
+                      const img = heroImageUrl(hero);
+                      return (
+                        <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {img && <Image src={img} alt={hero} width={22} height={22}
+                            style={{ borderRadius: 'var(--r-xs)', width: 22, height: 'auto', boxShadow: `0 0 0 1px color-mix(in srgb, ${accent} 40%, transparent)` }} />}
+                          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-body)' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>{nameOf(pid)}</span> · {hero}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div style={{ display: 'grid', gap: 2 }}>
-                  {set.picks[team].map(([pid, hero], j) => (
-                    <div key={j} style={{ fontSize: 13 }}>{nameOf(pid)} — {hero}</div>
-                  ))}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import type { Series } from '@/lib/draft/types';
+import { card, teamColor } from './ui';
 
 export function Scoreboard({ series }: Props) {
   const blueWins = series.sets.filter((s) => s.winner === 'blue').length;
@@ -9,12 +10,14 @@ export function Scoreboard({ series }: Props) {
   const clinched = blueWins >= needed ? 'blue' : redWins >= needed ? 'red' : null;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', fontWeight: 700 }}>
-      <span style={{ color: '#3b82f6' }}>블루 {blueWins}</span>
-      <span>-</span>
-      <span style={{ color: '#ef4444' }}>{redWins} 레드</span>
+    <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', justifyContent: 'center',
+      padding: 'var(--sp-3) var(--sp-4)', fontFamily: 'var(--font-numeral)' }}>
+      <span style={{ color: teamColor('blue'), fontWeight: 800, fontSize: 'var(--fs-lg)' }}>블루 {blueWins}</span>
+      <span style={{ color: 'var(--text-faint)', fontWeight: 700 }}>–</span>
+      <span style={{ color: teamColor('red'), fontWeight: 800, fontSize: 'var(--fs-lg)' }}>{redWins} 레드</span>
       {clinched && (
-        <span style={{ marginLeft: 8, fontSize: 13 }}>
+        <span style={{ marginLeft: 'var(--sp-2)', fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)',
+          fontWeight: 700, color: teamColor(clinched) }}>
           🏆 {clinched === 'blue' ? '블루' : '레드'} 시리즈 승리
         </span>
       )}

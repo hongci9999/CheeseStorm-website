@@ -5,8 +5,24 @@ import Image from 'next/image';
 import { CANONICAL_HEROES, heroImageUrl } from '@/lib/hero-image';
 import { roleOfHero } from '@/lib/heroes';
 import type { Role } from '@/lib/types';
+import { field, selectedOutline, selectedBg } from './ui';
 
 const ROLES: Role[] = ['탱커', '투사', '암살자', '지원가', '전문가'];
+
+// 역할 필터 탭 버튼 스타일.
+const tabStyle = (active: boolean) => ({
+  height: 'var(--control-sm)',
+  padding: '0 var(--sp-3)',
+  borderRadius: 'var(--r-pill)',
+  border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+  background: active ? selectedBg : 'transparent',
+  color: active ? 'var(--text-high)' : 'var(--text-muted)',
+  fontFamily: 'var(--font-ui)',
+  fontWeight: active ? 700 : 500,
+  fontSize: 'var(--fs-xs)',
+  cursor: 'pointer',
+  transition: 'border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)',
+} as const);
 
 interface Props {
   available: string[];              // 선택 가능한 영웅(잠긴 영웅 제외됨)
@@ -26,13 +42,14 @@ export function HeroGrid({ available, selected, onSelect }: Props) {
   });
 
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
+    <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button onClick={() => setRole('all')} style={{ fontWeight: role === 'all' ? 700 : 400 }}>전체</button>
+        <button onClick={() => setRole('all')} style={tabStyle(role === 'all')}>전체</button>
         {ROLES.map((r) => (
-          <button key={r} onClick={() => setRole(r)} style={{ fontWeight: role === r ? 700 : 400 }}>{r}</button>
+          <button key={r} onClick={() => setRole(r)} style={tabStyle(role === r)}>{r}</button>
         ))}
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="영웅 검색" />
+        <input style={{ ...field, height: 'var(--control-sm)', marginLeft: 'auto', width: 140 }}
+          value={q} onChange={(e) => setQ(e.target.value)} placeholder="영웅 검색" />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 6 }}>
         {shown.map((h) => {
@@ -46,19 +63,23 @@ export function HeroGrid({ available, selected, onSelect }: Props) {
               onClick={() => enabled && onSelect(h)}
               title={h}
               style={{
-                opacity: enabled ? 1 : 0.3,
+                opacity: enabled ? 1 : 0.28,
                 display: 'grid',
                 justifyItems: 'center',
-                gap: 2,
-                padding: 2,
-                outline: isSelected ? '2px solid #f59e0b' : 'none',
+                gap: 3,
+                padding: 3,
+                border: '1px solid transparent',
+                outline: isSelected ? selectedOutline : 'none',
                 outlineOffset: isSelected ? 1 : 0,
-                borderRadius: 8,
-                background: isSelected ? '#f59e0b22' : 'transparent',
+                borderRadius: 'var(--r-md)',
+                background: isSelected ? selectedBg : 'transparent',
+                cursor: enabled ? 'pointer' : 'default',
+                transition: 'background var(--dur-fast) var(--ease-out)',
               }}
             >
-              {img && <Image src={img} alt={h} width={48} height={48} style={{ borderRadius: 6, width: 'auto', height: 'auto' }} />}
-              <span style={{ fontSize: 10, lineHeight: 1.1, textAlign: 'center' }}>{h}</span>
+              {img && <Image src={img} alt={h} width={48} height={48} style={{ borderRadius: 'var(--r-sm)', width: 'auto', height: 'auto' }} />}
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-3xs)', lineHeight: 1.1, textAlign: 'center',
+                color: isSelected ? 'var(--text-high)' : 'var(--text-muted)' }}>{h}</span>
             </button>
           );
         })}
