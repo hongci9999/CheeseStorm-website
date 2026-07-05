@@ -186,19 +186,20 @@ function PoolCard({ streamer, assigned, onAdd, onRemove, blueFull, redFull }: {
 function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
   const c = teamColor(team);
   const S = 104;
-  // 포인티탑 육각 허니컴: 세로 피치 0.75S(겹침 0.25S), 좌우 오프셋 절반폭(0.43S) → 사선 면 맞닿음.
-  const overlap = Math.round(S * 0.25);
-  const shift = Math.round(S * 0.43);
+  const gap = 6;
+  // 스트리머 페이지 Honeycomb과 동일한 브릭 오프셋(1열 지그재그):
+  //  세로 행간격 rowMt = -0.25H + 0.866·gap, 홀수 행만 반 칸(stepX/2) 우측 오프셋 → 사선 면 맞닿음.
+  const stepX = Math.round(S * 0.866 + gap);
+  const rowMt = Math.round(-S * 0.25 + gap * 0.866);
+  const oddOffset = Math.round(stepX / 2);
   return (
-    <div style={{ width: S + shift * 2, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div style={{ width: S + oddOffset, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
       {Array.from({ length: 5 }).map((_, i) => {
         const p = list[i];
-        const dx = i % 2 === 0 ? -shift : shift;
         // 빈/채운 칸 모두 정확히 S×S 고정 → 채워도 레이아웃 불변.
-        // flex column + 음수 marginTop → 위 칸과 사선으로 겹침(허니컴).
         return (
-          <div key={i} style={{ flex: '0 0 auto', width: S, height: S, marginTop: i === 0 ? 0 : -overlap,
-            transform: `translateX(${dx}px)`, lineHeight: 0 }}>
+          <div key={i} style={{ flex: '0 0 auto', width: S, height: S,
+            marginTop: i === 0 ? 0 : rowMt, marginLeft: i % 2 === 1 ? oddOffset : 0, lineHeight: 0 }}>
             {p ? (
               <button onClick={() => onRemove(p.id)} title={`${p.name} 제거`}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: S, height: S }}>
