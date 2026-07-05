@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { HeroGrid } from './hero-grid';
 import {
   currentStep, isComplete, applyBan, applyPick, availableHeroes,
 } from '@/lib/draft/engine';
+import { mapImageUrl } from '@/lib/draft/map-image';
 import type { Series, DraftState, Team, Player } from '@/lib/draft/types';
 
 interface Props {
@@ -82,6 +84,14 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
       <TeamColumn team="blue" series={series} state={state} />
 
       <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+          {mapImageUrl(state.map) && (
+            <Image src={mapImageUrl(state.map)!} alt={state.map} width={64} height={36}
+              style={{ borderRadius: 4, objectFit: 'cover', width: 64, height: 'auto' }} />
+          )}
+          <span style={{ fontSize: 13, opacity: 0.8 }}>{state.map}</span>
+        </div>
+
         {!done && step && (
           <div style={{ textAlign: 'center', fontWeight: 700 }}>
             <span style={{ color: step.team === 'blue' ? '#3b82f6' : '#ef4444' }}>

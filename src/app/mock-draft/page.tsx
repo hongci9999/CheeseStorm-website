@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { mapImageUrl } from '@/lib/draft/map-image';
 import { SeriesSetup } from '@/components/mock-draft/series-setup';
 import { DraftBoard } from '@/components/mock-draft/draft-board';
 import { Scoreboard } from '@/components/mock-draft/scoreboard';
@@ -87,12 +89,37 @@ export default function MockDraftPage() {
       ) : !series.current ? (
         <section style={{ display: 'grid', gap: 8, maxWidth: 480 }}>
           <strong>세트 {series.sets.length + 1} 설정</strong>
-          <label>맵:{' '}
-            <select value={map} onChange={(e) => setMap(e.target.value)}>
-              <option value="">맵 선택</option>
-              {maps.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </label>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <span style={{ fontSize: 13, opacity: 0.7 }}>맵 선택</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6 }}>
+              {maps.map((m) => {
+                const img = mapImageUrl(m);
+                const isSel = m === map;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setMap(m)}
+                    title={m}
+                    style={{
+                      position: 'relative',
+                      padding: 0,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      outline: isSel ? '2px solid #f59e0b' : '1px solid #8884',
+                      aspectRatio: '16 / 9',
+                    }}
+                  >
+                    {img && <Image src={img} alt={m} fill sizes="120px" style={{ objectFit: 'cover' }} />}
+                    <span style={{
+                      position: 'absolute', left: 0, right: 0, bottom: 0,
+                      fontSize: 11, fontWeight: 700, color: '#fff',
+                      background: 'linear-gradient(transparent, #000c)', padding: '8px 4px 2px',
+                    }}>{m}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <label>선픽:{' '}
             <select value={firstPick} onChange={(e) => setFirstPick(e.target.value as Team)}>
               <option value="blue">블루</option>
