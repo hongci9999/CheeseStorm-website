@@ -86,9 +86,9 @@ export function SeriesSetup({ onStart }: Props) {
           options={[['3', 'Bo3'], ['5', 'Bo5']]} />
       </div>
 
-      {/* 3-패널: 블루칸 | 검색+풀 | 레드칸 */}
-      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'minmax(150px, 1fr) minmax(340px, 2.2fr) minmax(150px, 1fr)',
-        gap: 'var(--sp-3)', alignItems: 'stretch' }}>
+      {/* 블루칸 | 검색+풀 | 레드칸 (옆 칸은 상자 없이 육각만) */}
+      <div style={{ width: '100%', display: 'grid', gridTemplateColumns: 'auto minmax(340px, 1fr) auto',
+        gap: 'var(--sp-2)', alignItems: 'center' }}>
         <TeamPanel team="blue" list={blue} onRemove={(id) => removeFrom('blue', id)} />
 
         {/* 중앙 패널 */}
@@ -181,27 +181,27 @@ function PoolCard({ streamer, assigned, onAdd, onRemove, blueFull, redFull }: {
   );
 }
 
-// 팀 패널 — 테두리 박스 + 팀색 틴트. 5칸 육각을 사선으로 맞물리게 지그재그 배치.
+// 팀 칸 — 상자 없이 5칸 육각만. 고정 피치(겹침)로 채워도 위치 안 흔들림.
 function TeamPanel({ team, list, onRemove }: { team: Team; list: Player[]; onRemove: (id: string) => void }) {
   const c = teamColor(team);
-  const S = 84;
-  const shift = Math.round(S * 0.32); // 좌우 교차 오프셋(사선 맞물림)
+  const S = 104;
+  const overlap = Math.round(S * 0.30); // 세로 겹침(사이 좁게, 사선 맞물림)
+  const shift = Math.round(S * 0.30);   // 좌우 교차 오프셋
   return (
-    <div style={{ border: `2px solid ${c}`, borderRadius: 'var(--r-lg)', padding: 'var(--sp-4) var(--sp-2)',
-      background: `color-mix(in srgb, ${c} 8%, var(--surface-card))`,
-      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--sp-2)' }}>
+    <div style={{ width: S + shift * 2, display: 'grid', justifyItems: 'center' }}>
       {Array.from({ length: 5 }).map((_, i) => {
         const p = list[i];
         const dx = i % 2 === 0 ? -shift : shift;
+        // 빈/채운 칸 모두 정확히 S×S 고정 → 채워도 레이아웃 불변.
         return (
-          <div key={i} style={{ transform: `translateX(${dx}px)` }}>
+          <div key={i} style={{ width: S, height: S, marginTop: i === 0 ? 0 : -overlap,
+            transform: `translateX(${dx}px)`, lineHeight: 0 }}>
             {p ? (
               <button onClick={() => onRemove(p.id)} title={`${p.name} 제거`}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block' }}>
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: S, height: S }}>
                 <HexAvatar name={p.name} imageUrl={p.imageUrl} ring={c} size={S} />
               </button>
             ) : (
-              // 빈 슬롯 — 팀색 테두리 육각
               <span style={{ width: S, height: S, display: 'flex', clipPath: HEX_CLIP, background: c, padding: 2 }}>
                 <span style={{ width: '100%', height: '100%', clipPath: HEX_CLIP,
                   background: `color-mix(in srgb, ${c} 14%, var(--surface-raise))` }} />
