@@ -5,6 +5,7 @@ import { SeriesSetup } from '@/components/mock-draft/series-setup';
 import { DraftBoard } from '@/components/mock-draft/draft-board';
 import { Scoreboard } from '@/components/mock-draft/scoreboard';
 import { PickHistory } from '@/components/mock-draft/pick-history';
+import { SeriesSummary } from '@/components/mock-draft/series-summary';
 import { loadSeries, saveSeries, clearSeries } from '@/lib/draft/storage';
 import { startSet, finishSet, undo as undoState } from '@/lib/draft/engine';
 import { availableMaps } from '@/lib/draft/maps';
@@ -41,6 +42,13 @@ export default function MockDraftPage() {
   const usedMaps = series.sets.map((s) => s.map);
   const maps = availableMaps(usedMaps);
 
+  // 클린치 판정: Bo3 2승 / Bo5 3승 도달 시 시리즈 종료.
+  const blueWins = series.sets.filter((s) => s.winner === 'blue').length;
+  const redWins = series.sets.filter((s) => s.winner === 'red').length;
+  const needed = series.bestOf === 3 ? 2 : 3;
+  const seriesWinner: Team | null =
+    blueWins >= needed ? 'blue' : redWins >= needed ? 'red' : null;
+
   function startCurrentSet() {
     if (!series || !map) return;
     setSeries({ ...series, current: startSet(map, firstPick) });
@@ -74,7 +82,9 @@ export default function MockDraftPage() {
 
       <Scoreboard series={series} />
 
-      {!series.current ? (
+      {seriesWinner && !series.current ? (
+        <SeriesSummary series={series} winner={seriesWinner} />
+      ) : !series.current ? (
         <section style={{ display: 'grid', gap: 8, maxWidth: 480 }}>
           <strong>세트 {series.sets.length + 1} 설정</strong>
           <label>맵:{' '}
@@ -101,7 +111,7 @@ export default function MockDraftPage() {
         />
       )}
 
-      <PickHistory series={series} />
+      {!seriesWinner && <PickHistory series={series} />}
     </main>
   );
 }
