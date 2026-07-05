@@ -63,6 +63,16 @@ export function SeriesSetup({ onStart }: Props) {
     onStart({ draftType, bestOf, blue, red, sets: [], current: null });
   }
 
+  // 스트리머 지정 없이 기본 플레이어(블루 1~5 / 레드 1~5)로 바로 시작.
+  function handleQuickStart() {
+    const fill = (team: 'blue' | 'red'): Player[] =>
+      Array.from({ length: 5 }, (_, i) => ({
+        id: `auto:${team}:${i + 1}`,
+        name: `${team === 'blue' ? '블루' : '레드'} ${i + 1}`,
+      }));
+    onStart({ draftType, bestOf, blue: fill('blue'), red: fill('red'), sets: [], current: null });
+  }
+
   const available = streamers.filter((s) => !inRoster(s.id));
 
   return (
@@ -129,13 +139,21 @@ export function SeriesSetup({ onStart }: Props) {
         <button onClick={() => addManual('red')} style={{ color: '#ef4444' }}>레드 추가</button>
       </section>
 
-      <button
-        onClick={handleStart}
-        disabled={!canStart}
-        style={{ padding: '8px 16px', fontWeight: 700, opacity: canStart ? 1 : 0.5 }}
-      >
-        {canStart ? '시리즈 시작' : '양 팀 5명씩 채워주세요'}
-      </button>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button
+          onClick={handleStart}
+          disabled={!canStart}
+          style={{ padding: '8px 16px', fontWeight: 700, opacity: canStart ? 1 : 0.5 }}
+        >
+          {canStart ? '시리즈 시작' : '양 팀 5명씩 채워주세요'}
+        </button>
+        <button
+          onClick={handleQuickStart}
+          style={{ padding: '8px 16px', fontWeight: 700 }}
+        >
+          스트리머 없이 빠른 시작
+        </button>
+      </div>
     </div>
   );
 }
