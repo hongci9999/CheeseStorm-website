@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { HeroGrid } from './hero-grid';
 import {
   currentStep, isComplete, applyBan, applyPick, availableHeroes,
@@ -23,8 +23,15 @@ function assignedIds(state: DraftState, team: Team): Set<string> {
 export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) {
   const step = currentStep(state);
   const [selectedPlayer, setSelectedPlayer] = useState<string>('');
+  const [selectedHero, setSelectedHero] = useState<string>('');
 
   const done = isComplete(state);
+
+  // 스텝이 바뀌면(적용/되돌리기) 임시 선택 초기화.
+  useEffect(() => {
+    setSelectedHero('');
+    setSelectedPlayer('');
+  }, [state.cursor]);
 
   // 현재 픽 스텝 팀의 미배정 플레이어 목록.
   const pickTeamPlayers: Player[] = step?.kind === 'pick'
@@ -53,15 +60,21 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
     ? availableHeroes(series, state, step.kind === 'pick' ? pickPlayerId || undefined : undefined)
     : [];
 
-  function handlePick(hero: string) {
-    if (!step) return;
+  // 선택된 영웅이 여전히 유효한지(잠기지 않았는지).
+  const heroReady = selectedHero !== '' && available.includes(selectedHero);
+  // 확정 가능 여부: 밴은 영웅만, 픽은 영웅 + 배정 대상 플레이어 필요.
+  const canConfirm = !done && !!step && heroReady && (step.kind === 'ban' || !!pickPlayerId);
+
+  // 확정 버튼 → 현재 스텝에 선택 영웅 적용.
+  function handleConfirm() {
+    if (!step || !heroReady) return;
     if (step.kind === 'ban') {
-      onApply(applyBan(state, hero));
+      onApply(applyBan(state, selectedHero));
     } else {
-      if (!pickPlayerId) return;          // 플레이어 미선택(수동 모드) 또는 대상 없음 시 무시
-      onApply(applyPick(state, hero, pickPlayerId));
-      setSelectedPlayer('');
+      if (!pickPlayerId) return;
+      onApply(applyPick(state, selectedHero, pickPlayerId));
     }
+    // 상태 초기화는 cursor 변경 useEffect가 처리.
   }
 
   return (
@@ -93,7 +106,23 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
           </div>
         )}
 
-        {!done && <HeroGrid available={available} onPick={handlePick} />}
+        {!done && <HeroGrid available={available} selected={selectedHero} onSelect={setSelectedHero} />}
+
+        {!done && step && (
+          <button
+            onClick={handleConfirm}
+            disabled={!canConfirm}
+            style={{
+              padding: '8px 16px',
+              fontWeight: 700,
+              justifySelf: 'center',
+              opacity: canConfirm ? 1 : 0.4,
+            }}
+          >
+            {step.kind === 'ban' ? '영웅 금지' : '영웅 선택'}
+            {heroReady ? ` — ${selectedHero}` : ''}
+          </button>
+        )}
 
         {done && (
           <div style={{ textAlign: 'center', display: 'grid', gap: 8 }}>
