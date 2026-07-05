@@ -9,6 +9,7 @@ const MAP_IMAGE: Record<string, string> = {
   '파멸의 탑': 'Towers_of_Doom_Art.webp',
   '불지옥 신단': 'Infernal_Shrines.webp',
   '영원의 전쟁터': 'Battlefield_of_Eternity.webp',
+  '영원의 전장터': 'Battlefield_of_Eternity.webp', // OCR/DB 표기 변형(전쟁터→전장터)
   '거미 여왕의 무덤': 'Tomb_of_the_Spider_Queen.webp',
   '하늘 사원': 'Sky_Temple.webp',
   '공포의 정원': 'Garden_of_Terror.webp',
