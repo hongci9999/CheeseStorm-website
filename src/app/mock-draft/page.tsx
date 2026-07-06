@@ -5,11 +5,10 @@ import Image from 'next/image';
 import { mapImageUrl } from '@/lib/draft/map-image';
 import { SeriesSetup } from '@/components/mock-draft/series-setup';
 import { DraftBoard } from '@/components/mock-draft/draft-board';
-import { Scoreboard } from '@/components/mock-draft/scoreboard';
 import { PickHistory } from '@/components/mock-draft/pick-history';
 import { SeriesSummary } from '@/components/mock-draft/series-summary';
 import { loadSeries, saveSeries, clearSeries } from '@/lib/draft/storage';
-import { startSet, finishSet, undo as undoState } from '@/lib/draft/engine';
+import { startSet, finishSet, undo as undoState, currentStep } from '@/lib/draft/engine';
 import { availableMaps } from '@/lib/draft/maps';
 import { card, primaryBtn, secondaryBtn, pageTitle, selectedOutline, teamColor, teamLabel } from '@/components/mock-draft/ui';
 import type { Series, DraftState, DraftType, Team } from '@/lib/draft/types';
@@ -93,7 +92,17 @@ export default function MockDraftPage() {
         <button onClick={reset} style={secondaryBtn}>시리즈 초기화</button>
       </div>
 
-      {series.current && <Scoreboard series={series} />}
+      {series.current && (() => {
+        const cur = currentStep(series.current);
+        const label = cur
+          ? `${teamLabel(series, cur.team)} ${cur.kind === 'ban' ? '밴' : '픽'} 차례`
+          : '드래프트 완료';
+        return (
+          <SetHeaderBar series={series} blueWins={blueWins} redWins={redWins}
+            firstPick={series.current.firstPick} onFirstPick={() => {}} centerLabel={label}
+            highlightSide={cur?.team ?? series.current.firstPick} mapName={series.current.map} />
+        );
+      })()}
 
       {seriesWinner && !series.current ? (
         <SeriesSummary series={series} winner={seriesWinner} />
@@ -126,11 +135,15 @@ export default function MockDraftPage() {
 }
 
 // 스코어(승수 박스) + 선픽 바. 선픽 사이드로 갈수록 진해지는 그라데이션.
-function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick }: {
+function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick, centerLabel = '선픽 고르기', highlightSide, mapName }: {
   series: Series; blueWins: number; redWins: number; firstPick: Team; onFirstPick: (t: Team) => void;
+  centerLabel?: string; // 셋업="선픽 고르기", 드래프트=현재 밴/픽 차례
+  highlightSide?: Team; // 그라데이션·삼각형 강조 사이드. 없으면 선픽. 드래프트=현재 차례 팀.
+  mapName?: string; // 있으면 Bo·세트 자리에 맵 이름 표시(드래프트 중).
 }) {
   const setNo = series.sets.length + 1;
-  const grad = firstPick === 'blue'
+  const side = highlightSide ?? firstPick; // 강조 사이드(그라데이션·삼각형)
+  const grad = side === 'blue'
     ? `linear-gradient(90deg, color-mix(in srgb, ${teamColor('blue')} 22%, var(--surface-card)), var(--surface-card) 55%)`
     : `linear-gradient(270deg, color-mix(in srgb, ${teamColor('red')} 22%, var(--surface-card)), var(--surface-card) 55%)`;
   return (
@@ -138,7 +151,7 @@ function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick }: {
       alignItems: 'center', padding: 'var(--sp-3) var(--sp-5)' }}>
       {/* A팀(블루) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', justifySelf: 'start' }}>
-        <ScoreBoxes team="blue" wins={blueWins} total={series.bestOf} />
+        <ScoreBoxes team="blue" wins={blueWins} total={Math.ceil(series.bestOf / 2)} />
         <span style={{ color: teamColor('blue'), fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)' }}>
           {teamLabel(series, 'blue')} 팀
         </span>
@@ -146,14 +159,14 @@ function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick }: {
 
       {/* 중앙: 삼각형(상하 꽉) + 선픽 고르기 */}
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 'var(--sp-3)', minHeight: 48 }}>
-        <TriPick dir="left" active={firstPick === 'blue'} color={teamColor('blue')} onClick={() => onFirstPick('blue')} />
+        <TriPick dir="left" active={side === 'blue'} color={teamColor('blue')} onClick={() => onFirstPick('blue')} />
         <div style={{ display: 'grid', justifyItems: 'center', alignContent: 'center', gap: 2 }}>
           <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-sm)', color: 'var(--text-high)' }}>
-            Bo{series.bestOf} · {setNo}세트
+            {mapName ?? `Bo${series.bestOf} · ${setNo}세트`}
           </span>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)', color: 'var(--text-high)' }}>선픽 고르기</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)', color: 'var(--text-high)' }}>{centerLabel}</span>
         </div>
-        <TriPick dir="right" active={firstPick === 'red'} color={teamColor('red')} onClick={() => onFirstPick('red')} />
+        <TriPick dir="right" active={side === 'red'} color={teamColor('red')} onClick={() => onFirstPick('red')} />
       </div>
 
       {/* B팀(레드) */}
@@ -161,7 +174,7 @@ function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick }: {
         <span style={{ color: teamColor('red'), fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)' }}>
           {teamLabel(series, 'red')} 팀
         </span>
-        <ScoreBoxes team="red" wins={redWins} total={series.bestOf} />
+        <ScoreBoxes team="red" wins={redWins} total={Math.ceil(series.bestOf / 2)} />
       </div>
     </div>
   );

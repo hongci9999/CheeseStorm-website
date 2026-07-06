@@ -90,7 +90,7 @@ function usedThisSet(state: DraftState): Set<string> {
 }
 
 // 이전 세트들에서 특정 플레이어가 픽한 영웅 집합 (소프트 피어리스용).
-function heroesPlayedBy(sets: SetResult[], playerId: string): Set<string> {
+export function heroesPlayedBy(sets: SetResult[], playerId: string): Set<string> {
   const played = new Set<string>();
   for (const set of sets) {
     for (const team of ['blue', 'red'] as Team[]) {
@@ -103,7 +103,7 @@ function heroesPlayedBy(sets: SetResult[], playerId: string): Set<string> {
 }
 
 // 이전 세트들에서 누구든 픽한 영웅 집합 (하드 피어리스용).
-function heroesPickedInSeries(sets: SetResult[]): Set<string> {
+export function heroesPickedInSeries(sets: SetResult[]): Set<string> {
   const picked = new Set<string>();
   for (const set of sets) {
     for (const team of ['blue', 'red'] as Team[]) {

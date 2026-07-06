@@ -44,14 +44,15 @@ export function HeroGrid({ available, selected, onSelect }: Props) {
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-3)' }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button onClick={() => setRole('all')} style={tabStyle(role === 'all')}>전체</button>
+        <input style={{ ...field, height: 'var(--control-sm)', width: 140 }}
+          value={q} onChange={(e) => setQ(e.target.value)} placeholder="영웅 검색" />
+        <button onClick={() => setRole('all')} style={{ ...tabStyle(role === 'all'), marginLeft: 'auto' }}>전체</button>
         {ROLES.map((r) => (
           <button key={r} onClick={() => setRole(r)} style={tabStyle(role === r)}>{r}</button>
         ))}
-        <input style={{ ...field, height: 'var(--control-sm)', marginLeft: 'auto', width: 140 }}
-          value={q} onChange={(e) => setQ(e.target.value)} placeholder="영웅 검색" />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 6,
+        maxHeight: 440, overflowY: 'auto', padding: 4 }}>
         {shown.map((h) => {
           const enabled = availableSet.has(h);
           const isSelected = h === selected;
