@@ -222,7 +222,7 @@ function MapPager({ maps, map, onPick, page, onPage }: {
                 overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border-strong)',
                 outline: isSel ? selectedOutline : 'none', outlineOffset: -2, zIndex: isSel ? 1 : 0,
                 transition: 'outline-color var(--dur-fast) var(--ease-out)' }}>
-              {img && <Image src={img} alt={m} fill sizes="160px"
+              {img && <Image src={img} alt={m} fill sizes="400px" quality={90}
                 style={{ objectFit: 'cover', filter: map && !isSel ? 'saturate(0.75) brightness(0.7)' : 'none',
                   transition: 'filter var(--dur-fast) var(--ease-out)' }} />}
               <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 8px 6px', textAlign: 'center',
