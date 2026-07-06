@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   startSet, currentStep, isComplete, applyBan, applyPick, undo, finishSet, availableHeroes,
+  canPickChogall, isChogallHero,
 } from '../engine';
 import { buildSequence } from '../sequence';
 import type { DraftState, Series, SetResult } from '../types';
@@ -176,5 +177,73 @@ describe('availableHeroes', () => {
     });
     const state = startSet('하늘 사원', 'blue'); // 첫 스텝은 밴
     expect(availableHeroes(series, state)).toContain(H0);
+  });
+});
+
+describe('초갈(Cho\'gall) 세트 픽', () => {
+  // blue 선픽: 4밴 + 1픽(step4 blue) → cursor5, step5·6 red 연속 픽 창.
+  function toChogallWindow(): DraftState {
+    let s = startSet('용의 둥지', 'blue');
+    s = applyBan(s, 'b1'); s = applyBan(s, 'b2'); s = applyBan(s, 'b3'); s = applyBan(s, 'b4');
+    s = applyPick(s, 'hero', 'pf'); // step4 blue 단독 픽
+    return s;
+  }
+
+  it('연속 픽 창에서만 canPickChogall true', () => {
+    let s = startSet('용의 둥지', 'blue');
+    s = applyBan(s, 'b1'); s = applyBan(s, 'b2'); s = applyBan(s, 'b3'); s = applyBan(s, 'b4');
+    expect(canPickChogall(s)).toBe(false); // 첫 픽(blue) 다음은 red → 연속 아님
+    s = applyPick(s, 'h', 'pf');
+    expect(canPickChogall(s)).toBe(true);  // step5·6 red 연속
+  });
+
+  it('갈 픽 확정 후 다음 픽은 초로 강제', () => {
+    const series = makeSeries({});
+    let s = toChogallWindow();
+    s = applyPick(s, '갈', 'A');                  // 첫 슬롯 갈
+    expect(availableHeroes(series, s)).toEqual(['초']); // 다음은 무조건 초
+  });
+
+  it('초 픽 확정 후 다음 픽은 갈로 강제', () => {
+    const series = makeSeries({});
+    let s = toChogallWindow();
+    s = applyPick(s, '초', 'A');
+    expect(availableHeroes(series, s)).toEqual(['갈']);
+  });
+
+  it('availableHeroes: 단독 픽엔 초·갈 제외, 연속 픽 창엔 노출', () => {
+    const series = makeSeries({});
+    let s = startSet('용의 둥지', 'blue');
+    s = applyBan(s, 'b1'); s = applyBan(s, 'b2'); s = applyBan(s, 'b3'); s = applyBan(s, 'b4');
+    const single = availableHeroes(series, s); // 첫 픽 = 단독
+    expect(single).not.toContain('초');
+    expect(single).not.toContain('갈');
+    s = applyPick(s, 'h', 'pf');
+    const open = availableHeroes(series, s); // 연속 창
+    expect(open).toContain('초');
+    expect(open).toContain('갈');
+  });
+
+  it('밴 스텝에서는 초·갈 개별 선택 가능', () => {
+    const series = makeSeries({});
+    const list = availableHeroes(series, startSet('용의 둥지', 'blue')); // 첫 스텝 밴
+    expect(list).toContain('초');
+    expect(list).toContain('갈');
+  });
+
+  it('초·갈 둘 다 픽되면 이후 세트 내 재선택 제외', () => {
+    const series = makeSeries({});
+    let s = toChogallWindow();
+    s = applyPick(s, '초', 'A');
+    s = applyPick(s, '갈', 'B'); // 강제 파트너
+    const list = availableHeroes(series, s);
+    expect(list).not.toContain('초');
+    expect(list).not.toContain('갈');
+  });
+
+  it('isChogallHero', () => {
+    expect(isChogallHero('초')).toBe(true);
+    expect(isChogallHero('갈')).toBe(true);
+    expect(isChogallHero('겐지')).toBe(false);
   });
 });

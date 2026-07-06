@@ -56,6 +56,20 @@ export function applyPick(state: DraftState, hero: string, playerId: string): Dr
   return next;
 }
 
+// 초갈(Cho'gall) — 머리 둘 오우거. 초·갈 두 스트리머가 연속 픽으로 나눠 가짐.
+// 한쪽(초 or 갈)을 픽하면 다음 픽은 무조건 파트너로 강제됨(availableHeroes에서 처리).
+export function isChogallHero(hero: string): boolean {
+  return hero === '초' || hero === '갈';
+}
+
+// 현재 스텝에서 초갈 시작이 가능한가 — 현재+다음 스텝이 모두 같은 팀 픽(연속 픽 2칸).
+export function canPickChogall(state: DraftState): boolean {
+  const seq = buildSequence(state.firstPick);
+  const cur = seq[state.cursor];
+  const nxt = seq[state.cursor + 1];
+  return !!cur && cur.kind === 'pick' && !!nxt && nxt.kind === 'pick' && cur.team === nxt.team;
+}
+
 // 마지막 액션 되돌리기. cursor 0이면 무변화.
 export function undo(state: DraftState): DraftState {
   if (state.cursor === 0) return state;
@@ -126,5 +140,32 @@ export function availableHeroes(series: Series, state: DraftState, forPlayerId?:
     for (const h of heroesPlayedBy(series.sets, forPlayerId)) excluded.add(h);
   }
 
-  return CANONICAL_HEROES.filter((h) => !excluded.has(h));
+  // 초갈: 픽으로 초/갈 하나만 소비된 상태면 다음 픽은 무조건 파트너로 강제.
+  if (step?.kind === 'pick') {
+    const cho = pickedThisSet(state).has('초');
+    const gall = pickedThisSet(state).has('갈');
+    if (cho !== gall) {
+      const partner = cho ? '갈' : '초';
+      return excluded.has(partner) ? [] : [partner];
+    }
+  }
+
+  // 초갈 시작: 픽 스텝은 연속 픽 창 + 초·갈 둘 다 미소비일 때만 노출. 밴은 개별 허용.
+  const chogallOpen = step?.kind === 'pick' && canPickChogall(state)
+    && !excluded.has('초') && !excluded.has('갈');
+
+  return CANONICAL_HEROES.filter((h) => {
+    if (isChogallHero(h)) {
+      return step?.kind === 'ban' ? !excluded.has(h) : chogallOpen;
+    }
+    return !excluded.has(h);
+  });
+}
+
+// 이번 세트에서 픽(밴 제외)된 영웅 집합.
+function pickedThisSet(state: DraftState): Set<string> {
+  const picked = new Set<string>();
+  for (const [, h] of state.picks.blue) picked.add(h);
+  for (const [, h] of state.picks.red) picked.add(h);
+  return picked;
 }
