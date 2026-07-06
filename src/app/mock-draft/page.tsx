@@ -172,11 +172,13 @@ function TriPick({ dir, active, color, onClick }: { dir: 'left' | 'right'; activ
   const c = active ? color : 'var(--text-faint)';
   return (
     <button onClick={onClick} aria-label={dir === 'left' ? '블루 선픽' : '레드 선픽'}
-      style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'center', background: 'none', border: 'none',
+      style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'stretch', background: 'none', border: 'none',
         cursor: 'pointer', padding: 0 }}>
-      <span style={{ width: 0, height: 0,
-        borderTop: '24px solid transparent', borderBottom: '24px solid transparent',
-        ...(dir === 'left' ? { borderRight: `20px solid ${c}` } : { borderLeft: `20px solid ${c}` }) }} />
+      {/* 직각삼각형 — 안쪽(중앙) 세로변이 직각, 바깥으로 빗변 */}
+      <span style={{ width: 22, background: c,
+        clipPath: dir === 'left'
+          ? 'polygon(100% 0, 100% 100%, 0 100%)'
+          : 'polygon(0 0, 0 100%, 100% 100%)' }} />
     </button>
   );
 }
