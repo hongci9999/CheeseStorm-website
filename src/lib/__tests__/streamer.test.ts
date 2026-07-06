@@ -24,7 +24,7 @@ describe('validateStreamerForm', () => {
   });
 
   it('계정레벨이 양의 정수면 valid', () => {
-    expect(validateStreamerForm('한빛', '523').valid).toBe(true);
+    expect(validateStreamerForm('한빛', '123').valid).toBe(true);
   });
 
   it('계정레벨이 숫자가 아니거나 0 이하면 invalid', () => {

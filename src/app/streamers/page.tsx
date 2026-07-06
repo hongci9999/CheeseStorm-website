@@ -323,7 +323,7 @@ function EditGameNamesModal({
           <div style={{ flex: 1 }}>
             <label style={LABEL}>계정 레벨</label>
             <input value={level} onChange={e => setLevel(e.target.value)}
-              placeholder="523" inputMode="numeric" style={INPUT} />
+              placeholder="123" inputMode="numeric" style={INPUT} />
           </div>
         </div>
 
@@ -487,7 +487,7 @@ function AddModal({
           <div>
             <label style={LABEL}>계정레벨 (선택)</label>
             <input value={level} onChange={e => setLevel(e.target.value)}
-              placeholder="523" inputMode="numeric" style={INPUT} />
+              placeholder="123" inputMode="numeric" style={INPUT} />
           </div>
           <div>
             <label style={LABEL}>배틀넷 닉네임 (선택)</label>
