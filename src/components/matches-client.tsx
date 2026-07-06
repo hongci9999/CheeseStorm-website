@@ -139,8 +139,8 @@ function MatchRow({
             backgroundImage: `url(${mapImg})`, backgroundSize: 'cover', backgroundPosition: 'center',
             opacity: 1, pointerEvents: 'none',
             // 왼쪽(이름) 투명 → 중앙 불투명 → 오른쪽 끝 살짝 페이드
-            WebkitMaskImage: 'linear-gradient(to right, transparent, #000 60%, #0006)',
-            maskImage: 'linear-gradient(to right, transparent, #000 60%, #0006)',
+            WebkitMaskImage: 'linear-gradient(to right, transparent, #000 60%, #0000)',
+            maskImage: 'linear-gradient(to right, transparent, #000 60%, #0000)',
           }} />
         )}
         <span style={{ position: 'relative', fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,

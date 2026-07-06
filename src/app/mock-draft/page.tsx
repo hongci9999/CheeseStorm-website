@@ -218,7 +218,7 @@ function MapPager({ maps, map, onPick, page, onPage }: {
           const isSel = m === map;
           return (
             <button key={m} onClick={() => onPick(m)} title={m}
-              style={{ position: 'relative', padding: 0, aspectRatio: '2 / 5', borderRadius: 0,
+              style={{ position: 'relative', padding: 0, aspectRatio: '2 / 4', borderRadius: 0,
                 overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border-strong)',
                 outline: isSel ? selectedOutline : 'none', outlineOffset: -2, zIndex: isSel ? 1 : 0,
                 transition: 'outline-color var(--dur-fast) var(--ease-out)' }}>
