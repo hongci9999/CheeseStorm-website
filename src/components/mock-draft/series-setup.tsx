@@ -199,10 +199,10 @@ function TeamPanel({ team, list, onRemove, mirror = false }: { team: Team; list:
         const p = list[i];
         // 빈/채운 칸 모두 정확히 S×S 고정 → 채워도 레이아웃 불변.
         return (
-          <div key={i} style={{ flex: '0 0 auto', width: S, height: S,
+          <div key={i} style={{ position: 'relative', flex: '0 0 auto', width: S, height: S,
             marginTop: i === 0 ? 0 : rowMt, marginLeft: (mirror ? i % 2 === 0 : i % 2 === 1) ? oddOffset : 0, lineHeight: 0 }}>
             {p ? (
-              <button onClick={() => onRemove(p.id)} title={`${p.name} 제거`}
+              <button onClick={() => onRemove(p.id)} title={`${p.name}${i === 0 ? ' (팀장)' : ''} 제거`}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: S, height: S }}>
                 <HexAvatar name={p.name} imageUrl={p.imageUrl} ring={c} size={S} />
               </button>
@@ -211,6 +211,13 @@ function TeamPanel({ team, list, onRemove, mirror = false }: { team: Team; list:
                 <span style={{ width: '100%', height: '100%', clipPath: HEX_CLIP,
                   background: `color-mix(in srgb, ${c} 14%, var(--surface-raise))` }} />
               </span>
+            )}
+            {/* 첫 칸 = 팀장 → 우측 상단 완장 스티커 */}
+            {i === 0 && p && (
+              <span title="팀장" style={{ position: 'absolute', top: -2, right: 6, zIndex: 3,
+                width: 26, height: 26, borderRadius: 999, display: 'grid', placeItems: 'center',
+                background: c, color: 'var(--bg-void)', fontSize: 15, lineHeight: 1,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>👑</span>
             )}
           </div>
         );

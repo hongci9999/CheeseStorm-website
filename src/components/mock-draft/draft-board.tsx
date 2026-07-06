@@ -9,7 +9,7 @@ import {
 import { mapImageUrl } from '@/lib/draft/map-image';
 import { heroImageUrl } from '@/lib/hero-image';
 import { HexAvatar } from '@/components/hexagon-avatar';
-import { primaryBtn, secondaryBtn, field, teamColor } from './ui';
+import { primaryBtn, secondaryBtn, field, teamColor, teamLabel } from './ui';
 import type { Series, DraftState, Team, Player } from '@/lib/draft/types';
 
 interface Props {
@@ -99,7 +99,7 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
           border: `1px solid ${teamColor(step.team)}`,
           background: `color-mix(in srgb, ${teamColor(step.team)} 16%, transparent)`,
           color: teamColor(step.team), fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)' }}>
-          {step.team === 'blue' ? '블루' : '레드'} {step.kind === 'ban' ? '밴' : '픽'} 차례
+          {teamLabel(series, step.team)} {step.kind === 'ban' ? '밴' : '픽'} 차례
         </div>
       )}
 
@@ -126,8 +126,8 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
             <div style={{ textAlign: 'center', display: 'grid', gap: 'var(--sp-3)', padding: 'var(--sp-6) 0' }}>
               <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', color: 'var(--text-high)' }}>드래프트 완료 — 승자 선택</strong>
               <div style={{ display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center' }}>
-                <button onClick={() => onFinish('blue')} style={{ ...secondaryBtn, color: teamColor('blue'), borderColor: `color-mix(in srgb, ${teamColor('blue')} 45%, var(--border-line))` }}>블루 승</button>
-                <button onClick={() => onFinish('red')} style={{ ...secondaryBtn, color: teamColor('red'), borderColor: `color-mix(in srgb, ${teamColor('red')} 45%, var(--border-line))` }}>레드 승</button>
+                <button onClick={() => onFinish('blue')} style={{ ...secondaryBtn, color: teamColor('blue'), borderColor: `color-mix(in srgb, ${teamColor('blue')} 45%, var(--border-line))` }}>{teamLabel(series, 'blue')} 승</button>
+                <button onClick={() => onFinish('red')} style={{ ...secondaryBtn, color: teamColor('red'), borderColor: `color-mix(in srgb, ${teamColor('red')} 45%, var(--border-line))` }}>{teamLabel(series, 'red')} 승</button>
               </div>
             </div>
           )}
@@ -161,7 +161,7 @@ function TeamColumn({ team, series, state, align }: { team: Team; series: Series
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-3)', justifyItems: align === 'end' ? 'end' : 'start' }}>
       <strong style={{ color: accent, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)', letterSpacing: 'var(--ls-wide)' }}>
-        {team === 'blue' ? '블루' : '레드'}
+        {teamLabel(series, team)}
       </strong>
 
       {players.map((p) => {

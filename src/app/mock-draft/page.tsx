@@ -11,7 +11,7 @@ import { SeriesSummary } from '@/components/mock-draft/series-summary';
 import { loadSeries, saveSeries, clearSeries } from '@/lib/draft/storage';
 import { startSet, finishSet, undo as undoState } from '@/lib/draft/engine';
 import { availableMaps } from '@/lib/draft/maps';
-import { primaryBtn, secondaryBtn, pageTitle, sectionTitle, selectedOutline, teamColor } from '@/components/mock-draft/ui';
+import { primaryBtn, secondaryBtn, pageTitle, sectionTitle, selectedOutline, teamColor, teamLabel } from '@/components/mock-draft/ui';
 import type { Series, DraftState, DraftType, Team } from '@/lib/draft/types';
 
 const DRAFT_LABELS: Record<DraftType, string> = {
@@ -136,7 +136,7 @@ export default function MockDraftPage() {
                       borderColor: on ? teamColor(t) : 'var(--border-line)',
                       background: on ? `color-mix(in srgb, ${teamColor(t)} 14%, transparent)` : 'var(--surface-input)',
                       fontWeight: on ? 800 : 600 }}>
-                    {t === 'blue' ? '블루' : '레드'}
+                    {teamLabel(series, t)}
                   </button>
                 );
               })}

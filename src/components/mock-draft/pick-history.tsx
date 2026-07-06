@@ -1,7 +1,7 @@
 'use client';
 
 import type { Series, Player, Team } from '@/lib/draft/types';
-import { card, teamColor } from './ui';
+import { card, teamColor, teamLabel } from './ui';
 
 // 플레이어별 세트 순서대로 픽한 영웅 목록.
 function historyFor(series: Series, playerId: string): string[] {
@@ -36,8 +36,8 @@ export function PickHistory({ series }: { series: Series }) {
   if (series.sets.length === 0) return null;
   return (
     <div style={{ ...card, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)' }}>
-      <TeamHistory title="블루 픽 이력" team="blue" players={series.blue} series={series} />
-      <TeamHistory title="레드 픽 이력" team="red" players={series.red} series={series} />
+      <TeamHistory title={`${teamLabel(series, 'blue')} 픽 이력`} team="blue" players={series.blue} series={series} />
+      <TeamHistory title={`${teamLabel(series, 'red')} 픽 이력`} team="red" players={series.red} series={series} />
     </div>
   );
 }

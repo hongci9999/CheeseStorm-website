@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { mapImageUrl } from '@/lib/draft/map-image';
 import { heroImageUrl } from '@/lib/hero-image';
 import type { Series, Team } from '@/lib/draft/types';
-import { card, teamColor } from './ui';
+import { card, teamColor, teamLabel } from './ui';
 
 // 시리즈 종료 시 각 세트의 전체 밴/픽 기록을 표시.
 export function SeriesSummary({ series, winner }: { series: Series; winner: Team }) {
@@ -15,7 +15,7 @@ export function SeriesSummary({ series, winner }: { series: Series; winner: Team
     <section style={{ display: 'grid', gap: 'var(--sp-4)' }}>
       <div style={{ textAlign: 'center', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-xl)',
         color: teamColor(winner) }}>
-        🏆 {winner === 'blue' ? '블루' : '레드'} 시리즈 승리 — 종료
+        🏆 {teamLabel(series, winner)} 시리즈 승리 — 종료
       </div>
 
       {series.sets.map((set, i) => (
@@ -28,9 +28,9 @@ export function SeriesSummary({ series, winner }: { series: Series; winner: Team
             <span style={{ color: 'var(--text-high)', fontSize: 'var(--fs-md)' }}>
               세트 {i + 1} · {set.map} ·{' '}
               <span style={{ color: teamColor(set.winner) }}>
-                {set.winner === 'blue' ? '블루' : '레드'} 승
+                {teamLabel(series, set.winner)} 승
               </span>
-              <span style={{ color: 'var(--text-faint)', fontWeight: 500, fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)' }}> (선픽 {set.firstPick === 'blue' ? '블루' : '레드'})</span>
+              <span style={{ color: 'var(--text-faint)', fontWeight: 500, fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)' }}> (선픽 {teamLabel(series, set.firstPick)})</span>
             </span>
           </div>
 
@@ -40,7 +40,7 @@ export function SeriesSummary({ series, winner }: { series: Series; winner: Team
               return (
                 <div key={team} style={{ display: 'grid', gap: 6 }}>
                   <strong style={{ color: accent, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-sm)', letterSpacing: 'var(--ls-wide)' }}>
-                    {team === 'blue' ? '블루' : '레드'}
+                    {teamLabel(series, team)}
                   </strong>
 
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>

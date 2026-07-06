@@ -1,10 +1,18 @@
 // 모의 밴픽 UI 공통 스타일 — 사이트 디자인 토큰(styles/tokens) 재사용으로 일관성 유지.
 import type { CSSProperties } from 'react';
-import type { Team } from '@/lib/draft/types';
+import type { Team, Series, Player } from '@/lib/draft/types';
 
 // 팀 색: 블루=heroic blue, 레드=loss red (사이트 토큰).
 export const teamColor = (team: Team): string =>
   team === 'blue' ? 'var(--cheese-blue)' : 'var(--loss)';
+
+// 팀장 = 각 팀 첫 번째 로스터 플레이어.
+export const teamCaptain = (series: Series, team: Team): Player | undefined =>
+  (team === 'blue' ? series.blue : series.red)[0];
+
+// 팀 이름: 팀장 이름(있으면), 없으면 블루/레드 폴백.
+export const teamLabel = (series: Series, team: Team): string =>
+  teamCaptain(series, team)?.name ?? (team === 'blue' ? '블루' : '레드');
 
 // 카드형 섹션 컨테이너.
 export const card: CSSProperties = {
