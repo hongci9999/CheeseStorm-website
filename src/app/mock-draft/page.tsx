@@ -144,18 +144,16 @@ function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick }: {
         </span>
       </div>
 
-      {/* 중앙: Bo·세트 + ◄ 선픽 ► */}
-      <div style={{ display: 'grid', justifyItems: 'center', gap: 2 }}>
-        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>Bo{series.bestOf} · {setNo}세트</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
-          <button onClick={() => onFirstPick('blue')} title="블루 선픽" aria-label="블루 선픽"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1,
-              color: firstPick === 'blue' ? teamColor('blue') : 'var(--text-faint)' }}>◄</button>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--text-high)' }}>선픽</span>
-          <button onClick={() => onFirstPick('red')} title="레드 선픽" aria-label="레드 선픽"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1,
-              color: firstPick === 'red' ? teamColor('red') : 'var(--text-faint)' }}>►</button>
+      {/* 중앙: 삼각형(상하 꽉) + 선픽 고르기 */}
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 'var(--sp-3)', minHeight: 48 }}>
+        <TriPick dir="left" active={firstPick === 'blue'} color={teamColor('blue')} onClick={() => onFirstPick('blue')} />
+        <div style={{ display: 'grid', justifyItems: 'center', alignContent: 'center', gap: 2 }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-sm)', color: 'var(--text-high)' }}>
+            Bo{series.bestOf} · {setNo}세트
+          </span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)', color: 'var(--text-high)' }}>선픽 고르기</span>
         </div>
+        <TriPick dir="right" active={firstPick === 'red'} color={teamColor('red')} onClick={() => onFirstPick('red')} />
       </div>
 
       {/* B팀(레드) */}
@@ -166,6 +164,20 @@ function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick }: {
         <ScoreBoxes team="red" wins={redWins} total={series.bestOf} />
       </div>
     </div>
+  );
+}
+
+// 선픽 선택 삼각형 — 바 높이를 상하로 꽉 채움. 활성 시 팀색, 아니면 흐림.
+function TriPick({ dir, active, color, onClick }: { dir: 'left' | 'right'; active: boolean; color: string; onClick: () => void }) {
+  const c = active ? color : 'var(--text-faint)';
+  return (
+    <button onClick={onClick} aria-label={dir === 'left' ? '블루 선픽' : '레드 선픽'}
+      style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'center', background: 'none', border: 'none',
+        cursor: 'pointer', padding: 0 }}>
+      <span style={{ width: 0, height: 0,
+        borderTop: '24px solid transparent', borderBottom: '24px solid transparent',
+        ...(dir === 'left' ? { borderRight: `20px solid ${c}` } : { borderLeft: `20px solid ${c}` }) }} />
+    </button>
   );
 }
 
@@ -200,15 +212,15 @@ function MapPager({ maps, map, onPick, page, onPage }: {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
       {arrow('prev', cur === 0)}
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 'var(--sp-3)' }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 0 }}>
         {shown.map((m) => {
           const img = mapImageUrl(m);
           const isSel = m === map;
           return (
             <button key={m} onClick={() => onPick(m)} title={m}
-              style={{ position: 'relative', padding: 0, aspectRatio: '3 / 4', borderRadius: 'var(--r-md)',
-                overflow: 'hidden', cursor: 'pointer',
-                outline: isSel ? selectedOutline : '1px solid var(--border-line)', outlineOffset: isSel ? 1 : 0,
+              style={{ position: 'relative', padding: 0, aspectRatio: '2 / 5', borderRadius: 0,
+                overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border-strong)',
+                outline: isSel ? selectedOutline : 'none', outlineOffset: -2, zIndex: isSel ? 1 : 0,
                 transition: 'outline-color var(--dur-fast) var(--ease-out)' }}>
               {img && <Image src={img} alt={m} fill sizes="160px"
                 style={{ objectFit: 'cover', filter: map && !isSel ? 'saturate(0.75) brightness(0.7)' : 'none',
