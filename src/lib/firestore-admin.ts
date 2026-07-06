@@ -1,6 +1,7 @@
 // 서버 전용 Firestore write — Admin SDK 사용으로 보안 규칙 우회.
 // 클라이언트 컴포넌트에서 직접 import 금지. API 라우트에서만 사용.
 
+import { waitUntil } from '@vercel/functions';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from './firebase-admin';
 import { getCuratedTierLists, packMatchForStore, type PrecomputedProfile } from './firestore';
@@ -84,6 +85,13 @@ async function refreshStats(): Promise<void> {
   } catch (err) {
     console.error('[refreshStats] 집계 실패:', err);
   }
+}
+
+// 응답 반환 후에도 Fluid Compute가 함수를 유지해 백그라운드로 완료 보장.
+// next/server의 after()는 이 배포 환경에서 콜백이 씹히는 문제가 있어 (ADR-0018)
+// 더 저수준 API인 @vercel/functions waitUntil로 교체.
+function scheduleRefresh(): void {
+  waitUntil(refreshStats());
 }
 
 // 큐레이션 티어 수정자 — 누가 저장했는지 로그용 (없으면 시스템 자동 정리)
@@ -170,26 +178,26 @@ export async function addStreamer(data: Omit<Streamer, 'id' | 'createdAt'>): Pro
     ...data,
     createdAt: FieldValue.serverTimestamp(),
   });
-  await refreshStats();
+  scheduleRefresh();
   return ref.id;
 }
 
 export async function deleteStreamer(id: string): Promise<void> {
   await getAdminDb().collection('streamers').doc(id).delete();
   await removeCuratedPlacement(id);
-  await refreshStats();
+  scheduleRefresh();
 }
 
 export async function updateStreamerInfo(id: string, name: string, accountLevel?: number): Promise<void> {
   const payload: Record<string, unknown> = { name };
   if (accountLevel !== undefined) payload.accountLevel = accountLevel;
   await getAdminDb().collection('streamers').doc(id).update(payload);
-  await refreshStats();
+  scheduleRefresh();
 }
 
 export async function updateStreamerGameNames(id: string, gameNames: string[]): Promise<void> {
   await getAdminDb().collection('streamers').doc(id).update({ gameNames });
-  await refreshStats();
+  scheduleRefresh();
 }
 
 export async function updateStreamerProfileImage(id: string, imageUrl: string): Promise<void> {
@@ -197,7 +205,7 @@ export async function updateStreamerProfileImage(id: string, imageUrl: string): 
     profileImageUrl: imageUrl,
     profileImageUpdatedAt: FieldValue.serverTimestamp(),
   });
-  await refreshStats();
+  scheduleRefresh();
 }
 
 // ── Matches ──────────────────────────────────────────────────
@@ -213,13 +221,13 @@ export async function addMatch(data: Omit<Match, 'id' | 'createdAt'>): Promise<s
     if (payload[k] === undefined) delete payload[k];
   }
   const ref = await getAdminDb().collection('matches').add(payload);
-  await refreshStats();
+  scheduleRefresh();
   return ref.id;
 }
 
 export async function deleteMatch(id: string): Promise<void> {
   await getAdminDb().collection('matches').doc(id).delete();
-  await refreshStats();
+  scheduleRefresh();
 }
 
 export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdAt'>): Promise<void> {
@@ -232,12 +240,12 @@ export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdA
     if (payload[k] === undefined) delete payload[k];
   }
   await getAdminDb().collection('matches').doc(id).update(payload);
-  await refreshStats();
+  scheduleRefresh();
 }
 
 export async function updateMatchDate(id: string, date: Date): Promise<void> {
   await getAdminDb().collection('matches').doc(id).update({ date });
-  await refreshStats();
+  scheduleRefresh();
 }
 
 // ── Curated tiers already exported above ────────────────────
