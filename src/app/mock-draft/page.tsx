@@ -11,7 +11,7 @@ import { SeriesSummary } from '@/components/mock-draft/series-summary';
 import { loadSeries, saveSeries, clearSeries } from '@/lib/draft/storage';
 import { startSet, finishSet, undo as undoState } from '@/lib/draft/engine';
 import { availableMaps } from '@/lib/draft/maps';
-import { primaryBtn, secondaryBtn, pageTitle, sectionTitle, selectedOutline, teamColor, teamLabel } from '@/components/mock-draft/ui';
+import { card, primaryBtn, secondaryBtn, pageTitle, selectedOutline, teamColor, teamLabel } from '@/components/mock-draft/ui';
 import type { Series, DraftState, DraftType, Team } from '@/lib/draft/types';
 
 const DRAFT_LABELS: Record<DraftType, string> = {
@@ -25,6 +25,7 @@ export default function MockDraftPage() {
   const [loaded, setLoaded] = useState(false);
   const [map, setMap] = useState('');
   const [firstPick, setFirstPick] = useState<Team>('blue');
+  const [mapPage, setMapPage] = useState(0);
 
   useEffect(() => {
     setSeries(loadSeries());
@@ -92,58 +93,22 @@ export default function MockDraftPage() {
         <button onClick={reset} style={secondaryBtn}>시리즈 초기화</button>
       </div>
 
-      <Scoreboard series={series} />
+      {series.current && <Scoreboard series={series} />}
 
       {seriesWinner && !series.current ? (
         <SeriesSummary series={series} winner={seriesWinner} />
       ) : !series.current ? (
-        <section style={{ display: 'grid', gap: 'var(--sp-4)' }}>
-          <strong style={{ ...sectionTitle, fontSize: 'var(--fs-lg)' }}>세트 {series.sets.length + 1} · 맵 선택</strong>
+        <section style={{ display: 'grid', gap: 'var(--sp-5)' }}>
+          {/* 스코어 + 선픽 바 */}
+          <SetHeaderBar series={series} blueWins={blueWins} redWins={redWins}
+            firstPick={firstPick} onFirstPick={setFirstPick} />
 
-          {/* 맵 썸네일 그리드 — 선택 ✓, 미선택은 어둡게 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 'var(--sp-3)' }}>
-            {maps.map((m) => {
-              const img = mapImageUrl(m);
-              const isSel = m === map;
-              return (
-                <button key={m} onClick={() => setMap(m)} title={m}
-                  style={{ position: 'relative', padding: 0, aspectRatio: '16 / 9', borderRadius: 'var(--r-md)',
-                    overflow: 'hidden', cursor: 'pointer',
-                    outline: isSel ? selectedOutline : '1px solid var(--border-line)', outlineOffset: isSel ? 1 : 0,
-                    transition: 'outline-color var(--dur-fast) var(--ease-out)' }}>
-                  {img && <Image src={img} alt={m} fill sizes="180px"
-                    style={{ objectFit: 'cover', filter: map && !isSel ? 'saturate(0.75) brightness(0.72)' : 'none',
-                      transition: 'filter var(--dur-fast) var(--ease-out)' }} />}
-                  <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 8px 5px', textAlign: 'left',
-                    fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', fontWeight: 700, color: '#fff',
-                    background: 'linear-gradient(transparent, rgba(0,0,0,0.85))' }}>{m}</span>
-                  {isSel && <span style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 999,
-                    background: 'var(--cheese-green)', color: 'var(--text-on-green)', display: 'grid', placeItems: 'center', fontWeight: 900 }}>✓</span>}
-                </button>
-              );
-            })}
-          </div>
+          {/* 맵 카드 6개/페이지 + 페이지 넘김 */}
+          <MapPager maps={maps} map={map} onPick={setMap} page={mapPage} onPage={setMapPage} />
 
-          {/* 선픽 + 시작 — 정상 흐름(고정 아님) */}
-          <div style={{ display: 'flex', gap: 'var(--sp-4)', alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', gap: 'var(--sp-2)', alignItems: 'center' }}>
-              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>선픽</span>
-              {(['blue', 'red'] as const).map((t) => {
-                const on = firstPick === t;
-                return (
-                  <button key={t} onClick={() => setFirstPick(t)}
-                    style={{ ...secondaryBtn, color: teamColor(t),
-                      borderColor: on ? teamColor(t) : 'var(--border-line)',
-                      background: on ? `color-mix(in srgb, ${teamColor(t)} 14%, transparent)` : 'var(--surface-input)',
-                      fontWeight: on ? 800 : 600 }}>
-                    {teamLabel(series, t)}
-                  </button>
-                );
-              })}
-            </div>
-            <button onClick={startCurrentSet} disabled={!map}
-              style={{ ...primaryBtn, opacity: map ? 1 : 0.45, cursor: map ? 'pointer' : 'not-allowed' }}>세트 시작</button>
-          </div>
+          <button onClick={startCurrentSet} disabled={!map}
+            style={{ ...primaryBtn, justifySelf: 'center', minWidth: 220,
+              opacity: map ? 1 : 0.45, cursor: map ? 'pointer' : 'not-allowed' }}>세트 시작</button>
         </section>
       ) : (
         <DraftBoard
@@ -157,5 +122,107 @@ export default function MockDraftPage() {
 
       {!seriesWinner && <PickHistory series={series} />}
     </main>
+  );
+}
+
+// 스코어(승수 박스) + 선픽 바. 선픽 사이드로 갈수록 진해지는 그라데이션.
+function SetHeaderBar({ series, blueWins, redWins, firstPick, onFirstPick }: {
+  series: Series; blueWins: number; redWins: number; firstPick: Team; onFirstPick: (t: Team) => void;
+}) {
+  const setNo = series.sets.length + 1;
+  const grad = firstPick === 'blue'
+    ? `linear-gradient(90deg, color-mix(in srgb, ${teamColor('blue')} 22%, var(--surface-card)), var(--surface-card) 55%)`
+    : `linear-gradient(270deg, color-mix(in srgb, ${teamColor('red')} 22%, var(--surface-card)), var(--surface-card) 55%)`;
+  return (
+    <div style={{ ...card, background: grad, display: 'grid', gridTemplateColumns: '1fr auto 1fr',
+      alignItems: 'center', padding: 'var(--sp-3) var(--sp-5)' }}>
+      {/* A팀(블루) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', justifySelf: 'start' }}>
+        <ScoreBoxes team="blue" wins={blueWins} total={series.bestOf} />
+        <span style={{ color: teamColor('blue'), fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)' }}>
+          {teamLabel(series, 'blue')} 팀
+        </span>
+      </div>
+
+      {/* 중앙: Bo·세트 + ◄ 선픽 ► */}
+      <div style={{ display: 'grid', justifyItems: 'center', gap: 2 }}>
+        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-2xs)', color: 'var(--text-muted)' }}>Bo{series.bestOf} · {setNo}세트</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          <button onClick={() => onFirstPick('blue')} title="블루 선픽" aria-label="블루 선픽"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1,
+              color: firstPick === 'blue' ? teamColor('blue') : 'var(--text-faint)' }}>◄</button>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--text-high)' }}>선픽</span>
+          <button onClick={() => onFirstPick('red')} title="레드 선픽" aria-label="레드 선픽"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, lineHeight: 1,
+              color: firstPick === 'red' ? teamColor('red') : 'var(--text-faint)' }}>►</button>
+        </div>
+      </div>
+
+      {/* B팀(레드) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', justifySelf: 'end' }}>
+        <span style={{ color: teamColor('red'), fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'var(--fs-md)' }}>
+          {teamLabel(series, 'red')} 팀
+        </span>
+        <ScoreBoxes team="red" wins={redWins} total={series.bestOf} />
+      </div>
+    </div>
+  );
+}
+
+// 승수 표기 박스 — total칸(Bo수), 이긴 만큼 팀색 채움.
+function ScoreBoxes({ team, wins, total }: { team: Team; wins: number; total: number }) {
+  const c = teamColor(team);
+  return (
+    <div style={{ display: 'flex', gap: 3 }}>
+      {Array.from({ length: total }).map((_, i) => (
+        <span key={i} style={{ width: 11, height: 17, borderRadius: 2,
+          border: `1px solid ${c}`, background: i < wins ? c : 'transparent' }} />
+      ))}
+    </div>
+  );
+}
+
+// 세로 맵 카드 6개/페이지 + 페이지 넘김 화살표.
+function MapPager({ maps, map, onPick, page, onPage }: {
+  maps: string[]; map: string; onPick: (m: string) => void; page: number; onPage: (p: number) => void;
+}) {
+  const perPage = 6;
+  const pageCount = Math.max(1, Math.ceil(maps.length / perPage));
+  const cur = Math.min(page, pageCount - 1);
+  const shown = maps.slice(cur * perPage, cur * perPage + perPage);
+  const arrow = (dir: 'prev' | 'next', disabled: boolean) => (
+    <button onClick={() => onPage(dir === 'next' ? cur + 1 : cur - 1)} disabled={disabled}
+      aria-label={dir === 'next' ? '다음 맵' : '이전 맵'}
+      style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 999, border: '1px solid var(--border-line)',
+        background: 'var(--surface-input)', color: 'var(--text-body)', fontSize: 22, cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.35 : 1 }}>{dir === 'next' ? '›' : '‹'}</button>
+  );
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)' }}>
+      {arrow('prev', cur === 0)}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 'var(--sp-3)' }}>
+        {shown.map((m) => {
+          const img = mapImageUrl(m);
+          const isSel = m === map;
+          return (
+            <button key={m} onClick={() => onPick(m)} title={m}
+              style={{ position: 'relative', padding: 0, aspectRatio: '3 / 4', borderRadius: 'var(--r-md)',
+                overflow: 'hidden', cursor: 'pointer',
+                outline: isSel ? selectedOutline : '1px solid var(--border-line)', outlineOffset: isSel ? 1 : 0,
+                transition: 'outline-color var(--dur-fast) var(--ease-out)' }}>
+              {img && <Image src={img} alt={m} fill sizes="160px"
+                style={{ objectFit: 'cover', filter: map && !isSel ? 'saturate(0.75) brightness(0.7)' : 'none',
+                  transition: 'filter var(--dur-fast) var(--ease-out)' }} />}
+              <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '18px 8px 6px', textAlign: 'center',
+                fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', fontWeight: 700, color: '#fff',
+                background: 'linear-gradient(transparent, rgba(0,0,0,0.85))' }}>{m}</span>
+              {isSel && <span style={{ position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 999,
+                background: 'var(--cheese-green)', color: 'var(--text-on-green)', display: 'grid', placeItems: 'center', fontWeight: 900 }}>✓</span>}
+            </button>
+          );
+        })}
+      </div>
+      {arrow('next', cur >= pageCount - 1)}
+    </div>
   );
 }
