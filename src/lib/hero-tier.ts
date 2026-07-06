@@ -42,7 +42,7 @@ export function calcHeroTiers(matches: Match[]): HeroTierStat[] {
   const streamerMap = new Map<string, Set<string>>(); // 영웅별 사용 스트리머 집합
 
   // 날짜 오름차순 정렬 — 최근 폼 추적이 시간 순서에 의존하므로 먼저 정렬
-  const sorted = [...matches].sort((a, b) => a.date.getTime() - b.date.getTime());
+  const sorted = [...matches].sort((a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime());
 
   const bump = (hero: string, key: 'wins' | 'losses') => {
     const name = hero.trim();

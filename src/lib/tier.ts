@@ -38,7 +38,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   const timelineMap = new Map<string, ('win' | 'loss')[]>();
 
   // 날짜 내림차순 정렬 1회 — deriveRole/deriveFineRole 내부 정렬 중복 방지
-  const sortedDesc = [...matches].sort((a, b) => b.date.getTime() - a.date.getTime());
+  const sortedDesc = [...matches].sort((a, b) => b.date.getTime() - a.date.getTime() || b.createdAt.getTime() - a.createdAt.getTime());
   // 오름차순은 내림차순을 뒤집어 재사용 (추가 sort 불필요)
   const sortedMatches = [...sortedDesc].reverse();
 

@@ -18,7 +18,7 @@ export function getRecentMatches(
 ): Match[] {
   return matches
     .filter(m => participants(m).some(([id]) => id === streamerId))
-    .sort((a, b) => b.date.getTime() - a.date.getTime())
+    .sort((a, b) => b.date.getTime() - a.date.getTime() || b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, n);
 }
 
