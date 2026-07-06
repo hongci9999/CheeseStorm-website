@@ -13,7 +13,7 @@ const HERO_SLUG: Record<string, string> = {
   '들창코': 'hogger', '호거': 'hogger', '라그나로스': 'ragnaros', '레오릭': 'leoric',
   '렉사르': 'rexxar', '말티엘': 'malthael', '바리안': 'varian', '소냐': 'sonya',
   '스랄': 'thrall', '아르타니스': 'artanis', '이렐': 'yrel', '임페리우스': 'imperius',
-  '줄': 'xul', '첸': 'chen', 'D.Va': 'dva', '디바': 'dva',
+  '줄': 'xul', '첸': 'chen', '디바': 'dva', 'D.Va': 'dva',
 
   // ── 원거리 암살자 ──
   '갈': 'gall', '겐지': 'genji', '굴단': 'guldan', '그레이메인': 'graymane',
@@ -53,3 +53,16 @@ export function heroImageUrl(hero: string): string | undefined {
 
 // 알려진 slug 전체 (다운로드 스크립트·검증용). 중복 제거.
 export const HERO_SLUGS: string[] = Array.from(new Set(Object.values(HERO_SLUG)));
+
+// slug 기준 중복 제거한 캐노니컬 영웅명 목록 (별칭 제외, 각 slug의 첫 표기 사용, 가나다순).
+// 드래프트 영웅 그리드 등 "영웅 1종 = 항목 1개"가 필요한 곳에서 사용.
+export const CANONICAL_HEROES: string[] = (() => {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const [name, slug] of Object.entries(HERO_SLUG)) {
+    if (seen.has(slug)) continue;
+    seen.add(slug);
+    names.push(name);
+  }
+  return names.sort((a, b) => a.localeCompare(b, 'ko'));
+})();

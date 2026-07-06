@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { deleteMatch } from '@/lib/api-client';
 import { getMatch } from '@/lib/firestore';
 import { participants, displaySides } from '@/lib/match';
+import { mapImageUrl } from '@/lib/draft/map-image';
 import type { Match, Streamer } from '@/lib/types';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
@@ -106,6 +107,7 @@ function MatchRow({
   const { left, right } = displaySides(match);
   const leftHeroes = left.roster.map(([, h]) => h);
   const rightHeroes = right.roster.map(([, h]) => h);
+  const mapImg = match.map ? mapImageUrl(match.map) : null;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)', minHeight: 68,
@@ -129,10 +131,22 @@ function MatchRow({
         <HeroTeamStack heroes={rightHeroes} won={right.won} glow size={heroSize} />
       </div>
 
-      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
-        color: 'var(--text-high)', flex: 1, marginLeft: 'var(--sp-2)',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {match.map ?? '—'}
+      <span style={{ position: 'relative', flex: 1, marginLeft: 'var(--sp-2)',
+        minWidth: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', alignSelf: 'stretch' }}>
+        {mapImg && (
+          <span aria-hidden style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `url(${mapImg})`, backgroundSize: 'cover', backgroundPosition: 'center',
+            opacity: 1, pointerEvents: 'none',
+            // 왼쪽(이름) 투명 → 중앙 불투명 → 오른쪽 끝 살짝 페이드
+            WebkitMaskImage: 'linear-gradient(to right, transparent, #000 60%, #0000)',
+            maskImage: 'linear-gradient(to right, transparent, #000 60%, #0000)',
+          }} />
+        )}
+        <span style={{ position: 'relative', fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 14,
+          color: 'var(--text-high)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {match.map ?? '—'}
+        </span>
       </span>
 
       {match.dur && (
