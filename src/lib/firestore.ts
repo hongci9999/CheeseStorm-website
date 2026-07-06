@@ -88,7 +88,6 @@ let matchesCache: Match[] | null = null;
 let statsCache: {
   playerStats: PlayerStats[];
   heroTiers: HeroTierStat[];
-  profiles?: Record<string, PrecomputedProfile>;
 } | null = null;
 
 // 페이지가 첫 렌더에서 동기적으로 읽어 스피너 없이 즉시 그리기 위한 getter. 없으면 null.
@@ -303,7 +302,6 @@ export const saveCuratedTiers = saveCuratedTierLists;
 export async function getPrecomputedStats(): Promise<{
   playerStats: PlayerStats[];
   heroTiers: HeroTierStat[];
-  profiles?: Record<string, PrecomputedProfile>;
 } | null> {
   if (isClient && statsCache) return statsCache;
   const d = await getDoc(doc(db, 'stats', 'current'));
@@ -312,10 +310,17 @@ export async function getPrecomputedStats(): Promise<{
   const result = {
     playerStats: (data.playerStats ?? []) as PlayerStats[],
     heroTiers: (data.heroTiers ?? []) as HeroTierStat[],
-    profiles: (data.profiles ?? undefined) as Record<string, PrecomputedProfile> | undefined,
   };
   if (isClient) statsCache = result;
   return result;
+}
+
+// 스트리머 1명의 사전집계 프로필 — stats/current 문서 크기 폭증(1MiB 제한) 방지 위해
+// 서브컬렉션에 분리 저장. 없으면 null (폴백: 전체 매치 읽어서 즉석 계산)
+export async function getPrecomputedProfile(streamerId: string): Promise<PrecomputedProfile | null> {
+  const d = await getDoc(doc(db, 'stats', 'current', 'profiles', streamerId));
+  if (!d.exists()) return null;
+  return d.data() as PrecomputedProfile;
 }
 
 // 집계 결과를 stats/current에 저장 — 경기/스트리머 변경 시 호출. 실패해도 throws하지 않음

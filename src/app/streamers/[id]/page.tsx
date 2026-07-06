@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
-import { getStreamers, getMatchesCached, getPrecomputedStats, unpackStoredMatch } from '@/lib/firestore';
+import { getStreamers, getMatchesCached, getPrecomputedStats, getPrecomputedProfile, unpackStoredMatch } from '@/lib/firestore';
 import type { PrecomputedProfile } from '@/lib/firestore';
 import { getStreamerProfile, getRecentMatches, kdaFor } from '@/lib/profile';
 import { fineRoleAffinity } from '@/lib/heroes';
@@ -383,9 +383,11 @@ export default async function ProfilePage({
   const initialTab: 'overview' | 'heroes' | 'matches' =
     tab === 'heroes' ? 'heroes' : tab === 'matches' ? 'matches' : 'overview';
 
-  // 빠른 경로: stats/current 1 read로 전체 프로필 렌더 (streamers + matches 컬렉션 read 없음)
-  const precomputedStats = await getPrecomputedStats();
-  const profileData = precomputedStats?.profiles?.[id];
+  // 빠른 경로: stats/current(+profiles 서브컬렉션) 2 read로 전체 프로필 렌더 (streamers + matches 컬렉션 read 없음)
+  const [precomputedStats, profileData] = await Promise.all([
+    getPrecomputedStats(),
+    getPrecomputedProfile(id),
+  ]);
   const playerStat = precomputedStats?.playerStats.find(p => p.streamerId === id);
 
   if (profileData && playerStat) {

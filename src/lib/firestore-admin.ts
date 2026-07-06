@@ -76,12 +76,28 @@ async function refreshStats(): Promise<void> {
     }
 
     const clean = (v: unknown) => JSON.parse(JSON.stringify(v));
-    await getAdminDb().collection('stats').doc('current').set({
+
+    // profiles는 stats/current 문서 크기(1MiB 제한)를 넘기지 않도록 서브컬렉션에 분리 저장.
+    // 전 스트리머 전체 경기이력을 한 문서에 통째로 넣던 옛 구조는 경기 늘수록 문서가
+    // 무한정 커져 쓰기 자체가 거부됐음.
+    const db = getAdminDb();
+    const profilesCol = db.collection('stats').doc('current').collection('profiles');
+    const existingProfileRefs = await profilesCol.listDocuments();
+    const currentIds = new Set(streamers.map((s) => s.id));
+
+    const batch = db.batch();
+    for (const s of streamers) {
+      batch.set(profilesCol.doc(s.id), clean(profiles[s.id]));
+    }
+    for (const ref of existingProfileRefs) {
+      if (!currentIds.has(ref.id)) batch.delete(ref); // 삭제된 스트리머 프로필 정리
+    }
+    batch.set(db.collection('stats').doc('current'), {
       playerStats: clean(playerStats),
       heroTiers: clean(heroTiers),
-      profiles: clean(profiles),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    await batch.commit();
   } catch (err) {
     console.error('[refreshStats] 집계 실패:', err);
   }
