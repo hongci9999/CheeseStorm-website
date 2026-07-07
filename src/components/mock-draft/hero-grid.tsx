@@ -51,8 +51,9 @@ export function HeroGrid({ available, selected, onSelect }: Props) {
           <button key={r} onClick={() => setRole(r)} style={tabStyle(role === r)}>{r}</button>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 6,
-        maxHeight: 440, overflowY: 'auto', padding: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))',
+        gridAutoRows: 'max-content', alignContent: 'start', gap: 6,
+        height: 440, overflowY: 'auto', padding: 4 }}>
         {shown.map((h) => {
           const enabled = availableSet.has(h);
           const isSelected = h === selected;

@@ -104,30 +104,32 @@ export default function MockDraftPage() {
         );
       })()}
 
-      {seriesWinner && !series.current ? (
-        <SeriesSummary series={series} winner={seriesWinner} />
-      ) : !series.current ? (
-        <section style={{ display: 'grid', gap: 'var(--sp-5)' }}>
-          {/* 스코어 + 선픽 바 */}
-          <SetHeaderBar series={series} blueWins={blueWins} redWins={redWins}
-            firstPick={firstPick} onFirstPick={setFirstPick} />
+      <div style={{ minHeight: 720, display: 'grid', alignContent: 'start' }}>
+        {seriesWinner && !series.current ? (
+          <SeriesSummary series={series} winner={seriesWinner} />
+        ) : !series.current ? (
+          <section style={{ display: 'grid', gap: 'var(--sp-5)' }}>
+            {/* 스코어 + 선픽 바 */}
+            <SetHeaderBar series={series} blueWins={blueWins} redWins={redWins}
+              firstPick={firstPick} onFirstPick={setFirstPick} />
 
-          {/* 맵 카드 6개/페이지 + 페이지 넘김 */}
-          <MapPager maps={maps} map={map} onPick={setMap} page={mapPage} onPage={setMapPage} />
+            {/* 맵 카드 6개/페이지 + 페이지 넘김 */}
+            <MapPager maps={maps} map={map} onPick={setMap} page={mapPage} onPage={setMapPage} />
 
-          <button onClick={startCurrentSet} disabled={!map}
-            style={{ ...primaryBtn, justifySelf: 'center', minWidth: 220,
-              opacity: map ? 1 : 0.45, cursor: map ? 'pointer' : 'not-allowed' }}>세트 시작</button>
-        </section>
-      ) : (
-        <DraftBoard
-          series={series}
-          state={series.current}
-          onApply={applyNext}
-          onUndo={undoCurrent}
-          onFinish={finishCurrent}
-        />
-      )}
+            <button onClick={startCurrentSet} disabled={!map}
+              style={{ ...primaryBtn, justifySelf: 'center', minWidth: 220,
+                opacity: map ? 1 : 0.45, cursor: map ? 'pointer' : 'not-allowed' }}>세트 시작</button>
+          </section>
+        ) : (
+          <DraftBoard
+            series={series}
+            state={series.current}
+            onApply={applyNext}
+            onUndo={undoCurrent}
+            onFinish={finishCurrent}
+          />
+        )}
+      </div>
 
       {!seriesWinner && <PickHistory series={series} />}
     </main>
