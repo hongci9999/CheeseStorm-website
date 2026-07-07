@@ -79,11 +79,14 @@ export function SeriesSetup({ onStart }: Props) {
       <h1 style={{ ...pageTitle, fontSize: 'var(--fs-2xl)' }}>모의 밴픽</h1>
 
       {/* 피어리스 + Bo 선택 — 같은 행 */}
-      <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <Segmented value={draftType} onChange={setDraftType}
-          options={(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => [k, DRAFT_LABELS[k]])} />
-        <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
-          options={[['3', 'Bo3'], ['5', 'Bo5']]} />
+      <div style={{ display: 'grid', justifyItems: 'center', gap: 'var(--sp-2)' }}>
+        <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Segmented value={draftType} onChange={setDraftType}
+            options={(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => [k, DRAFT_LABELS[k]])} />
+          <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
+            options={[['3', 'Bo3'], ['5', 'Bo5']]} />
+        </div>
+        {draftType === 'soft' && <SoftFearlessNotice />}
       </div>
 
       {/* 블루칸 | 검색+풀 | 레드칸 (옆 칸은 상자 없이 육각만) */}
@@ -128,6 +131,24 @@ export function SeriesSetup({ onStart }: Props) {
           {canStart ? '시리즈 시작' : '양 팀 5명씩 채워주세요'}
         </button>
         <button onClick={handleQuickStart} style={{ ...secondaryBtn, minWidth: 200 }}>스트리머 없이 바로 시작</button>
+      </div>
+    </div>
+  );
+}
+
+// 소프트 피어리스 선택 시 나오는 말풍선 — 이 프로젝트는 "그 픽 담당 플레이어"만 잠기는 변형 규칙(팀 전체 잠금 아님).
+function SoftFearlessNotice() {
+  return (
+    <div style={{ position: 'relative', maxWidth: 320 }}>
+      <span aria-hidden style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%) rotate(45deg)',
+        width: 12, height: 12, background: 'var(--surface-card)',
+        borderLeft: '1px solid var(--border-line)', borderTop: '1px solid var(--border-line)' }} />
+      <div style={{ borderRadius: 'var(--r-md)', border: '1px solid var(--border-line)',
+        background: 'var(--surface-card)', boxShadow: 'var(--shadow-sm)',
+        padding: 'var(--sp-2) var(--sp-3)', fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)',
+        color: 'var(--text-muted)', lineHeight: 1.5, textAlign: 'center' }}>
+        일반 소프트 피어리스와 다름 — <b style={{ color: 'var(--text-high)' }}>그 픽을 담당하는 플레이어</b>만
+        이전 세트에 픽했던 영웅을 다시 못 고름 (팀 전체 잠금 아님, 밴은 제약 없음)
       </div>
     </div>
   );
