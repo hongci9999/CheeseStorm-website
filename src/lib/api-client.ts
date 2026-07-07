@@ -6,6 +6,7 @@ import {
   invalidateStreamersCache,
   invalidateMatchesCache,
   invalidateCuratedListsCache,
+  invalidateOcrCorrectionsCache,
 } from './firestore';
 
 async function apiFetch(path: string, method: string, body?: unknown): Promise<unknown> {
@@ -84,4 +85,5 @@ export async function upsertOcrCorrection(
   kind: 'streamer' | 'hero', wrong: string, correct: string,
 ): Promise<void> {
   await apiFetch('/api/ocr-corrections', 'POST', { kind, wrong, correct });
+  invalidateOcrCorrectionsCache();
 }

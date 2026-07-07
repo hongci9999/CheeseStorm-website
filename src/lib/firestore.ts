@@ -23,7 +23,7 @@ import type { PlayerStats } from './types';
 import type { HeroTierStat } from './hero-tier';
 import type { Match, OcrCorrections, CuratedTierLists, Streamer } from './types';
 import { emptyTierLists, listsFromPlacements, sanitizeLists, CURATED_TIER_ORDER } from './curated-tier';
-import { EMPTY_OCR_CORRECTIONS, normalizeOcrKey } from './ocr-corrections';
+import { EMPTY_OCR_CORRECTIONS } from './ocr-corrections';
 import { normalizeMatchDur } from './match';
 import { fineRoleAffinity } from './heroes';
 import { aggregateHeroStats } from './hero-stats';
@@ -214,18 +214,7 @@ export async function getOcrCorrections(): Promise<OcrCorrections> {
   return list;
 }
 
-export async function upsertOcrCorrection(
-  kind: 'streamer' | 'hero',
-  wrong: string,
-  correct: string,
-): Promise<void> {
-  const key = normalizeOcrKey(wrong);
-  if (!key || !correct.trim()) return;
-  const field = kind === 'streamer' ? 'streamers' : 'heroes';
-  await setDoc(doc(db, 'ocrCorrections', 'global'), {
-    [`${field}.${key}`]: correct.trim(),
-    updatedAt: Timestamp.now(),
-  }, { merge: true });
+export function invalidateOcrCorrectionsCache() {
   ocrCorrectionsCache = null;
 }
 
