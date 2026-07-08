@@ -10,12 +10,10 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
-  if (pathname === '/') {
-    // 실시간 접속 확인용 로그 — Vercel Runtime Logs에서 확인 (티어리스트 페이지 조회자)
-    console.log(
-      `[visit] ${pathname} | ${session ? `${session.name}(${session.chzzkId})` : 'anonymous'}`
-    );
-  }
+  // 실시간 접속 확인용 로그 — Vercel Runtime Logs에서 확인 (누가 어떤 페이지 보는지)
+  console.log(
+    `[visit] ${pathname} | ${session ? `${session.name}(${session.chzzkId})` : 'anonymous'}`
+  );
 
   if (pathname.startsWith('/matches/new')) {
     if (!session || session.role === 'viewer') {
@@ -30,5 +28,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/matches/new'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/|.*\\.\\w+$).*)'],
 };
