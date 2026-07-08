@@ -7,10 +7,17 @@ import { verifySessionToken, SESSION_COOKIE } from '@/lib/session';
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  if (pathname.startsWith('/matches/new')) {
-    const token = req.cookies.get(SESSION_COOKIE)?.value;
-    const session = token ? await verifySessionToken(token) : null;
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  const session = token ? await verifySessionToken(token) : null;
 
+  if (pathname === '/') {
+    // 실시간 접속 확인용 로그 — Vercel Runtime Logs에서 확인 (티어리스트 페이지 조회자)
+    console.log(
+      `[visit] ${pathname} | ${session ? `${session.name}(${session.chzzkId})` : 'anonymous'}`
+    );
+  }
+
+  if (pathname.startsWith('/matches/new')) {
     if (!session || session.role === 'viewer') {
       const url = req.nextUrl.clone();
       url.pathname = '/';
@@ -23,5 +30,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/matches/new'],
+  matcher: ['/', '/matches/new'],
 };
