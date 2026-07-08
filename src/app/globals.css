@@ -96,3 +96,23 @@
 @media (prefers-reduced-motion: reduce) {
   .emblem-spinning { animation: none; }
 }
+
+/* 가이드 페이지 배너 — 본문(--container) 우측 여백 맨 위에 화면 고정.
+   여백이 부족한 화면에선 숨김 */
+.side-banner {
+  display: none;
+  position: fixed;
+  top: 140px;
+  right: 24px;
+  z-index: 30;
+}
+@media (min-width: 1600px) {
+  .side-banner { display: block; }
+}
+
+.feedback-bar {
+  text-decoration: none;
+}
+.feedback-bar:hover {
+  text-decoration: underline;
+}

@@ -94,6 +94,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <BottomTabBar />
+        <a
+          href="https://forms.gle/Mi14BR45GoP9EU7C7"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="feedback-bar"
+          style={{
+            display: 'block',
+            textAlign: 'center',
+            padding: '10px var(--sp-6)',
+            background: 'color-mix(in srgb, var(--hots-purple) 22%, var(--surface-raise))',
+            borderTop: '1px solid color-mix(in srgb, var(--hots-purple) 35%, transparent)',
+            fontFamily: 'var(--font-ui)',
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: 'var(--text-high)',
+          }}
+        >
+          건의사항 · 문의사항 남기기
+        </a>
         <SiteFooter />
         <Suspense>
           <AuthToast />

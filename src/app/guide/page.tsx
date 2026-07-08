@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
+import { SideBanner } from '@/components/side-banner';
 
 export const metadata: Metadata = {
   title: '사용방법 | CHEESESTORM',
@@ -172,6 +173,8 @@ function RoleBadge({ role, color }: { role: string; color: string }) {
 export default function GuidePage() {
   return (
     <div>
+      <SideBanner />
+
       {/* 페이지 헤더 */}
       <div style={{ padding: 'var(--sp-7) 0 var(--sp-6)' }}>
         <h1 style={{
