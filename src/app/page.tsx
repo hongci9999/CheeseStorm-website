@@ -97,6 +97,7 @@ function PlayerCell({ p, tier, bp }: { p: PlayerStats; tier: Tier; bp: Bp }) {
   return (
     <Link
       href={`/streamers/${p.streamerId}`}
+      prefetch={false}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
