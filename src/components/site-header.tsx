@@ -98,7 +98,7 @@ export default function SiteHeader() {
         display: 'flex', alignItems: 'center', gap: 'var(--sp-6)',
       }}>
         {/* 브랜드 */}
-        <Link href="/" style={{
+        <Link href="/" prefetch={false} style={{
           display: 'flex', alignItems: 'center', gap: 11, textDecoration: 'none',
           flexShrink: 0,
         }}>
@@ -119,6 +119,7 @@ export default function SiteHeader() {
               <Link
                 key={href}
                 href={href}
+                prefetch={false}
                 style={{
                   display: 'flex', flexDirection: 'column', gap: 1,
                   padding: '9px 16px', borderRadius: 'var(--r-sm)',
@@ -169,7 +170,7 @@ export default function SiteHeader() {
 
         {/* + 경기 입력 CTA — desktop + streamer만 */}
         {!isMobile && isStreamer && (
-          <Link href="/matches/new" style={{
+          <Link href="/matches/new" prefetch={false} style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             height: 'var(--control-sm)', padding: '0 var(--sp-4)',
             borderRadius: 'var(--r-sm)',
