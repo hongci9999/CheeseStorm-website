@@ -269,12 +269,16 @@ export async function updateMatchDate(id: string, date: Date): Promise<void> {
 
 // ── 방문 로그 ────────────────────────────────────────────────
 
+const VISIT_BUCKET_MS = 10 * 60_000; // 10분 단위로 방문 기록 묶음
+
 // 티어리스트 방문 로그 — 스트리머 이상만 기록 (미들웨어에서 호출)
-// 문서ID를 스트리머+분단위 시각으로 고정 — 같은 분 안 재방문(새로고침 연타·prefetch 잔여)은 덮어쓰기,
-// 분이 바뀌면 새 기록이라 몇시 몇분에 들어왔는지는 그대로 남음
+// 문서ID를 역타임스탬프(10분단위)+스트리머로 고정 — 콘솔은 문서ID 오름차순 정렬이라
+// 역타임스탬프를 앞에 두면 최신 기록이 맨 위로 옴. 같은 10분 구간 안 재방문(새로고침 연타·
+// prefetch 잔여)은 같은 ID로 덮어써지고, 구간이 바뀌면 새 기록으로 남음
 export async function logTierlistVisit(session: SessionPayload): Promise<void> {
-  const minuteKey = new Date().toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm (UTC)
-  const id = `${session.chzzkId}_${minuteKey}`;
+  const bucketEpochMs = Math.floor(Date.now() / VISIT_BUCKET_MS) * VISIT_BUCKET_MS;
+  const reverseBucket = String(9_999_999_999_999 - bucketEpochMs).padStart(13, '0');
+  const id = `${reverseBucket}_${session.chzzkId}`;
   await getAdminDb().collection('tierlistVisits').doc(id).set(
     {
       chzzkId: session.chzzkId,
