@@ -269,26 +269,21 @@ export async function updateMatchDate(id: string, date: Date): Promise<void> {
 
 // ── 방문 로그 ────────────────────────────────────────────────
 
-const VISIT_COOLDOWN_MS = 30_000;
-
 // 티어리스트 방문 로그 — 스트리머 이상만 기록 (미들웨어에서 호출)
-// 같은 스트리머는 쿨다운(30초) 내 재방문 시 기록 생략 — 새로고침 연타·prefetch 잔여로 인한 중복 방지
+// 문서ID를 스트리머+분단위 시각으로 고정 — 같은 분 안 재방문(새로고침 연타·prefetch 잔여)은 덮어쓰기,
+// 분이 바뀌면 새 기록이라 몇시 몇분에 들어왔는지는 그대로 남음
 export async function logTierlistVisit(session: SessionPayload): Promise<void> {
-  const db = getAdminDb();
-  const cooldownRef = db.collection('tierlistVisitCooldown').doc(session.chzzkId);
-  const cooldownSnap = await cooldownRef.get();
-  const lastVisitedAt = cooldownSnap.data()?.lastVisitedAt?.toMillis?.();
-  if (lastVisitedAt && Date.now() - lastVisitedAt < VISIT_COOLDOWN_MS) return;
-
-  const batch = db.batch();
-  batch.set(db.collection('tierlistVisits').doc(), {
-    chzzkId: session.chzzkId,
-    name: session.name,
-    role: session.role,
-    visitedAt: FieldValue.serverTimestamp(),
-  });
-  batch.set(cooldownRef, { lastVisitedAt: FieldValue.serverTimestamp() });
-  await batch.commit();
+  const minuteKey = new Date().toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm (UTC)
+  const id = `${session.chzzkId}_${minuteKey}`;
+  await getAdminDb().collection('tierlistVisits').doc(id).set(
+    {
+      chzzkId: session.chzzkId,
+      name: session.name,
+      role: session.role,
+      visitedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
 // ── OCR ──────────────────────────────────────────────────────
