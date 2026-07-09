@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { deleteMatch } from '@/lib/api-client';
@@ -244,6 +244,10 @@ export default function MatchesClient({
   const [detailCache, setDetailCache] = useState<Record<string, Match>>({});
   // 낙관적 삭제 — 서버 재집계(refreshStats)를 기다리지 않고 즉시 목록에서 숨김
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+  // 무한스크롤 — 날짜 그룹 3일치씩 노출, 바닥 근처 스크롤 시 3일 더
+  const DAYS_PER_PAGE = 3;
+  const [visibleDays, setVisibleDays] = useState(DAYS_PER_PAGE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   function handleToggle(id: string) {
     if (openId === id) { setOpenId(null); return; }
@@ -287,6 +291,28 @@ export default function MatchesClient({
     (a, b) => (b.date.getTime() - a.date.getTime()) || (b.createdAt.getTime() - a.createdAt.getTime()),
   );
   const groups = groupByDate(sorted);
+  const visibleGroups = groups.slice(0, visibleDays);
+  const hasMore = visibleDays < groups.length;
+
+  // 검색어 바뀌면 노출 범위 초기화
+  useEffect(() => {
+    setVisibleDays(DAYS_PER_PAGE);
+  }, [search]);
+
+  // 바닥 근처 스크롤 시 날짜 그룹 3일 더 노출
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setVisibleDays((v) => v + DAYS_PER_PAGE);
+      },
+      { rootMargin: '400px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore]);
 
   const numberById = new Map<string, number>();
   [...matches]
@@ -307,7 +333,7 @@ export default function MatchesClient({
           <span style={{ position: 'absolute', left: 7, top: 8, bottom: 8,
             width: 2, background: 'var(--border-line)' }} />
 
-          {groups.map(([date, list]) => (
+          {visibleGroups.map(([date, list]) => (
             <div key={date} style={{ marginBottom: 'var(--sp-6)' }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center',
                 gap: 10, marginBottom: 'var(--sp-4)' }}>
@@ -358,6 +384,13 @@ export default function MatchesClient({
               </div>
             </div>
           ))}
+
+          {hasMore && (
+            <div ref={sentinelRef} style={{ textAlign: 'center', padding: 'var(--sp-4)',
+              color: 'var(--text-faint)', fontFamily: 'var(--font-ui)', fontSize: 12 }}>
+              불러오는 중...
+            </div>
+          )}
         </div>
       )}
 
