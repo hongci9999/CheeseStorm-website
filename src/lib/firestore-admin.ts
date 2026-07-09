@@ -14,6 +14,7 @@ import { fineRoleAffinity } from './heroes';
 import { aggregateHeroStats } from './hero-stats';
 import { computeRelations } from './relations';
 import { mapWinRates } from './map-stats';
+import type { SessionPayload } from './session';
 import type { Match, Streamer, CuratedTierLists } from './types';
 
 type StoredPick = { id: string; hero: string };
@@ -265,6 +266,18 @@ export async function updateMatchDate(id: string, date: Date): Promise<void> {
 }
 
 // ── Curated tiers already exported above ────────────────────
+
+// ── 방문 로그 ────────────────────────────────────────────────
+
+// 티어리스트 방문 로그 — 스트리머 이상만 기록 (미들웨어에서 호출)
+export async function logTierlistVisit(session: SessionPayload): Promise<void> {
+  await getAdminDb().collection('tierlistVisits').add({
+    chzzkId: session.chzzkId,
+    name: session.name,
+    role: session.role,
+    visitedAt: FieldValue.serverTimestamp(),
+  });
+}
 
 // ── OCR ──────────────────────────────────────────────────────
 
