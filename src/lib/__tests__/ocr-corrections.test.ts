@@ -14,8 +14,8 @@ const streamers: Streamer[] = [
 ];
 
 describe('normalizeOcrKey', () => {
-  it('공백을 정규화하고 소문자로 만든다', () => {
-    expect(normalizeOcrKey('  Storm#3142  ')).toBe('storm#3142');
+  it('공백만 정규화하고 대소문자는 유지한다', () => {
+    expect(normalizeOcrKey('  Storm#3142  ')).toBe('Storm#3142');
     expect(normalizeOcrKey('스 터코프')).toBe('스 터코프');
   });
 });
@@ -26,7 +26,7 @@ describe('resolveStreamerId', () => {
   });
 
   it('OCR 교정맵을 gameNames보다 우선하지 않고 교정맵을 사용한다', () => {
-    const corrections = { streamers: { 'storm칼날': 's1' }, heroes: {} };
+    const corrections = { streamers: { 'Storm칼날': 's1' }, heroes: {} };
     expect(resolveStreamerId('Storm칼날', streamers, corrections)).toBe('s1');
   });
 });
@@ -48,7 +48,7 @@ describe('shouldRecordStreamerCorrection', () => {
   });
 
   it('동일 교정이 이미 있으면 기록하지 않는다', () => {
-    const corrections = { streamers: { 'storm칼날': 's1' }, heroes: {} };
+    const corrections = { streamers: { 'Storm칼날': 's1' }, heroes: {} };
     expect(shouldRecordStreamerCorrection('Storm칼날', 's1', streamers, corrections)).toBe(false);
   });
 });

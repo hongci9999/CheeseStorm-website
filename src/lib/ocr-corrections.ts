@@ -4,9 +4,9 @@ import type { OcrCorrections, Streamer } from './types';
 
 export const EMPTY_OCR_CORRECTIONS: OcrCorrections = { streamers: {}, heroes: {} };
 
-// OCR 오답 조회용 키 — 공백 정규화 + 소문자.
+// OCR 오답 조회용 키 — 공백만 정규화, 대소문자는 구분 유지.
 export function normalizeOcrKey(raw: string): string {
-  return raw.trim().replace(/\s+/g, ' ').toLowerCase();
+  return raw.trim().replace(/\s+/g, ' ');
 }
 
 // AI가 반환한 스트리머명 → streamerId. gameNames → OCR 교정맵 순.
