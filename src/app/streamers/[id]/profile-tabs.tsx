@@ -206,94 +206,71 @@ function MatchRow({ m, streamerId, isMobile }: { m: SerializedMatch; streamerId:
   );
 }
 
-// ── 영웅 스탯 테이블 ──────────────────────────────────────────
-function HeroStatsTable({ rows, isMobile }: { rows: HeroAggregate[]; isMobile: boolean }) {
+// ── 영웅 스탯 (역할군별 그룹, 승률·전적만 표시) ──────────────────
+const ROLE_ORDER = ['탱커', '투사', '지원가', '근접 암살자', '원거리 암살자', '전문가', '기타'] as const;
+
+function groupHeroesByRole(rows: HeroAggregate[]): { role: string; rows: HeroAggregate[] }[] {
+  const groups = new Map<string, HeroAggregate[]>();
+  for (const h of rows) {
+    const role = fineRoleOfHero(h.hero) ?? '기타';
+    if (!groups.has(role)) groups.set(role, []);
+    groups.get(role)!.push(h);
+  }
+  return ROLE_ORDER
+    .filter(role => groups.has(role))
+    .map(role => ({ role, rows: groups.get(role)! }));
+}
+
+function HeroStatRow({ h }: { h: HeroAggregate }) {
+  const total = h.wins + h.losses;
+  const winRateStr = h.winRate !== null ? pct(h.winRate) : '—';
+  const winColor = h.winRate !== null && h.winRate >= 0.5 ? 'var(--win)' : 'var(--loss)';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <HeroAvatar name={h.hero} size={28} />
+        <span style={{ flex: 1, fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 14,
+          color: 'var(--text-high)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {h.hero}
+        </span>
+        <span style={{ textAlign: 'right', fontFamily: 'var(--font-numeral)',
+          fontSize: 12.5, whiteSpace: 'nowrap' }}>
+          <span style={{ fontWeight: 800, color: winColor }}>{winRateStr}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-faint)', marginLeft: 6 }}>
+            {h.wins}승 {h.losses}패
+          </span>
+        </span>
+      </div>
+      <WinRateBar wins={h.wins} total={total} height={2.5} />
+    </div>
+  );
+}
+
+function HeroStatsByRole({ rows, isMobile }: { rows: HeroAggregate[]; isMobile: boolean }) {
   if (rows.length === 0) {
     return <EmptyHint>경기 기록이 없습니다.</EmptyHint>;
   }
-  const allCols: { label: string; sub?: string; align: 'left' | 'right' }[] = [
-    { label: '영웅', align: 'left' },
-    { label: '승률', sub: '(전적)', align: 'right' },
-    { label: 'KDA', align: 'right' },
-    { label: '영웅딜', align: 'right' },
-    { label: '공성딜', align: 'right' },
-    { label: '힐', align: 'right' },
-    { label: '자가힐', align: 'right' },
-    { label: '경험치', align: 'right' },
-  ];
-  // 모바일은 가로폭에 맞춰 영웅·승률만 표시 (스탯 컬럼 숨김)
-  const cols = isMobile ? allCols.slice(0, 2) : allCols;
-  const cellBase: React.CSSProperties = {
-    padding: 'var(--sp-2) var(--sp-3)',
-    fontFamily: 'var(--font-numeral)',
-    fontSize: 14, fontWeight: 600,
-    color: 'var(--text-high)',
-    whiteSpace: 'nowrap', verticalAlign: 'middle',
-  };
+  const groups = groupHeroesByRole(rows);
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: isMobile ? undefined : 620 }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--border-faint)' }}>
-            {cols.map((c, i) => (
-              <th key={i} style={{
-                ...cellBase, textAlign: c.align,
-                padding: 'var(--sp-2) var(--sp-3)',
-                fontWeight: 600, fontSize: 11,
-                color: 'var(--text-faint)', letterSpacing: '0.06em', textTransform: 'uppercase',
-              }}>
-                {c.label}{c.sub && <span style={{ fontWeight: 400 }}> {c.sub}</span>}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((h, i) => {
-            const winRateStr = h.winRate !== null ? pct(h.winRate) : '—';
-            const winColor = h.winRate !== null && h.winRate >= 0.5 ? 'var(--win)' : 'var(--loss)';
-            const hasStats = h.statGames > 0;
-            return (
-              <tr key={h.hero} style={{
-                borderBottom: '1px solid var(--border-faint)',
-                background: i % 2 === 0 ? 'transparent' : 'color-mix(in srgb, var(--surface-raise) 40%, transparent)',
-              }}>
-                <td style={{ ...cellBase, textAlign: 'left', padding: 'var(--sp-3) var(--sp-3)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <HeroAvatar name={h.hero} size={30} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 15,
-                        color: 'var(--text-high)' }}>{h.hero}</span>
-                      {!hasStats && (
-                        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10.5,
-                          color: 'var(--text-faint)' }}>데이터 부족</span>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td style={{ ...cellBase, textAlign: 'right' }}>
-                  <span style={{ fontWeight: 700, color: winColor }}>{winRateStr}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-faint)', marginLeft: 6 }}>
-                    {h.wins}승 {h.losses}패
-                  </span>
-                </td>
-                {!isMobile && (
-                  <>
-                    <td style={{ ...cellBase, textAlign: 'right', fontWeight: 700,
-                      color: hasStats ? 'var(--text-high)' : 'var(--text-faint)' }}>
-                      {h.avgKda !== null ? h.avgKda.toFixed(2) : '—'}
-                    </td>
-                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgHeroDmg)}</td>
-                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgSiegeDmg)}</td>
-                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgHealing)}</td>
-                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgSelfHeal)}</td>
-                    <td style={{ ...cellBase, textAlign: 'right' }}>{fmtNum(h.avgXp)}</td>
-                  </>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div style={{ display: 'grid',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+      gap: 'var(--sp-4)' }}>
+      {groups.map(g => (
+        <div key={g.role} style={{
+          background: 'var(--surface-raise)', borderRadius: 'var(--r-md)',
+          border: '1px solid var(--border-faint)', padding: 'var(--sp-4)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 'var(--sp-3)' }}>
+            <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 13,
+              color: 'var(--text-strong)' }}>{g.role}</span>
+            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 11,
+              color: 'var(--text-faint)' }}>{g.rows.length}종</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-3)' }}>
+            {g.rows.map(h => <HeroStatRow key={h.hero} h={h} />)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -716,8 +693,8 @@ export function ProfileTabs({
         }}>
           <SectionHead ko="영웅 전체 스탯" en="All hero stats"
             right={<span style={{ fontFamily: 'var(--font-numeral)', fontSize: 12,
-              color: 'var(--text-faint)' }}>판수 내림차순</span>} />
-          <HeroStatsTable rows={heroAggregates} isMobile={isMobile} />
+              color: 'var(--text-faint)' }}>역할군별 · 판수 내림차순</span>} />
+          <HeroStatsByRole rows={heroAggregates} isMobile={isMobile} />
         </div>
       )}
     </div>
