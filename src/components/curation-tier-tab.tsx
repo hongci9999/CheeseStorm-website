@@ -363,7 +363,7 @@ function CurationTierNotice() {
         margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
         color: 'white', fontWeight: 600, lineHeight: 1.55,
       }}>
-        사이트에 등록된 스트리머가 수정하는 티어표 입니다. 모든 이용자가 하나의 티어표를 공유합니다.
+        사이트에 등록된 스트리머가 자유롭게 수정하는 티어표 입니다. 모든 이용자가 하나의 티어표를 공유합니다.
       </p>
     </div>
   );
@@ -587,7 +587,7 @@ export function CurationTierTab({
         )}
         <CurationTierNotice />
         {/* 재조정 안내 — 제작자 외 스트리머가 티어표를 수정하면 전체 이용자에게 숨김 */}
-        {tierLastEditByAdmin !== false && (
+        {/* {tierLastEditByAdmin !== false && (
           <div style={{ marginBottom: 'var(--sp-4)' }}>
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -598,10 +598,10 @@ export function CurationTierTab({
               fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12,
             }}>
               <span aria-hidden>📌</span>
-              2026.07.02 제작자에 의해 티어리스트가 재조정되었습니다. 자유롭게 수정해주세요
+              2026.07.10 제작자에 의해 티어리스트가 재조정되었습니다. 자유롭게 수정해주세요
             </span>
           </div>
-        )}
+        )} */}
         {/* 툴바: 역할 필터 + 오른쪽 위 티어 편집 */}
         <div style={{
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
