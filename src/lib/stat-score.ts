@@ -13,11 +13,11 @@ interface StatWeights {
 
 // docs/tierlist-logic.md 역할별 스탯 가중치 테이블
 const ROLE_STAT_WEIGHTS: Record<Role, StatWeights> = {
-  '암살자': { kda: 0.25, xpPerMin: 0.20, heroDmgPerMin: 0.40, siegeDmgPerMin: 0.05, healingPerMin: 0.00, selfHealPerMin: 0.10 },
-  '탱커':   { kda: 0.25, xpPerMin: 0.20, heroDmgPerMin: 0.20, siegeDmgPerMin: 0.05, healingPerMin: 0.05, selfHealPerMin: 0.25 },
-  '지원가': { kda: 0.20, xpPerMin: 0.20, heroDmgPerMin: 0.10, siegeDmgPerMin: 0.05, healingPerMin: 0.40, selfHealPerMin: 0.05 },
-  '투사':   { kda: 0.20, xpPerMin: 0.20, heroDmgPerMin: 0.25, siegeDmgPerMin: 0.10, healingPerMin: 0.05, selfHealPerMin: 0.20 },
-  '전문가': { kda: 0.20, xpPerMin: 0.25, heroDmgPerMin: 0.20, siegeDmgPerMin: 0.20, healingPerMin: 0.10, selfHealPerMin: 0.05 },
+  '암살자': { kda: 0.25, xpPerMin: 0.15, heroDmgPerMin: 0.40, siegeDmgPerMin: 0.20, healingPerMin: 0.00, selfHealPerMin: 0.05 },
+  '탱커':   { kda: 0.20, xpPerMin: 0.20, heroDmgPerMin: 0.20, siegeDmgPerMin: 0.15, healingPerMin: 0.05, selfHealPerMin: 0.20 },
+  '지원가': { kda: 0.20, xpPerMin: 0.15, heroDmgPerMin: 0.10, siegeDmgPerMin: 0.05, healingPerMin: 0.50, selfHealPerMin: 0.00 },
+  '투사':   { kda: 0.20, xpPerMin: 0.20, heroDmgPerMin: 0.20, siegeDmgPerMin: 0.20, healingPerMin: 0.05, selfHealPerMin: 0.15 },
+  '전문가': { kda: 0.15, xpPerMin: 0.30, heroDmgPerMin: 0.20, siegeDmgPerMin: 0.25, healingPerMin: 0.05, selfHealPerMin: 0.05 },
 };
 
 type StatKey = keyof StatWeights;
