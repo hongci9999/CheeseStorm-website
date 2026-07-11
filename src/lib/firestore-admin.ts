@@ -301,8 +301,10 @@ export async function upsertOcrCorrection(
   const key = normalizeOcrKey(wrong);
   if (!key || !correct.trim()) return;
   const field = kind === 'streamer' ? 'streamers' : 'heroes';
+  // dotted key(`${field}.${key}`)로 set(merge)하면 중첩 map이 아니라 점 포함 플랫 필드가 생성됨
+  // (Firestore Console 트리뷰는 이를 중첩처럼 보여줘 착시를 일으킴) — 반드시 중첩 객체로 써야 함
   await getAdminDb().collection('ocrCorrections').doc('global').set(
-    { [`${field}.${key}`]: correct.trim(), updatedAt: FieldValue.serverTimestamp() },
+    { [field]: { [key]: correct.trim() }, updatedAt: FieldValue.serverTimestamp() },
     { merge: true },
   );
 }
