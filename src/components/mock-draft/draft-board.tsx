@@ -25,15 +25,13 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
   const step = currentStep(state);
   const done = isComplete(state);
   const [selectedHero, setSelectedHero] = useState<string>('');
-  // 픽 교환: 선택된 슬롯(팀+인덱스), 소프트 위반 경고 문구.
+  // 픽 교환: 선택된 슬롯(팀+인덱스).
   const [selectedSlot, setSelectedSlot] = useState<{ team: Team; i: number } | null>(null);
-  const [warn, setWarn] = useState('');
 
   // 스텝이 바뀌면(적용/되돌리기) 임시 선택 초기화.
   useEffect(() => {
     setSelectedHero('');
     setSelectedSlot(null);
-    setWarn('');
   }, [state.cursor]);
 
   const available = step ? availableHeroes(series, state) : [];
@@ -62,14 +60,19 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
     else onApply(applyPick(state, selectedHero));
   }
 
-  // 픽 교환 — 같은 팀 두 슬롯 클릭으로 배정 스왑.
+  // 선택된 슬롯 기준, 같은 팀의 슬롯 i가 교환 불가(소프트 위반)인가 — 미리 잠금 표시용.
+  function slotLocked(team: Team, i: number): boolean {
+    if (!selectedSlot || selectedSlot.team !== team || selectedSlot.i === i) return false;
+    return swapAssignment(series, state, team, selectedSlot.i, i) === null;
+  }
+
+  // 픽 교환 — 같은 팀 두 슬롯 클릭으로 영웅 스왑. 잠긴(위반) 슬롯은 클릭 무시.
   function handleSlotClick(team: Team, i: number) {
-    setWarn('');
     if (!selectedSlot || selectedSlot.team !== team) { setSelectedSlot({ team, i }); return; }
     if (selectedSlot.i === i) { setSelectedSlot(null); return; }
+    if (slotLocked(team, i)) return; // 위반 슬롯 — 막힘
     const next = swapAssignment(series, state, team, selectedSlot.i, i);
-    if (!next) setWarn('소프트 피어리스 — 그 스트리머가 이전 세트에 쓴 영웅이라 교환 불가');
-    else onApply(next);
+    if (next) onApply(next);
     setSelectedSlot(null);
   }
 
@@ -82,7 +85,7 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
       <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', justifyContent: 'center',
         gap: 'var(--sp-10)', alignItems: 'start' }}>
         <TeamPanel team="blue" series={series} state={state}
-          assignment={assignment} selectedSlot={selectedSlot} onSlotClick={done ? handleSlotClick : undefined} />
+          assignment={assignment} selectedSlot={selectedSlot} onSlotClick={done ? handleSlotClick : undefined} isLocked={slotLocked} />
 
         {/* 중앙 패널 — 드래프트 중=영웅 그리드, 완료=픽 교환 안내 + 승자 선택 */}
         <div style={{ width: 600, border: '2px solid var(--border-strong)', borderRadius: 'var(--r-lg)',
@@ -94,8 +97,8 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
               <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', color: 'var(--text-high)' }}>픽 교환</strong>
               <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                 같은 팀 슬롯 두 개를 눌러 누가 어떤 영웅을 플레이할지 교환하세요.
+                {series.draftType === 'soft' && <><br />소프트 피어리스에서 이전 세트에 쓴 영웅이 되는 교환은 잠깁니다.</>}
               </span>
-              <span style={{ minHeight: 20, fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--loss)' }}>{warn}</span>
               <div style={{ display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center', marginTop: 'var(--sp-2)' }}>
                 <button onClick={() => onFinish('blue')} style={{ ...secondaryBtn, color: teamColor('blue'), borderColor: `color-mix(in srgb, ${teamColor('blue')} 45%, var(--border-line))` }}>{teamLabel(series, 'blue')} 승</button>
                 <button onClick={() => onFinish('red')} style={{ ...secondaryBtn, color: teamColor('red'), borderColor: `color-mix(in srgb, ${teamColor('red')} 45%, var(--border-line))` }}>{teamLabel(series, 'red')} 승</button>
@@ -105,7 +108,7 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
         </div>
 
         <TeamPanel team="red" series={series} state={state} mirror
-          assignment={assignment} selectedSlot={selectedSlot} onSlotClick={done ? handleSlotClick : undefined} />
+          assignment={assignment} selectedSlot={selectedSlot} onSlotClick={done ? handleSlotClick : undefined} isLocked={slotLocked} />
       </div>
 
       {/* ── 하단 액션바: 영웅 선택 → 확인 / 되돌리기 (드래프트 중만 확인 노출) ── */}
@@ -164,11 +167,12 @@ function TeamBans({ team, series, bans, align }: { team: Team; series: Series; b
 // 팀 슬롯 패널 — 지그재그 5칸. 스트리머 위치는 로스터 순서로 고정(픽 전엔 흐림) + 소프트 피어리스 잠금 칩.
 //  드래프트 중: 슬롯 i = 스트리머 i, 픽된 영웅을 위에서부터 슬롯에 채움.
 //  픽 교환(assignment 있음): 스트리머 위치 고정, 슬롯 클릭으로 그 스트리머가 플레이할 영웅을 서로 교환.
-function TeamPanel({ team, series, state, mirror = false, assignment = null, selectedSlot = null, onSlotClick }: {
+function TeamPanel({ team, series, state, mirror = false, assignment = null, selectedSlot = null, onSlotClick, isLocked }: {
   team: Team; series: Series; state: DraftState; mirror?: boolean;
   assignment?: Record<Team, string[]> | null;
   selectedSlot?: { team: Team; i: number } | null;
   onSlotClick?: (team: Team, i: number) => void;
+  isLocked?: (team: Team, i: number) => boolean; // 선택된 슬롯 기준 교환 불가(소프트 위반) 여부
 }) {
   const players = team === 'blue' ? series.blue : series.red;
   const c = teamColor(team);
@@ -191,17 +195,25 @@ function TeamPanel({ team, series, state, mirror = false, assignment = null, sel
         const used = soft && streamer ? [...heroesPlayedBy(series.sets, streamer.id)] : [];
         const selectable = exchange && !!onSlotClick;
         const isSelected = selectable && selectedSlot?.team === team && selectedSlot.i === i;
+        // 다른 슬롯이 선택된 상태에서 이 슬롯이 교환 불가면 잠금, 가능하면 후보(강조).
+        const locked = selectable && isLocked?.(team, i) === true;
+        const candidate = selectable && !!selectedSlot && !isSelected && !locked
+          && selectedSlot.team === team;
+        const clickable = selectable && !locked;
         const isCaptainSlot = i === 0 && !!streamer;
         return (
           <div key={i}
-            onClick={selectable ? () => onSlotClick!(team, i) : undefined}
-            title={selectable ? `${name} · ${hero ?? ''} — 눌러서 교환` : undefined}
+            onClick={clickable ? () => onSlotClick!(team, i) : undefined}
+            title={locked ? `${name} — 이전 세트에 쓴 영웅이라 교환 불가`
+              : selectable ? `${name} · ${hero ?? ''} — 눌러서 교환` : undefined}
             style={{ position: 'relative', flex: '0 0 auto', width: S, height: S,
               marginTop: i === 0 ? 0 : rowMt, marginLeft: (mirror ? i % 2 === 0 : i % 2 === 1) ? oddOffset : 0,
-              lineHeight: 0, cursor: selectable ? 'pointer' : 'default',
+              lineHeight: 0, cursor: !selectable ? 'default' : locked ? 'not-allowed' : 'pointer',
+              opacity: locked ? 0.4 : 1,
               transform: isSelected ? 'scale(1.08)' : undefined, zIndex: isSelected ? 5 : undefined,
-              filter: isSelected ? `drop-shadow(0 0 7px ${c})` : undefined,
-              transition: 'transform var(--dur-fast) var(--ease-out)' }}>
+              filter: isSelected ? `drop-shadow(0 0 7px ${c})`
+                : candidate ? 'drop-shadow(0 0 5px var(--cheese-green))' : undefined,
+              transition: 'transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out)' }}>
             {used.length > 0 && (
               <span style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', zIndex: 4,
                 display: 'flex', flexDirection: mirror ? 'row' : 'row-reverse', gap: 3,
@@ -225,6 +237,11 @@ function TeamPanel({ team, series, state, mirror = false, assignment = null, sel
               <span title="팀장" style={{ position: 'absolute', top: -2, right: 4, zIndex: 3,
                 width: 24, height: 24, borderRadius: 999, display: 'grid', placeItems: 'center',
                 background: c, color: 'var(--bg-void)', fontSize: 14, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>👑</span>
+            )}
+            {/* 교환 불가 잠금 — 중앙 자물쇠 */}
+            {locked && (
+              <span aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 6, display: 'grid', placeItems: 'center',
+                fontSize: 28, lineHeight: 1, filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.7))' }}>🔒</span>
             )}
           </div>
         );
