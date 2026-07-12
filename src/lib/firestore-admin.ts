@@ -278,6 +278,7 @@ const VISIT_BUCKET_MS = 5 * 60_000; // 5분 단위로 방문 기록 묶음
 const VISIT_LOG_EXCLUDED_NAMES = new Set(['그레도']);
 
 export async function logTierlistVisit(session: SessionPayload): Promise<void> {
+  if (session.dev) return; // 개발용 임시 로그인 방문은 기록 안 함
   if (VISIT_LOG_EXCLUDED_NAMES.has(session.name)) return;
   const bucketEpochMs = Math.floor(Date.now() / VISIT_BUCKET_MS) * VISIT_BUCKET_MS;
   const reverseBucket = String(9_999_999_999_999 - bucketEpochMs).padStart(13, '0');
