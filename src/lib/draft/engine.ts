@@ -1,6 +1,6 @@
 import { buildSequence } from './sequence';
 import { CANONICAL_HEROES } from '../hero-image';
-import type { Team, DraftState, SetResult, Step, Series } from './types';
+import type { Team, DraftState, SetResult, Step, Series, Pick } from './types';
 
 const TOTAL_STEPS = 16;
 
@@ -12,6 +12,7 @@ function cloneState(s: DraftState): DraftState {
     cursor: s.cursor,
     bans: { blue: [...s.bans.blue], red: [...s.bans.red] },
     picks: { blue: [...s.picks.blue], red: [...s.picks.red] },
+    ...(s.assignment && { assignment: { blue: [...s.assignment.blue], red: [...s.assignment.red] } }),
   };
 }
 
@@ -46,12 +47,12 @@ export function applyBan(state: DraftState, hero: string): DraftState {
   return next;
 }
 
-// 픽 적용 (현재 스텝이 pick일 때만).
-export function applyPick(state: DraftState, hero: string, playerId: string): DraftState {
+// 픽 적용 (현재 스텝이 pick일 때만). 영웅만 기록 — 누가 플레이할지는 완료 후 픽 교환에서 정한다.
+export function applyPick(state: DraftState, hero: string): DraftState {
   const step = currentStep(state);
   if (!step || step.kind !== 'pick') throw new Error('현재 스텝은 픽이 아니다');
   const next = cloneState(state);
-  next.picks[step.team].push([playerId, hero]);
+  next.picks[step.team].push(hero);
   next.cursor += 1;
   return next;
 }
@@ -78,19 +79,57 @@ export function undo(state: DraftState): DraftState {
   if (prev.kind === 'ban') next.bans[prev.team].pop();
   else next.picks[prev.team].pop();
   next.cursor -= 1;
+  delete next.assignment; // 완료 후 되돌리면 배정 무효 → 재완료 시 기본 배정부터
   return next;
 }
 
 // 완료된 세트를 결과로 확정. 미완료면 예외.
-export function finishSet(state: DraftState, winner: Team): SetResult {
+// 슬롯 i의 스트리머 = series[team][i], 그가 플레이할 영웅 = assignment[team][i]를 zip해
+// 기존 SetResult.picks(Pick[]) 포맷으로 조립.
+export function finishSet(state: DraftState, winner: Team, series?: Series): SetResult {
   if (!isComplete(state)) throw new Error('드래프트가 완료되지 않았다');
+  const assignment = state.assignment ?? buildDefaultAssignment(state);
+  const zip = (team: Team): Pick[] =>
+    assignment[team].map((hero, i) => {
+      const pid = series ? (team === 'blue' ? series.blue : series.red)[i]?.id ?? `slot:${team}:${i}` : `slot:${team}:${i}`;
+      return [pid, hero];
+    });
   return {
     map: state.map,
     firstPick: state.firstPick,
     winner,
     bans: { blue: [...state.bans.blue], red: [...state.bans.red] },
-    picks: { blue: [...state.picks.blue], red: [...state.picks.red] },
+    picks: { blue: zip('blue'), red: zip('red') },
   };
+}
+
+// 드래프트 완료 시 기본 영웅 배정 — 슬롯 i(=스트리머 i)가 i번째로 픽된 영웅을 플레이(픽 순서 그대로).
+export function buildDefaultAssignment(state: DraftState): Record<Team, string[]> {
+  return { blue: [...state.picks.blue], red: [...state.picks.red] };
+}
+
+// 소프트 피어리스에서만 의미 있음 — 그 플레이어가 이전 세트에서 이 영웅을 이미 썼으면 배정 불가.
+export function canAssign(series: Series, team: Team, hero: string, playerId: string): boolean {
+  if (series.draftType !== 'soft') return true;
+  return !heroesPlayedBy(series.sets, playerId).has(hero);
+}
+
+// 같은 팀 두 슬롯의 영웅 교환(스트리머 위치는 고정) — 소프트 위반 시 null(스왑 취소).
+export function swapAssignment(
+  series: Series, state: DraftState, team: Team, i: number, j: number,
+): DraftState | null {
+  const base = state.assignment ?? buildDefaultAssignment(state);
+  const arr = [...base[team]];
+  if (i < 0 || j < 0 || i >= arr.length || j >= arr.length || i === j) return null;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  // 슬롯 k의 스트리머 = series[team][k]. 스왑으로 바뀐 두 슬롯 모두 그 스트리머가 새 영웅을 쓸 수 있는지 검증.
+  const roster = team === 'blue' ? series.blue : series.red;
+  if (!canAssign(series, team, arr[i], roster[i]?.id ?? '')) return null;
+  if (!canAssign(series, team, arr[j], roster[j]?.id ?? '')) return null;
+  const next = cloneState(state);
+  next.assignment = { blue: [...base.blue], red: [...base.red] };
+  next.assignment[team] = arr;
+  return next;
 }
 
 // 이번 세트에서 이미 소비된(밴+픽) 영웅 집합.
@@ -98,8 +137,8 @@ function usedThisSet(state: DraftState): Set<string> {
   const used = new Set<string>();
   for (const h of state.bans.blue) used.add(h);
   for (const h of state.bans.red) used.add(h);
-  for (const [, h] of state.picks.blue) used.add(h);
-  for (const [, h] of state.picks.red) used.add(h);
+  for (const h of state.picks.blue) used.add(h);
+  for (const h of state.picks.red) used.add(h);
   return used;
 }
 
@@ -128,16 +167,13 @@ export function heroesPickedInSeries(sets: SetResult[]): Set<string> {
 }
 
 // 현재 스텝에서 선택 가능한 영웅 목록.
-// forPlayerId: 소프트 피어리스에서 픽 스텝의 배정 플레이어. 밴 스텝이면 무시.
-export function availableHeroes(series: Series, state: DraftState, forPlayerId?: string): string[] {
+// 소프트 피어리스의 플레이어별 제약은 드래프트 중엔 적용 안 함 — 픽 교환 단계(canAssign)에서 처리.
+export function availableHeroes(series: Series, state: DraftState): string[] {
   const step = currentStep(state);
   const excluded = usedThisSet(state);
 
   if (series.draftType === 'hard') {
     for (const h of heroesPickedInSeries(series.sets)) excluded.add(h);
-  }
-  if (series.draftType === 'soft' && step?.kind === 'pick' && forPlayerId) {
-    for (const h of heroesPlayedBy(series.sets, forPlayerId)) excluded.add(h);
   }
 
   // 초갈: 픽으로 초/갈 하나만 소비된 상태면 다음 픽은 무조건 파트너로 강제.
@@ -165,7 +201,7 @@ export function availableHeroes(series: Series, state: DraftState, forPlayerId?:
 // 이번 세트에서 픽(밴 제외)된 영웅 집합.
 function pickedThisSet(state: DraftState): Set<string> {
   const picked = new Set<string>();
-  for (const [, h] of state.picks.blue) picked.add(h);
-  for (const [, h] of state.picks.red) picked.add(h);
+  for (const h of state.picks.blue) picked.add(h);
+  for (const h of state.picks.red) picked.add(h);
   return picked;
 }

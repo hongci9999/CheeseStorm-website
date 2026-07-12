@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { HeroGrid } from './hero-grid';
 import {
   currentStep, isComplete, applyBan, applyPick, availableHeroes,
-  heroesPickedInSeries, heroesPlayedBy,
+  heroesPickedInSeries, heroesPlayedBy, buildDefaultAssignment, swapAssignment,
 } from '@/lib/draft/engine';
 import { heroImageUrl } from '@/lib/hero-image';
 import { HexAvatar } from '@/components/hexagon-avatar';
-import { primaryBtn, secondaryBtn, field, teamColor, teamLabel } from './ui';
-import type { Series, DraftState, Team, Player } from '@/lib/draft/types';
+import { primaryBtn, secondaryBtn, teamColor, teamLabel } from './ui';
+import type { Series, DraftState, Team } from '@/lib/draft/types';
 
 interface Props {
   series: Series;
@@ -21,51 +21,29 @@ interface Props {
 
 const BANS_PER_TEAM = 3; // 시퀀스상 팀당 밴 3회
 
-function assignedIds(state: DraftState, team: Team): Set<string> {
-  return new Set(state.picks[team].map(([pid]) => pid));
-}
-
 export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) {
   const step = currentStep(state);
-  const [selectedPlayer, setSelectedPlayer] = useState<string>('');
-  const [selectedHero, setSelectedHero] = useState<string>('');
-
   const done = isComplete(state);
+  const [selectedHero, setSelectedHero] = useState<string>('');
+  // 픽 교환: 선택된 슬롯(팀+인덱스), 소프트 위반 경고 문구.
+  const [selectedSlot, setSelectedSlot] = useState<{ team: Team; i: number } | null>(null);
+  const [warn, setWarn] = useState('');
 
   // 스텝이 바뀌면(적용/되돌리기) 임시 선택 초기화.
   useEffect(() => {
     setSelectedHero('');
-    setSelectedPlayer('');
+    setSelectedSlot(null);
+    setWarn('');
   }, [state.cursor]);
 
-  const pickTeamPlayers: Player[] = step?.kind === 'pick'
-    ? (step.team === 'blue' ? series.blue : series.red).filter(
-        (p) => !assignedIds(state, step.team).has(p.id),
-      )
-    : [];
-
-  const validPlayer =
-    step?.kind === 'pick' && pickTeamPlayers.some((p) => p.id === selectedPlayer)
-      ? selectedPlayer
-      : '';
-
-  const autoAssign = series.autoAssign === true;
-
-  const pickPlayerId = step?.kind === 'pick'
-    ? (autoAssign ? (pickTeamPlayers[0]?.id ?? '') : validPlayer)
-    : '';
-
-  const available = step
-    ? availableHeroes(series, state, step.kind === 'pick' ? pickPlayerId || undefined : undefined)
-    : [];
-
+  const available = step ? availableHeroes(series, state) : [];
   const heroReady = selectedHero !== '' && available.includes(selectedHero);
-  const canConfirm = !done && !!step && heroReady && (step.kind === 'ban' || !!pickPlayerId);
+  const canConfirm = !done && !!step && heroReady;
 
-  // 수동 픽 스텝의 배정 대상 팀 — 이 팀 미배정 스트리머 육각이 클릭 가능.
-  const pickTeam = !done && step?.kind === 'pick' && !autoAssign ? step.team : null;
+  // 완료 시점 영웅 배정 — 스왑 전이면 기본(픽 순서)으로 렌더(첫 스왑 시 state.assignment로 고정됨).
+  const assignment = done ? (state.assignment ?? buildDefaultAssignment(state)) : null;
 
-  // 영웅 선택 카드 배경 — 현재 차례 사이드로 그라데이션(상단바와 동일 전환).
+  // 영웅 선택 카드 배경 — 현재 차례 사이드로 그라데이션.
   const cardBg = step?.team === 'blue'
     ? `linear-gradient(90deg, color-mix(in srgb, ${teamColor('blue')} 18%, var(--surface-card)), var(--surface-card) 55%)`
     : step?.team === 'red'
@@ -81,10 +59,18 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
   function handleConfirm() {
     if (!step || !heroReady) return;
     if (step.kind === 'ban') onApply(applyBan(state, selectedHero));
-    else {
-      if (!pickPlayerId) return;
-      onApply(applyPick(state, selectedHero, pickPlayerId));
-    }
+    else onApply(applyPick(state, selectedHero));
+  }
+
+  // 픽 교환 — 같은 팀 두 슬롯 클릭으로 배정 스왑.
+  function handleSlotClick(team: Team, i: number) {
+    setWarn('');
+    if (!selectedSlot || selectedSlot.team !== team) { setSelectedSlot({ team, i }); return; }
+    if (selectedSlot.i === i) { setSelectedSlot(null); return; }
+    const next = swapAssignment(series, state, team, selectedSlot.i, i);
+    if (!next) setWarn('소프트 피어리스 — 그 스트리머가 이전 세트에 쓴 영웅이라 교환 불가');
+    else onApply(next);
+    setSelectedSlot(null);
   }
 
   return (
@@ -92,21 +78,25 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
       {/* ── 상단바 아래: 양팀 밴 스트립 (가운데=하드 피어리스 사용됨) ── */}
       <BanStrip series={series} state={state} hardUsed={hardUsed} />
 
-      {/* ── 본문 3열: 블루 허니콤 | 중앙 영웅풀 카드 | 레드 허니콤 (셋업과 동일 구성) ── */}
+      {/* ── 본문 3열: 블루 슬롯 | 중앙 영웅풀/픽교환 카드 | 레드 슬롯 ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'auto auto auto', justifyContent: 'center',
         gap: 'var(--sp-10)', alignItems: 'start' }}>
         <TeamPanel team="blue" series={series} state={state}
-          activePickTeam={pickTeam} selectedPlayer={validPlayer} onSelectPlayer={setSelectedPlayer} />
+          assignment={assignment} selectedSlot={selectedSlot} onSlotClick={done ? handleSlotClick : undefined} />
 
-        {/* 중앙 패널 — 셋업 중앙 카드와 동일한 테두리 카드 */}
+        {/* 중앙 패널 — 드래프트 중=영웅 그리드, 완료=픽 교환 안내 + 승자 선택 */}
         <div style={{ width: 600, border: '2px solid var(--border-strong)', borderRadius: 'var(--r-lg)',
           padding: 'var(--sp-4)', background: cardBg, display: 'grid', gap: 'var(--sp-3)', alignContent: 'start',
           transition: 'background var(--dur-fast) var(--ease-out)' }}>
           {!done && <HeroGrid available={available} selected={selectedHero} onSelect={setSelectedHero} />}
           {done && (
-            <div style={{ textAlign: 'center', display: 'grid', gap: 'var(--sp-3)', padding: 'var(--sp-6) 0' }}>
-              <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', color: 'var(--text-high)' }}>드래프트 완료 — 승자 선택</strong>
-              <div style={{ display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center', display: 'grid', gap: 'var(--sp-3)', padding: 'var(--sp-5) 0' }}>
+              <strong style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--fs-lg)', color: 'var(--text-high)' }}>픽 교환</strong>
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                같은 팀 슬롯 두 개를 눌러 누가 어떤 영웅을 플레이할지 교환하세요.
+              </span>
+              <span style={{ minHeight: 20, fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)', color: 'var(--loss)' }}>{warn}</span>
+              <div style={{ display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center', marginTop: 'var(--sp-2)' }}>
                 <button onClick={() => onFinish('blue')} style={{ ...secondaryBtn, color: teamColor('blue'), borderColor: `color-mix(in srgb, ${teamColor('blue')} 45%, var(--border-line))` }}>{teamLabel(series, 'blue')} 승</button>
                 <button onClick={() => onFinish('red')} style={{ ...secondaryBtn, color: teamColor('red'), borderColor: `color-mix(in srgb, ${teamColor('red')} 45%, var(--border-line))` }}>{teamLabel(series, 'red')} 승</button>
               </div>
@@ -115,26 +105,14 @@ export function DraftBoard({ series, state, onApply, onUndo, onFinish }: Props) 
         </div>
 
         <TeamPanel team="red" series={series} state={state} mirror
-          activePickTeam={pickTeam} selectedPlayer={validPlayer} onSelectPlayer={setSelectedPlayer} />
+          assignment={assignment} selectedSlot={selectedSlot} onSlotClick={done ? handleSlotClick : undefined} />
       </div>
 
-      {/* ── 하단 액션바: 스트리머 선택 → 영웅 선택 → 확인 / 되돌리기 ── */}
+      {/* ── 하단 액션바: 영웅 선택 → 확인 / 되돌리기 (드래프트 중만 확인 노출) ── */}
       <div style={{ position: 'sticky', bottom: 0, display: 'flex', gap: 'var(--sp-2)', justifyContent: 'center', alignItems: 'center',
         flexWrap: 'wrap', width: '100%', padding: 'var(--sp-4) 0 var(--sp-3)', background: 'linear-gradient(transparent, var(--bg-app) 40%)' }}>
         <button onClick={onUndo} disabled={state.cursor === 0}
           style={{ ...secondaryBtn, opacity: state.cursor === 0 ? 0.4 : 1, cursor: state.cursor === 0 ? 'not-allowed' : 'pointer' }}>되돌리기</button>
-
-        {!done && step?.kind === 'pick' && !autoAssign && (
-          <select style={{ ...field, minWidth: 180 }} value={validPlayer} onChange={(e) => setSelectedPlayer(e.target.value)}>
-            <option value="">스트리머 선택</option>
-            {pickTeamPlayers.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
-          </select>
-        )}
-        {!done && step?.kind === 'pick' && autoAssign && pickTeamPlayers[0] && (
-          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
-            자동 배정 → <b style={{ color: teamColor(step.team) }}>{pickTeamPlayers[0].name}</b>
-          </span>
-        )}
 
         {!done && step && (
           <button onClick={handleConfirm} disabled={!canConfirm}
@@ -183,16 +161,19 @@ function TeamBans({ team, series, bans, align }: { team: Team; series: Series; b
   );
 }
 
-// 팀 허니콤 패널 — 셋업 TeamPanel과 동일 지그재그 배치. 픽되면 육각을 영웅 사진으로 교체 + 이름 라벨.
-function TeamPanel({ team, series, state, mirror = false, activePickTeam = null, selectedPlayer = '', onSelectPlayer }: {
+// 팀 슬롯 패널 — 지그재그 5칸. 스트리머 위치는 로스터 순서로 고정(픽 전엔 흐림) + 소프트 피어리스 잠금 칩.
+//  드래프트 중: 슬롯 i = 스트리머 i, 픽된 영웅을 위에서부터 슬롯에 채움.
+//  픽 교환(assignment 있음): 스트리머 위치 고정, 슬롯 클릭으로 그 스트리머가 플레이할 영웅을 서로 교환.
+function TeamPanel({ team, series, state, mirror = false, assignment = null, selectedSlot = null, onSlotClick }: {
   team: Team; series: Series; state: DraftState; mirror?: boolean;
-  activePickTeam?: Team | null; selectedPlayer?: string; onSelectPlayer?: (id: string) => void;
+  assignment?: Record<Team, string[]> | null;
+  selectedSlot?: { team: Team; i: number } | null;
+  onSlotClick?: (team: Team, i: number) => void;
 }) {
   const players = team === 'blue' ? series.blue : series.red;
   const c = teamColor(team);
   const soft = series.draftType === 'soft';
-  const pickOf = (id: string) => state.picks[team].find(([pid]) => pid === id)?.[1];
-  const assigned = assignedIds(state, team); // 이미 픽 배정된 플레이어
+  const exchange = assignment != null;
   // 셋업 TeamPanel과 동일한 브릭 오프셋 지오메트리.
   const S = 104;
   const gap = 12;
@@ -201,17 +182,20 @@ function TeamPanel({ team, series, state, mirror = false, activePickTeam = null,
   const oddOffset = Math.round(stepX / 2);
   return (
     <div style={{ width: S + oddOffset, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-      {players.map((p, i) => {
-        const hero = pickOf(p.id);
+      {Array.from({ length: 5 }).map((_, i) => {
+        // 스트리머 위치 고정 = 로스터 순서. 영웅만 교환 모드면 배정, 아니면 픽 순서.
+        const streamer = players[i];
+        const name = streamer?.name ?? '';
+        const hero = exchange ? assignment![team][i] : state.picks[team][i];
         // 소프트 피어리스: 이 스트리머가 이전 세트에서 쓴(잠긴) 영웅 — 바깥쪽 마젠타 칩.
-        const used = soft ? [...heroesPlayedBy(series.sets, p.id)] : [];
-        // 이 팀 픽 차례 + 미배정 스트리머면 육각 클릭으로 배정 대상 선택 가능.
-        const selectable = activePickTeam === team && !assigned.has(p.id);
-        const isSelected = selectable && selectedPlayer === p.id;
+        const used = soft && streamer ? [...heroesPlayedBy(series.sets, streamer.id)] : [];
+        const selectable = exchange && !!onSlotClick;
+        const isSelected = selectable && selectedSlot?.team === team && selectedSlot.i === i;
+        const isCaptainSlot = i === 0 && !!streamer;
         return (
-          <div key={p.id}
-            onClick={selectable ? () => onSelectPlayer?.(p.id) : undefined}
-            title={selectable ? `${p.name}로 픽` : undefined}
+          <div key={i}
+            onClick={selectable ? () => onSlotClick!(team, i) : undefined}
+            title={selectable ? `${name} · ${hero ?? ''} — 눌러서 교환` : undefined}
             style={{ position: 'relative', flex: '0 0 auto', width: S, height: S,
               marginTop: i === 0 ? 0 : rowMt, marginLeft: (mirror ? i % 2 === 0 : i % 2 === 1) ? oddOffset : 0,
               lineHeight: 0, cursor: selectable ? 'pointer' : 'default',
@@ -225,19 +209,19 @@ function TeamPanel({ team, series, state, mirror = false, activePickTeam = null,
                 {used.map((h) => <HeroHex key={h} hero={h} size={44} tone="soft" />)}
               </span>
             )}
-            <HexAvatar name={p.name} imageUrl={hero ? heroImageUrl(hero) ?? p.imageUrl : p.imageUrl} ring={c} size={S}>
-              {/* 대기(픽 전) 슬롯만 안쪽 이미지 흐림 — 선택된 슬롯은 밝게. 스크림은 내부 육각에만 클립돼 테두리(ring) 안 건드림 */}
+            <HexAvatar name={name} imageUrl={hero ? heroImageUrl(hero) ?? streamer?.imageUrl : streamer?.imageUrl} ring={c} size={S}>
+              {/* 대기(픽 전) 슬롯만 안쪽 흐림 — 선택된 슬롯은 밝게. 스트리머 얼굴이 흐리게 보임 */}
               {!hero && !isSelected && <span aria-hidden style={{ position: 'absolute', inset: 0,
                 background: 'color-mix(in srgb, var(--bg-void) 62%, transparent)' }} />}
               {/* 이름 라벨(스트리머) — 하단 오버레이 */}
               <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: '14px 4px 10px', textAlign: 'center',
                 fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-3xs)', fontWeight: 700, color: '#fff', lineHeight: 1.1,
                 background: 'linear-gradient(transparent, rgba(0,0,0,0.82))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {p.name}
+                {name}
               </span>
             </HexAvatar>
-            {/* 팀장 완장 */}
-            {i === 0 && (
+            {/* 팀장 완장 — 팀장 스트리머가 배정된 슬롯에 표시 */}
+            {isCaptainSlot && (
               <span title="팀장" style={{ position: 'absolute', top: -2, right: 4, zIndex: 3,
                 width: 24, height: 24, borderRadius: 999, display: 'grid', placeItems: 'center',
                 background: c, color: 'var(--bg-void)', fontSize: 14, lineHeight: 1, boxShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>👑</span>

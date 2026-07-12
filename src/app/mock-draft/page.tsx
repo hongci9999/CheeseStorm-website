@@ -75,7 +75,7 @@ export default function MockDraftPage() {
 
   function finishCurrent(winner: Team) {
     if (!series?.current) return;
-    const result = finishSet(series.current, winner);
+    const result = finishSet(series.current, winner, series);
     setSeries({ ...series, sets: [...series.sets, result], current: null });
     setMap('');
   }

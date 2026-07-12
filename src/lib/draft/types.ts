@@ -27,7 +27,8 @@ export interface DraftState {
   firstPick: Team;
   cursor: number;                 // 0..16 (16이면 완료)
   bans: Record<Team, string[]>;
-  picks: Record<Team, Pick[]>;
+  picks: Record<Team, string[]>;      // 픽 순서대로 영웅명 (플레이어 식별 없음)
+  assignment?: Record<Team, string[]>; // 완료 후 슬롯별 배정 플레이어 id, picks[team][i]에 대응
 }
 
 // 시리즈 전체 (localStorage에 직렬화되는 루트).

@@ -1,23 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import {
   startSet, currentStep, isComplete, applyBan, applyPick, undo, finishSet, availableHeroes,
-  canPickChogall, isChogallHero,
+  canPickChogall, isChogallHero, buildDefaultAssignment, canAssign, swapAssignment,
 } from '../engine';
-import { buildSequence } from '../sequence';
-import type { DraftState, Series, SetResult } from '../types';
+import type { DraftState, Series, SetResult, Player } from '../types';
 import { CANONICAL_HEROES } from '../../hero-image';
 
-// 16스텝을 순서대로 소비하는 헬퍼 (밴은 hero, 픽은 hero+player).
+// 16스텝을 순서대로 소비하는 헬퍼 (밴/픽 모두 영웅명만).
 function playThrough(state: DraftState): DraftState {
   let s = state;
   let i = 0;
   while (!isComplete(s)) {
     const step = currentStep(s)!;
     if (step.kind === 'ban') s = applyBan(s, `ban${i}`);
-    else s = applyPick(s, `hero${i}`, `p${i}`);
+    else s = applyPick(s, `hero${i}`);
     i++;
   }
   return s;
+}
+
+function roster(prefix: string): Player[] {
+  return Array.from({ length: 5 }, (_, i) => ({ id: `${prefix}${i}`, name: `${prefix}${i}` }));
 }
 
 describe('engine 상태 전이', () => {
@@ -47,13 +50,13 @@ describe('engine 상태 전이', () => {
     expect(() => applyBan(s, 'x')).toThrow();
   });
 
-  it('applyPick은 [playerId, hero]를 해당 팀에 추가', () => {
+  it('applyPick은 영웅명만 해당 팀에 순서대로 추가', () => {
     let s = startSet('용의 둥지', 'blue');
     s = applyBan(s, 'b1'); s = applyBan(s, 'b2');
     s = applyBan(s, 'b3'); s = applyBan(s, 'b4');
     // 첫 픽: 선픽 blue
-    s = applyPick(s, '겐지', 'player1');
-    expect(s.picks.blue).toEqual([['player1', '겐지']]);
+    s = applyPick(s, '겐지');
+    expect(s.picks.blue).toEqual(['겐지']);
     expect(s.cursor).toBe(5);
   });
 
@@ -151,32 +154,68 @@ describe('availableHeroes', () => {
     expect(list).toContain(H2);
   });
 
-  it('소프트: 그 플레이어가 이전 세트에 픽한 영웅만 제외', () => {
+  it('소프트: 드래프트 중엔 플레이어별 제약 없음(이전 세트 픽도 다시 고를 수 있다)', () => {
+    // 소프트 피어리스의 플레이어별 잠금은 픽 교환(canAssign)으로 이동 — 드래프트 중엔 일반과 동일.
     const series = makeSeries({
       draftType: 'soft',
       sets: [priorSet({ blue: [['p1', H0]], red: [['p2', H1]] })],
     });
-    // 첫 픽 스텝까지 밴 4개 소비
     let state = startSet('하늘 사원', 'blue');
     state = applyBan(state, 'x1'); state = applyBan(state, 'x2');
     state = applyBan(state, 'x3'); state = applyBan(state, 'x4');
-    // p1이 픽하는 경우: H0 잠김, H1(다른 사람 것)은 가능
-    const forP1 = availableHeroes(series, state, 'p1');
-    expect(forP1).not.toContain(H0);
-    expect(forP1).toContain(H1);
-    // p2가 픽하는 경우: H1 잠김, H0 가능
-    const forP2 = availableHeroes(series, state, 'p2');
-    expect(forP2).not.toContain(H1);
-    expect(forP2).toContain(H0);
+    const list = availableHeroes(series, state);
+    expect(list).toContain(H0);
+    expect(list).toContain(H1);
+  });
+});
+
+describe('픽 교환 (영웅 배정)', () => {
+  it('buildDefaultAssignment은 슬롯 i = i번째 픽 영웅(픽 순서 그대로)', () => {
+    const state = playThrough(startSet('용의 둥지', 'blue'));
+    const asg = buildDefaultAssignment(state);
+    expect(asg.blue).toEqual(state.picks.blue);
+    expect(asg.red).toEqual(state.picks.red);
   });
 
-  it('소프트: 밴 스텝(forPlayerId 없음)은 이전 픽 제약 없음', () => {
+  it('canAssign: 일반/하드는 항상 true, 소프트는 이전 세트 사용 영웅이면 false', () => {
+    const soft = makeSeries({ draftType: 'soft', sets: [priorSet({ blue: [['b0', H0]], red: [] })] });
+    expect(canAssign(soft, 'blue', H0, 'b0')).toBe(false); // b0가 이전에 H0 씀
+    expect(canAssign(soft, 'blue', H0, 'b1')).toBe(true);  // b1은 안 씀
+    const normal = makeSeries({ draftType: 'normal', sets: [priorSet({ blue: [['b0', H0]], red: [] })] });
+    expect(canAssign(normal, 'blue', H0, 'b0')).toBe(true);
+  });
+
+  it('swapAssignment: 스트리머는 고정, 두 슬롯의 영웅을 맞바꾼다(일반은 항상 성공)', () => {
+    const series = makeSeries({ blue: roster('b'), red: roster('r') });
+    const state = playThrough(startSet('용의 둥지', 'blue'));
+    const [h0, h1] = state.picks.blue;
+    const next = swapAssignment(series, state, 'blue', 0, 1);
+    expect(next).not.toBeNull();
+    expect(next!.assignment!.blue.slice(0, 2)).toEqual([h1, h0]); // 영웅만 교환
+    expect(next!.assignment!.red).toEqual(state.picks.red);        // 반대 팀 불변
+  });
+
+  it('swapAssignment: 소프트 위반이면 null(스왑 취소)', () => {
+    const state = playThrough(startSet('용의 둥지', 'blue'));
+    const heroAt0 = state.picks.blue[0];
+    // b1이 이전 세트에서 heroAt0을 이미 씀 → 슬롯0·1 영웅 스왑 시 b1이 heroAt0을 받게 되어 위반.
     const series = makeSeries({
-      draftType: 'soft',
-      sets: [priorSet({ blue: [['p1', H0]], red: [] })],
+      draftType: 'soft', blue: roster('b'), red: roster('r'),
+      sets: [priorSet({ blue: [['b1', heroAt0]], red: [] })],
     });
-    const state = startSet('하늘 사원', 'blue'); // 첫 스텝은 밴
-    expect(availableHeroes(series, state)).toContain(H0);
+    expect(swapAssignment(series, state, 'blue', 0, 1)).toBeNull();
+  });
+
+  it('finishSet은 고정 스트리머(series[team][i]) + 배정 영웅을 zip해 Pick[] 생성', () => {
+    const series = makeSeries({ blue: roster('b'), red: roster('r') });
+    const state = playThrough(startSet('용의 둥지', 'blue'));
+    const [h0, h1] = state.picks.blue;
+    const swapped = swapAssignment(series, state, 'blue', 0, 1)!; // 슬롯0·1 영웅 교환
+    const result = finishSet(swapped, 'blue', series);
+    // 스트리머 위치 고정: 슬롯0=b0(영웅 h1), 슬롯1=b1(영웅 h0).
+    expect(result.picks.blue[0]).toEqual(['b0', h1]);
+    expect(result.picks.blue[1]).toEqual(['b1', h0]);
+    expect(result.picks.blue).toHaveLength(5);
   });
 });
 
@@ -185,7 +224,7 @@ describe('초갈(Cho\'gall) 세트 픽', () => {
   function toChogallWindow(): DraftState {
     let s = startSet('용의 둥지', 'blue');
     s = applyBan(s, 'b1'); s = applyBan(s, 'b2'); s = applyBan(s, 'b3'); s = applyBan(s, 'b4');
-    s = applyPick(s, 'hero', 'pf'); // step4 blue 단독 픽
+    s = applyPick(s, 'hero'); // step4 blue 단독 픽
     return s;
   }
 
@@ -193,21 +232,21 @@ describe('초갈(Cho\'gall) 세트 픽', () => {
     let s = startSet('용의 둥지', 'blue');
     s = applyBan(s, 'b1'); s = applyBan(s, 'b2'); s = applyBan(s, 'b3'); s = applyBan(s, 'b4');
     expect(canPickChogall(s)).toBe(false); // 첫 픽(blue) 다음은 red → 연속 아님
-    s = applyPick(s, 'h', 'pf');
+    s = applyPick(s, 'h');
     expect(canPickChogall(s)).toBe(true);  // step5·6 red 연속
   });
 
   it('갈 픽 확정 후 다음 픽은 초로 강제', () => {
     const series = makeSeries({});
     let s = toChogallWindow();
-    s = applyPick(s, '갈', 'A');                  // 첫 슬롯 갈
+    s = applyPick(s, '갈');                       // 첫 슬롯 갈
     expect(availableHeroes(series, s)).toEqual(['초']); // 다음은 무조건 초
   });
 
   it('초 픽 확정 후 다음 픽은 갈로 강제', () => {
     const series = makeSeries({});
     let s = toChogallWindow();
-    s = applyPick(s, '초', 'A');
+    s = applyPick(s, '초');
     expect(availableHeroes(series, s)).toEqual(['갈']);
   });
 
@@ -218,7 +257,7 @@ describe('초갈(Cho\'gall) 세트 픽', () => {
     const single = availableHeroes(series, s); // 첫 픽 = 단독
     expect(single).not.toContain('초');
     expect(single).not.toContain('갈');
-    s = applyPick(s, 'h', 'pf');
+    s = applyPick(s, 'h');
     const open = availableHeroes(series, s); // 연속 창
     expect(open).toContain('초');
     expect(open).toContain('갈');
@@ -234,8 +273,8 @@ describe('초갈(Cho\'gall) 세트 픽', () => {
   it('초·갈 둘 다 픽되면 이후 세트 내 재선택 제외', () => {
     const series = makeSeries({});
     let s = toChogallWindow();
-    s = applyPick(s, '초', 'A');
-    s = applyPick(s, '갈', 'B'); // 강제 파트너
+    s = applyPick(s, '초');
+    s = applyPick(s, '갈'); // 강제 파트너
     const list = availableHeroes(series, s);
     expect(list).not.toContain('초');
     expect(list).not.toContain('갈');
