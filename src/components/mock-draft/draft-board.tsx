@@ -156,8 +156,8 @@ function TeamBans({ team, series, bans, align }: { team: Team; series: Series; b
       <div style={{ display: 'flex', flexDirection: end ? 'row-reverse' : 'row', gap: 5 }}>
         {Array.from({ length: BANS_PER_TEAM }).map((_, i) => (
           bans[i]
-            ? <HeroHex key={i} hero={bans[i]} size={34} tone="ban" />
-            : <span key={i} style={{ display: 'inline-flex' }}><HexAvatar name="" ring="var(--border-line)" size={34} /></span>
+            ? <HeroHex key={i} hero={bans[i]} size={54} tone="ban" />
+            : <span key={i} style={{ display: 'inline-flex' }}><HexAvatar name="" ring="var(--border-line)" size={54} /></span>
         ))}
       </div>
     </div>
