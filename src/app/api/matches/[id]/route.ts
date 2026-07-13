@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import { requireRole } from '@/lib/api-auth';
 import { deleteMatch, updateMatch, updateMatchDate } from '@/lib/firestore-admin';
+import { getMatch } from '@/lib/firestore';
 import type { Match } from '@/lib/types';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +17,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.action === 'date') {
     await updateMatchDate(id, new Date(body.date));
   } else if (body.action === 'update') {
-    await updateMatch(id, { ...body, date: new Date(body.date) });
+    const existing = await getMatch(id);
+    const data = {
+      ...body,
+      date: new Date(body.date),
+      blueStats: body.blueStats ?? existing?.blueStats,
+      redStats: body.redStats ?? existing?.redStats,
+    };
+    await updateMatch(id, data);
   } else {
     return NextResponse.json({ error: '알 수 없는 action' }, { status: 400 });
   }
