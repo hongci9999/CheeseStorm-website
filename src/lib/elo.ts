@@ -9,24 +9,6 @@ interface PerformanceData {
 function calcPerformanceScore(
   stats: Record<string, PerformanceData[]>,
 ): Map<string, number> {
-  const kdaValues: number[] = [];
-  const dmgValues: number[] = [];
-
-  for (const playerStats of Object.values(stats)) {
-    for (const s of playerStats) {
-      kdaValues.push(s.kda);
-      dmgValues.push(s.dmg);
-    }
-  }
-
-  const kdaMin = Math.min(...kdaValues);
-  const kdaMax = Math.max(...kdaValues);
-  const dmgMin = Math.min(...dmgValues);
-  const dmgMax = Math.max(...dmgValues);
-
-  const kdaRange = kdaMax - kdaMin || 1;
-  const dmgRange = dmgMax - dmgMin || 1;
-
   const scores = new Map<string, number>();
   for (const [playerId, playerStats] of Object.entries(stats)) {
     if (playerStats.length === 0) continue;
@@ -34,8 +16,9 @@ function calcPerformanceScore(
     const avgKda = playerStats.reduce((s, x) => s + x.kda, 0) / playerStats.length;
     const avgDmg = playerStats.reduce((s, x) => s + x.dmg, 0) / playerStats.length;
 
-    const kdaNorm = (avgKda - kdaMin) / kdaRange;
-    const dmgNorm = (avgDmg - dmgMin) / dmgRange;
+    // 절대값 기준 정규화 (경기 추가/삭제해도 변하지 않음)
+    const kdaNorm = Math.min(1, Math.max(0, avgKda / 10)); // KDA: 0~10 → 0~1
+    const dmgNorm = Math.min(1, Math.max(0, avgDmg / 5000)); // Dmg: 0~5000 → 0~1
 
     const score = 0.4 * kdaNorm + 0.6 * dmgNorm;
     scores.set(playerId, score);
