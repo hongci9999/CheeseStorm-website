@@ -19,7 +19,7 @@
 src/
 ├── app/
 │   ├── layout.tsx              # 글로벌 레이아웃 (SiteHeader + SiteFooter 포함)
-│   ├── page.tsx                # 메인 (티어리스트 3탭: 자동·큐레이션·영웅)
+│   ├── page.tsx                # 메인 (티어리스트 4탭: Elo·자동·큐레이션·영웅)
 │   ├── api/
 │   │   ├── auth/               # 인증 엔드포인트
 │   │   │   ├── login/route.ts        # 로그인 시작
@@ -35,6 +35,8 @@ src/
 │   │   │   └── [id]/route.ts   # 스트리머 단건 조회·수정·삭제
 │   │   ├── curated-tiers/
 │   │   │   └── route.ts        # 큐레이션 티어 조회·저장 (Admin SDK)
+│   │   ├── elo-details/
+│   │   │   └── route.ts        # 선수별 Elo 계산 과정 조회 (unstable_cache — DB 읽기 0)
 │   │   ├── chzzk-profile/
 │   │   │   └── route.ts        # 치지직 Open API 채널 정보 조회 (서버 전용)
 │   │   ├── ocr-corrections/
@@ -82,6 +84,7 @@ src/
 │   ├── api-auth.ts             # API 라우트 인증 헬퍼 (requireRole)
 │   ├── api-client.ts           # 클라이언트 fetch 래퍼 (API 라우트 호출)
 │   ├── tier.ts                 # 스트리머 자동 티어 계산 (혼합 점수)
+│   ├── elo.ts                  # Elo 레이팅 (순수 표준, 팀원 동일 델타 — ADR-0020)
 │   ├── hero-tier.ts            # 영웅 티어 계산 (베이지안 승률)
 │   ├── curated-tier.ts         # 큐레이션 티어 로직 (배치 sanitize 등)
 │   ├── stat-score.ts           # 역할별 가중치 + 경기별 스탯 점수 계산
@@ -216,6 +219,17 @@ npm run build
 | ?    | —         | 5경기 미만 |
 
 변경 가능
+
+## Elo 레이팅
+
+티어와 **별개 지표**. 승패 + 상대 팀 강도만 반영 (개인 스탯 미반영).
+전원 1500 시작, 양 팀 평균 Elo로 기대승률 산출, K=32, **팀원 5명 동일 델타**.
+
+개인 성과 보정(에이스/버스 배수, 팀 내 재분배, 개인 기대승률)은 실데이터 검증 결과
+자기 참조 피드백으로 순위가 붕괴해 **전부 기각**. 근거·수치: [`docs/adr/0020-elo-rating-standard-only.md`](docs/adr/0020-elo-rating-standard-only.md)
+
+> Elo에 개인 활약도·스탯을 넣자는 제안이 나오면 먼저 ADR-0020을 읽을 것.
+> 세 가지 방식이 이미 시도되고 기각됐다.
 
 ## 코딩 컨벤션
 
