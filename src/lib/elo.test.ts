@@ -119,10 +119,10 @@ describe('Elo 계산', () => {
     console.log('강한 팀 우승 후:', strongElo);
     console.log('약한 팀 패배 후:', weakElo);
 
-    // 예상: 강한 팀이 예상대로 이김 → 작은 변화
-    // 약한 팀이 예상대로 짐 → 작은 변화
-    expect(strongElo).toBeLessThan(1520); // 작은 증가
-    expect(weakElo).toBeGreaterThan(1480); // 작은 감소 (기대 이상)
+    // 예상: 강한 팀이 예상대로 이김 → 첫 경기 K=48이지만 작은 변화
+    // 약한 팀이 예상대로 짐 → 작은 감소 (기대 이상)
+    expect(strongElo).toBeLessThan(1530); // 첫 경기는 K=48
+    expect(weakElo).toBeGreaterThan(1470); // 약한 팀 기대 이상
   });
 
   it('낮은 승률이 높은 Elo 랭크가 될 수 없음', () => {
