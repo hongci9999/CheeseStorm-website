@@ -485,7 +485,7 @@ function EloTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
                   fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: isMobile ? 18 : 24,
                   color: 'var(--cheese-green)',
                 }}>
-                  {Math.round(p.eloRating)}
+                  {Math.round(p.eloRating || 1500)}
                 </span>
               </div>
 
@@ -694,7 +694,7 @@ export default function HomePage() {
   const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
   const [matches, setMatches] = useState<Match[]>(cachedMatches ?? []);
   const [loading, setLoading] = useState(initial === null);
-  const [mainTab, setMainTab] = useState<MainTab>('curation');
+  const [mainTab, setMainTab] = useState<MainTab>('elo');
   const bp = useBreakpoint();
 
   useEffect(() => {
