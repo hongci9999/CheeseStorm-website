@@ -913,7 +913,7 @@ export default function HomePage() {
   const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
   const [matches, setMatches] = useState<Match[]>(cachedMatches ?? []);
   const [loading, setLoading] = useState(initial === null);
-  const [mainTab, setMainTab] = useState<MainTab>('elo');
+  const [mainTab, setMainTab] = useState<MainTab>('curation');
   const bp = useBreakpoint();
 
   useEffect(() => {
