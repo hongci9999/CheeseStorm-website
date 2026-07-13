@@ -45,12 +45,14 @@ function calcEloDelta(
   won: boolean,
   performanceScore: number,
 ): number {
-  const K = 24;
   const expectedWinRate = calcExpectedWinRate(teamElo, oppTeamElo);
   const actual = won ? 1 : 0;
 
-  const performanceBonus = (performanceScore - 0.5) * 10;
-  const delta = K * (actual - expectedWinRate) + performanceBonus;
+  // K-factor를 성과에 따라 조정 (Elo 합 보존)
+  // 성과 0.0 = K 80% 적용, 성과 1.0 = K 120% 적용
+  const K = 24 * (0.8 + performanceScore * 0.4);
+
+  const delta = K * (actual - expectedWinRate);
 
   return delta;
 }
