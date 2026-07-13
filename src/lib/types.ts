@@ -13,6 +13,7 @@ export interface Streamer {
   gameNames?: string[];   // 인게임 이름(배틀태그) 목록 — OCR 매칭용 (CONTEXT.md 인게임 이름)
   profileImageUrl?: string; // 치지직 프로필 사진. 없으면 닉네임 이니셜로 폴백
   profileImageUpdatedAt?: Date; // 프로필 사진 마지막 갱신 시각 (주기 갱신 TTL 판정용)
+  eloRating?: number;     // Elo 레이팅 (최신 값)
   createdAt: Date;
 }
 
@@ -80,4 +81,5 @@ export interface PlayerStats {
   streak: number;           // 양수=연승, 음수=연패 (예: +3=3연승, -2=2연패, 0=없음)
   topHero?: string;         // 가장 많이 플레이한 영웅 (heroStats[0]?.hero)
   statCoverage?: number;    // 스탯 기록된 경기 비율 (0~1)
+  eloRating: number;        // Elo 레이팅 (상대 강도 + 개인 성과 반영)
 }

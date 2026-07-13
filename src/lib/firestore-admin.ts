@@ -93,6 +93,12 @@ async function refreshStats(): Promise<void> {
     for (const ref of existingProfileRefs) {
       if (!currentIds.has(ref.id)) batch.delete(ref); // 삭제된 스트리머 프로필 정리
     }
+    // streamers 컬렉션에 eloRating 저장
+    for (const stat of playerStats) {
+      batch.update(db.collection('streamers').doc(stat.streamerId), {
+        eloRating: stat.eloRating,
+      });
+    }
     batch.set(db.collection('stats').doc('current'), {
       playerStats: clean(playerStats),
       heroTiers: clean(heroTiers),

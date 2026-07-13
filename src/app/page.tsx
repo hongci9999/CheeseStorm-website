@@ -14,7 +14,7 @@ import type { Match, Streamer } from '@/lib/types';
 import { useBreakpoint, type Bp } from '@/hooks/use-breakpoint';
 
 // 상위 탭 종류
-type MainTab = 'auto' | 'curation' | 'hero';
+type MainTab = 'auto' | 'elo' | 'curation' | 'hero';
 
 const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
 
@@ -218,6 +218,7 @@ function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void
 const MAIN_TAB_LABELS: Record<MainTab, string> = {
   curation: '스트리머 수동 티어표',
   auto:     '스트리머 자동 티어표',
+  elo:      'Elo 순위표',
   hero:     '내전 영웅 티어표',
 };
 
@@ -424,6 +425,136 @@ function AutoTierTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
   );
 }
 
+// ── Elo 순위표 탭 콘텐츠 ───────────────────────────────────────
+function EloTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
+  const [role, setRole] = useState('전체');
+
+  const filtered = useMemo(
+    () => stats.filter(p => role === '전체' || p.fineRole === role),
+    [stats, role],
+  );
+
+  const isMobile = bp === 'mobile';
+
+  return (
+    <div>
+      <AutoTierNotice />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-3)' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <FilterBar role={role} onRole={setRole} />
+        </div>
+        <div style={{ flexShrink: 0, height: 32, display: 'flex', alignItems: 'center' }}>
+          <AutoTierInfoButton />
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
+          검색 결과가 없습니다.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' }}>
+          {filtered.map((p, idx) => (
+            <Link
+              key={p.streamerId}
+              href={`/streamers/${p.streamerId}`}
+              prefetch={false}
+              style={{
+                display: 'flex', alignItems: 'center', gap: isMobile ? 'var(--sp-2)' : 'var(--sp-3)',
+                padding: isMobile ? '6px var(--sp-2)' : '6px var(--sp-3)',
+                borderRadius: 'var(--r-md)', background: 'var(--surface-card)',
+                border: '1px solid var(--border-line)',
+                textDecoration: 'none', color: 'inherit',
+                transition: 'background var(--dur-fast)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-raise)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--surface-card)')}
+            >
+              {/* 순번 — 24px */}
+              <div style={{ width: isMobile ? 20 : 24, textAlign: 'center', flexShrink: 0 }}>
+                <span style={{
+                  fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: isMobile ? 11 : 12,
+                  color: 'var(--text-muted)',
+                }}>
+                  {idx + 1}
+                </span>
+              </div>
+
+              {/* Elo — 72px, 왼쪽 이동 */}
+              <div style={{ width: isMobile ? 56 : 72, textAlign: 'center', flexShrink: 0, marginLeft: isMobile ? -8 : -12 }}>
+                <span style={{
+                  fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: isMobile ? 18 : 24,
+                  color: 'var(--cheese-green)',
+                }}>
+                  {Math.round(p.eloRating)}
+                </span>
+              </div>
+
+              {/* 프사 — 48px */}
+              <div style={{ width: isMobile ? 36 : 48, flexShrink: 0 }}>
+                <HexAvatar
+                  name={p.streamerName}
+                  imageUrl={p.profileImageUrl}
+                  ring="var(--hots-purple)"
+                  ringWidth={2}
+                  size={isMobile ? 36 : 48}
+                />
+              </div>
+
+              {/* 이름 — 140px */}
+              <div style={{ width: isMobile ? 100 : 140, flexShrink: 0 }}>
+                <span style={{
+                  fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: isMobile ? 14 : 16,
+                  color: 'var(--text-high)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  display: 'block',
+                }}>
+                  {p.streamerName}
+                </span>
+              </div>
+
+              {/* 포지션 — 100px */}
+              <div style={{ width: isMobile ? 80 : 100, flexShrink: 0 }}>
+                <span style={{
+                  fontFamily: 'var(--font-ui)', fontWeight: 500, fontSize: isMobile ? 13 : 15,
+                  color: 'var(--text-muted)',
+                }}>
+                  {p.fineRole ?? '-'}
+                </span>
+              </div>
+
+              {/* 선호 영웅 3개 — 140px */}
+              <div style={{
+                width: isMobile ? 100 : 140, display: 'flex', gap: isMobile ? 3 : 5, flexShrink: 0,
+              }}>
+                {p.heroStats.slice(0, 3).map((h) => (
+                  <HexAvatar
+                    key={h.hero}
+                    name={h.hero}
+                    imageUrl={heroImageUrl(h.hero)}
+                    ring="var(--hots-purple)"
+                    ringWidth={1.5}
+                    size={isMobile ? 28 : 36}
+                  />
+                ))}
+              </div>
+
+              {/* 전적 — 100px */}
+              <div style={{ width: isMobile ? 80 : 100, textAlign: 'right', flexShrink: 0 }}>
+                <span style={{
+                  fontFamily: 'var(--font-numeral)', fontWeight: 600, fontSize: isMobile ? 13 : 15,
+                  color: 'var(--text-high)',
+                }}>
+                  {p.wins}W {p.losses}L
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 영웅 타일 (육각형, 티어색 테두리) — 영웅 사진 있으면 표시, 없으면 이니셜 폴백
 function HeroTile({ name, ring, size = 54 }: { name: string; ring: string; size?: number }) {
   return <HexAvatar name={name} imageUrl={heroImageUrl(name)} ring={ring} size={size} ringWidth={2} />;
@@ -612,6 +743,7 @@ export default function HomePage() {
 
       {/* 탭 패널 */}
       {mainTab === 'auto' && <AutoTierTab stats={stats} bp={bp} />}
+      {mainTab === 'elo' && <EloTab stats={stats} bp={bp} />}
       {mainTab === 'curation' && (
         <CurationTierTab streamers={streamers} matches={matches} />
       )}

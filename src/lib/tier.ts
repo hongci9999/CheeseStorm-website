@@ -3,6 +3,7 @@ import { winningTeam, losingTeam } from './match';
 import { deriveRole, deriveFineRole } from './heroes';
 import { MIN_SAMPLE } from './sample';
 import { calcAllStatScores, statAlpha, statToWinRate } from './stat-score';
+import { calcAllElos } from './elo';
 
 const TIER_THRESHOLDS: { tier: Tier; min: number }[] = [
   { tier: 'S', min: 0.6 },
@@ -81,6 +82,9 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
   // 전체 스트리머 스탯 점수 (역할 내 정규화 — 한 번에 계산)
   const statScores = calcAllStatScores(matches, Array.from(statsMap.keys()));
 
+  // Elo 레이팅 계산 (상대강도 + 개인 성과 반영)
+  const eloMap = calcAllElos(matches);
+
   return Array.from(statsMap.entries())
     .map(([streamerId, { wins, losses, name, img, role, fineRole, heroes }]) => {
       const totalGames = wins + losses;
@@ -133,6 +137,7 @@ export function calcPlayerStats(streamers: Streamer[], matches: Match[]): Player
         streak,
         topHero,
         statCoverage,
+        eloRating: eloMap.get(streamerId) ?? 1500,
       };
     })
     .sort((a, b) => {
