@@ -430,7 +430,9 @@ function EloTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
   const [role, setRole] = useState('전체');
 
   const filtered = useMemo(
-    () => stats.filter(p => role === '전체' || p.fineRole === role),
+    () => stats
+      .filter(p => role === '전체' || p.fineRole === role)
+      .sort((a, b) => b.eloRating - a.eloRating),
     [stats, role],
   );
 
