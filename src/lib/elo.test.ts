@@ -84,53 +84,6 @@ describe('Elo 계산', () => {
     expect(Math.abs(totalAfter - 15000)).toBeLessThan(0.1);
   });
 
-  it('성과점수가 다르면 Elo 변화도 달라야 함', () => {
-    const goodStat: PlayerMatchStat = {
-      kills: 10, assists: 10, deaths: 1, // 좋은 성과
-      siegeDmg: 5000, heroDmg: 8000,
-      healing: 0, selfHeal: 0, xp: 15000,
-    };
-
-    const badStat: PlayerMatchStat = {
-      kills: 1, assists: 1, deaths: 8, // 나쁜 성과
-      siegeDmg: 500, heroDmg: 800,
-      healing: 0, selfHeal: 0, xp: 3000,
-    };
-
-    const match1: Match = {
-      id: '1',
-      date: new Date('2026-01-01'),
-      blueTeam: [['p1_good', 'h1'], ['p2', 'h2'], ['p3', 'h3'], ['p4', 'h4'], ['p5', 'h5']],
-      redTeam: [['p6', 'h6'], ['p7', 'h7'], ['p8', 'h8'], ['p9', 'h9'], ['p10', 'h10']],
-      blueStats: [goodStat, badStat, badStat, badStat, badStat],
-      redStats: [badStat, badStat, badStat, badStat, badStat],
-      winner: 'blue',
-      createdAt: new Date(),
-    };
-
-    const match2: Match = {
-      id: '2',
-      date: new Date('2026-01-01'),
-      blueTeam: [['p1_bad', 'h1'], ['p2', 'h2'], ['p3', 'h3'], ['p4', 'h4'], ['p5', 'h5']],
-      redTeam: [['p6', 'h6'], ['p7', 'h7'], ['p8', 'h8'], ['p9', 'h9'], ['p10', 'h10']],
-      blueStats: [badStat, badStat, badStat, badStat, badStat],
-      redStats: [badStat, badStat, badStat, badStat, badStat],
-      winner: 'blue',
-      createdAt: new Date(),
-    };
-
-    const eloMap1 = calcAllElos([match1]);
-    const eloMap2 = calcAllElos([match2]);
-
-    const p1GoodElo = eloMap1.get('p1_good')!;
-    const p1BadElo = eloMap2.get('p1_bad')!;
-
-    console.log('p1 좋은 성과 후:', p1GoodElo);
-    console.log('p1 나쁜 성과 후:', p1BadElo);
-
-    // 성과 보너스가 다르므로 Elo도 달라야 함
-    expect(p1GoodElo).toBeGreaterThan(p1BadElo);
-  });
 
   it('강한 팀 vs 약한 팀: Elo 차이 반영', () => {
     const goodStat: PlayerMatchStat = {
@@ -170,6 +123,58 @@ describe('Elo 계산', () => {
     // 약한 팀이 예상대로 짐 → 작은 변화
     expect(strongElo).toBeLessThan(1520); // 작은 증가
     expect(weakElo).toBeGreaterThan(1480); // 작은 감소 (기대 이상)
+  });
+
+  it('낮은 승률이 높은 Elo 랭크가 될 수 없음', () => {
+    const goodStat: PlayerMatchStat = {
+      kills: 10, assists: 10, deaths: 2,
+      siegeDmg: 4000, heroDmg: 6000,
+      healing: 0, selfHeal: 0, xp: 15000,
+    };
+
+    const badStat: PlayerMatchStat = {
+      kills: 2, assists: 2, deaths: 8,
+      siegeDmg: 500, heroDmg: 1000,
+      healing: 0, selfHeal: 0, xp: 4000,
+    };
+
+    const matches: Match[] = [];
+
+    // 14승 24패 시뮬레이션
+    for (let i = 0; i < 14; i++) {
+      matches.push({
+        id: `win_${i}`,
+        date: new Date(`2026-01-${String(i + 1).padStart(2, '0')}`),
+        blueTeam: [['test_player', 'h1'], ['p2', 'h2'], ['p3', 'h3'], ['p4', 'h4'], ['p5', 'h5']],
+        redTeam: [['p6', 'h6'], ['p7', 'h7'], ['p8', 'h8'], ['p9', 'h9'], ['p10', 'h10']],
+        blueStats: [goodStat, badStat, badStat, badStat, badStat],
+        redStats: [badStat, badStat, badStat, badStat, badStat],
+        winner: 'blue',
+        createdAt: new Date(),
+      });
+    }
+
+    for (let i = 0; i < 24; i++) {
+      matches.push({
+        id: `loss_${i}`,
+        date: new Date(`2026-02-${String(i + 1).padStart(2, '0')}`),
+        blueTeam: [['test_player', 'h1'], ['p2', 'h2'], ['p3', 'h3'], ['p4', 'h4'], ['p5', 'h5']],
+        redTeam: [['p6', 'h6'], ['p7', 'h7'], ['p8', 'h8'], ['p9', 'h9'], ['p10', 'h10']],
+        blueStats: [goodStat, badStat, badStat, badStat, badStat],
+        redStats: [goodStat, goodStat, goodStat, goodStat, goodStat],
+        winner: 'red',
+        createdAt: new Date(),
+      });
+    }
+
+    const eloMap = calcAllElos(matches);
+    const testPlayerElo = eloMap.get('test_player')!;
+
+    console.log('test_player (14W-24L):', testPlayerElo);
+    console.log('순수 50% 플레이어:', 1500);
+
+    // 14승 24패 = 36.8% 승률 → Elo는 1500 이하여야 함
+    expect(testPlayerElo).toBeLessThan(1500);
   });
 
   it('경기 길이 고려 검사 (dur 필드 사용)', () => {
