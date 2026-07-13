@@ -226,10 +226,14 @@ const MAIN_TAB_LABELS: Record<MainTab, string> = {
 function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void }) {
   return (
     // 하단 보더 라인으로 탭 컨테이너를 구분
+    // 좁은 화면에선 가로 스크롤(터치 드래그)로 탭 이동
     <div style={{
       display: 'flex', gap: 0,
       borderBottom: '2px solid var(--border-line)',
       marginBottom: 'var(--sp-6)',
+      overflowX: 'auto',
+      scrollbarWidth: 'none',
+      WebkitOverflowScrolling: 'touch',
     }}>
       {(Object.keys(MAIN_TAB_LABELS) as MainTab[]).map(t => {
         const active = tab === t;
@@ -240,6 +244,7 @@ function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void 
             style={{
               position: 'relative',
               height: 44, padding: '0 20px',
+              flexShrink: 0, whiteSpace: 'nowrap',
               background: 'transparent',
               border: 'none',
               fontFamily: 'var(--font-ui)', fontWeight: active ? 700 : 500,
@@ -713,8 +718,8 @@ function EloTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
                   </Link>
                 </div>
 
-                {/* 이름 — 140px */}
-                <div style={{ width: isMobile ? 100 : 140, flexShrink: 0 }}>
+                {/* 이름 — 데스크톱 140px, 모바일은 남는 폭 차지 */}
+                <div style={{ width: isMobile ? undefined : 140, flex: isMobile ? 1 : undefined, minWidth: 0, flexShrink: isMobile ? 1 : 0 }}>
                   <span style={{
                     fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: isMobile ? 14 : 16,
                     color: 'var(--text-high)',
@@ -725,34 +730,37 @@ function EloTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
                   </span>
                 </div>
 
-                {/* 포지션 — 100px */}
-                <div style={{ width: isMobile ? 80 : 100, flexShrink: 0 }}>
-                  <span style={{
-                    fontFamily: 'var(--font-ui)', fontWeight: 500, fontSize: isMobile ? 13 : 15,
-                    color: 'var(--text-muted)',
-                  }}>
-                    {p.fineRole ?? '-'}
-                  </span>
-                </div>
+                {/* 포지션·선호 영웅 — 모바일에선 공간 부족으로 숨김 */}
+                {!isMobile && (
+                  <>
+                    {/* 포지션 — 100px */}
+                    <div style={{ width: 100, flexShrink: 0 }}>
+                      <span style={{
+                        fontFamily: 'var(--font-ui)', fontWeight: 500, fontSize: 15,
+                        color: 'var(--text-muted)',
+                      }}>
+                        {p.fineRole ?? '-'}
+                      </span>
+                    </div>
 
-                {/* 선호 영웅 3개 — 140px */}
-                <div style={{
-                  width: isMobile ? 100 : 140, display: 'flex', gap: isMobile ? 3 : 5, flexShrink: 0,
-                }}>
-                  {p.heroStats.slice(0, 3).map((h) => (
-                    <HexAvatar
-                      key={h.hero}
-                      name={h.hero}
-                      imageUrl={heroImageUrl(h.hero)}
-                      ring="var(--hots-purple)"
-                      ringWidth={1.5}
-                      size={isMobile ? 28 : 36}
-                    />
-                  ))}
-                </div>
+                    {/* 선호 영웅 3개 — 140px */}
+                    <div style={{ width: 140, display: 'flex', gap: 5, flexShrink: 0 }}>
+                      {p.heroStats.slice(0, 3).map((h) => (
+                        <HexAvatar
+                          key={h.hero}
+                          name={h.hero}
+                          imageUrl={heroImageUrl(h.hero)}
+                          ring="var(--hots-purple)"
+                          ringWidth={1.5}
+                          size={36}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 {/* 전적 — 100px */}
-                <div style={{ width: isMobile ? 80 : 100, textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ width: isMobile ? 70 : 100, textAlign: 'right', flexShrink: 0 }}>
                   <span style={{
                     fontFamily: 'var(--font-numeral)', fontWeight: 600, fontSize: isMobile ? 13 : 15,
                     color: 'var(--text-high)',
