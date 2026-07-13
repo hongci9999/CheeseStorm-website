@@ -3,7 +3,15 @@ import { winningTeam, losingTeam, statOf } from './match';
 
 interface PerformanceData {
   kda: number;
-  dmg: number; // heroDmg + siegeDmg
+  dmgPerMin: number; // 분당 피해 (경기 길이 고려)
+}
+
+function durToMins(dur: string | undefined): number {
+  if (!dur) return 1;
+  const m = dur.match(/^(\d+):(\d{2})$/);
+  if (!m) return 1;
+  const mins = Number(m[1]) + Number(m[2]) / 60;
+  return mins > 0 ? mins : 1;
 }
 
 function calcPerformanceScore(
@@ -14,11 +22,11 @@ function calcPerformanceScore(
     if (playerStats.length === 0) continue;
 
     const avgKda = playerStats.reduce((s, x) => s + x.kda, 0) / playerStats.length;
-    const avgDmg = playerStats.reduce((s, x) => s + x.dmg, 0) / playerStats.length;
+    const avgDmgPerMin = playerStats.reduce((s, x) => s + x.dmgPerMin, 0) / playerStats.length;
 
     // 절대값 기준 정규화 (경기 추가/삭제해도 변하지 않음)
     const kdaNorm = Math.min(1, Math.max(0, avgKda / 10)); // KDA: 0~10 → 0~1
-    const dmgNorm = Math.min(1, Math.max(0, avgDmg / 5000)); // Dmg: 0~5000 → 0~1
+    const dmgNorm = Math.min(1, Math.max(0, avgDmgPerMin / 300)); // DmgPerMin: 0~300 → 0~1
 
     const score = 0.4 * kdaNorm + 0.6 * dmgNorm;
     scores.set(playerId, score);
@@ -76,6 +84,8 @@ export function calcAllElos(matches: Match[]): Map<string, number> {
     const redTeam = winningTeam(match) === match.blueTeam ? match.redTeam : match.blueTeam;
     const won = winningTeam(match) === match.blueTeam;
 
+    const mins = durToMins(match.dur);
+
     const blueStats: Record<string, PerformanceData[]> = {};
     const redStats: Record<string, PerformanceData[]> = {};
 
@@ -83,9 +93,10 @@ export function calcAllElos(matches: Match[]): Map<string, number> {
       const stat = statOf(match, id);
       if (stat) {
         if (!blueStats[id]) blueStats[id] = [];
+        const dmg = (stat.heroDmg || 0) + (stat.siegeDmg || 0);
         blueStats[id].push({
           kda: (stat.kills + stat.assists) / Math.max(1, stat.deaths),
-          dmg: (stat.heroDmg || 0) + (stat.siegeDmg || 0),
+          dmgPerMin: dmg / mins,
         });
       }
     }
@@ -94,9 +105,10 @@ export function calcAllElos(matches: Match[]): Map<string, number> {
       const stat = statOf(match, id);
       if (stat) {
         if (!redStats[id]) redStats[id] = [];
+        const dmg = (stat.heroDmg || 0) + (stat.siegeDmg || 0);
         redStats[id].push({
           kda: (stat.kills + stat.assists) / Math.max(1, stat.deaths),
-          dmg: (stat.heroDmg || 0) + (stat.siegeDmg || 0),
+          dmgPerMin: dmg / mins,
         });
       }
     }
