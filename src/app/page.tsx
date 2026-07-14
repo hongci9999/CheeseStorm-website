@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { getStreamers, getMatches, getCachedStreamers, getCachedMatches, getPrecomputedStats } from '@/lib/firestore';
-import { calcPlayerStats, groupStatsByTier } from '@/lib/tier';
+import { calcPlayerStats } from '@/lib/tier';
 import { calcHeroTiers, groupHeroesByTier } from '@/lib/hero-tier';
 import type { HeroTierStat } from '@/lib/hero-tier';
 import type { PlayerStats, FineRole, Tier } from '@/lib/types';
@@ -15,7 +15,8 @@ import type { EloDetail, EloMatchDetail } from '@/lib/elo';
 import { useBreakpoint, type Bp } from '@/hooks/use-breakpoint';
 
 // 상위 탭 종류
-type MainTab = 'auto' | 'elo' | 'curation' | 'hero';
+// 자동 티어표는 숨김 (참고 지표로 오해 소지 — 큐레이션/Elo만 노출)
+type MainTab = 'elo' | 'curation' | 'hero';
 
 const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
 
@@ -90,101 +91,6 @@ function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg
   );
 }
 
-// ── 플레이어 셀 ───────────────────────────────────────────────
-function PlayerCell({ p, tier, bp }: { p: PlayerStats; tier: Tier; bp: Bp }) {
-  const [hover, setHover] = useState(false);
-  const isMobile = bp === 'mobile';
-
-  return (
-    <Link
-      href={`/streamers/${p.streamerId}`}
-      prefetch={false}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-        width: isMobile ? 60 : 78, padding: 'var(--sp-2) 4px', borderRadius: 'var(--r-md)', cursor: 'pointer',
-        background: hover ? 'var(--surface-raise)' : 'transparent',
-        transform: hover ? 'translateY(-2px)' : 'none',
-        transition: 'transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out)',
-        textDecoration: 'none',
-      }}
-    >
-      {/* 아바타 */}
-      <HexAvatar
-        name={p.streamerName}
-        imageUrl={p.profileImageUrl}
-        ring={`var(${TIER_COLOR_VAR[tier]})`}
-        ringWidth={tier !== 'unranked' ? 2 : 1.5}
-        size={isMobile ? 46 : 60}
-      />
-
-      {/* 이름 */}
-      <span style={{
-        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: isMobile ? 11 : 12.5,
-        color: 'var(--text-high)', maxWidth: isMobile ? 56 : 74,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
-        {p.streamerName}
-      </span>
-
-    </Link>
-  );
-}
-
-// ── 티어 행 ───────────────────────────────────────────────────
-function TierRow({ tier, players, bp }: { tier: Tier; players: PlayerStats[]; bp: Bp }) {
-  const isS = tier === 'S';
-  const color = `var(${TIER_COLOR_VAR[tier]})`;
-  const isMobile = bp === 'mobile';
-
-  return (
-    <div style={{
-      position: 'relative', display: 'flex', alignItems: 'stretch', overflow: 'hidden',
-      borderRadius: 'var(--r-lg)', background: 'var(--surface-card)',
-      border: `1px solid ${isS ? 'var(--border-glow)' : 'var(--border-line)'}`,
-      boxShadow: isS ? 'var(--glow-green-soft)' : 'var(--shadow-sm)',
-    }}>
-      {/* 컬러 엣지 바 */}
-      <span style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
-        background: color, boxShadow: `0 0 14px ${color}`,
-      }} />
-
-      {/* 티어 컬럼 */}
-      <div style={{
-        width: isMobile ? 72 : 148, flexShrink: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 10,
-        padding: isMobile ? 'var(--sp-2) var(--sp-2)' : 'var(--sp-3) var(--sp-4)',
-        borderRight: '1px solid var(--border-faint)',
-        background: isS ? 'var(--grad-sweep)' : 'transparent',
-      }}>
-        <TierBadge tier={tier} size={isMobile ? 'sm' : 'lg'} />
-        {tier === 'unranked' && (
-          <span style={{
-            fontFamily: 'var(--font-numeral)', fontSize: 10, letterSpacing: '0.1em',
-            color: 'var(--text-faint)', textAlign: 'center',
-          }}>
-            판수 부족
-          </span>
-        )}
-      </div>
-
-      {/* 아바타 플로우 — 큐레이션 티어행과 동일한 최소 높이 */}
-      <div style={{
-        flex: 1, display: 'flex', flexWrap: 'wrap', gap: 'var(--sp-2)',
-        alignContent: 'center',
-        padding: isMobile ? 'var(--sp-1) var(--sp-2)' : 'var(--sp-2) var(--sp-4)',
-        minHeight: 88,
-      }}>
-        {players.map((p) => (
-          <PlayerCell key={p.streamerId} p={p} tier={tier} bp={bp} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── 역할 필터 바 (역할 탭만 — 검색 입력 제거) ────────────────────
 function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void }) {
   return (
@@ -218,7 +124,6 @@ function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void
 // ── 상위 탭 바 — FilterBar와 계층이 명확히 다른 스타일 ────────────
 const MAIN_TAB_LABELS: Record<MainTab, string> = {
   curation: '스트리머 수동 티어표',
-  auto:     '스트리머 자동 티어표',
   elo:      'Elo 순위표',
   hero:     '내전 영웅 티어표',
 };
@@ -252,11 +157,9 @@ function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void 
               color: active ? 'var(--text-strong)' : 'var(--text-muted)',
               cursor: 'pointer',
               transition: 'color var(--dur-fast) var(--ease-out)',
-              // 선택된 탭의 하단 강조선 (역할 필터의 pill 스타일과 명확히 다름)
-              borderBottom: active
-                ? '2px solid var(--cheese-green)'
-                : '2px solid transparent',
-              marginBottom: -2, // 컨테이너 보더와 겹쳐 선택선이 border-bottom 위에 오도록
+              // 선택된 탭의 하단 강조선. overflowX:auto 컨테이너는 음수 마진 오버플로를
+              // 잘라내므로 박스 내부에 그려지는 inset 그림자를 사용
+              boxShadow: active ? 'inset 0 -2px 0 var(--cheese-green)' : 'none',
             }}
           >
             {MAIN_TAB_LABELS[t]}
@@ -267,25 +170,6 @@ function MainTabBar({ tab, onTab }: { tab: MainTab; onTab: (t: MainTab) => void 
   );
 }
 
-// ── 자동 티어 안내 ─────────────────────────────────────────────
-function AutoTierNotice() {
-  return (
-    <div style={{
-      borderRadius: 'var(--r-md)',
-      border: '1px solid color-mix(in srgb, var(--tier-b) 55%, var(--border-line))',
-      background: 'color-mix(in srgb, var(--tier-b) 14%, var(--surface-card))',
-      padding: 'var(--sp-3) var(--sp-4)',
-      marginBottom: 'var(--sp-5)',
-    }}>
-      <p style={{
-        margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
-        color: 'var(--tier-b)', fontWeight: 600, lineHeight: 1.55,
-      }}>
-        본 티어표는 승률과 스탯 전반적인 수치를 종합하여 자동으로 설정된 티어표입니다. 부정확한 티어표 이므로 재미로만 보시고 참조용으로만 활용하시기 바랍니다.
-      </p>
-    </div>
-  );
-}
 
 // ── 티어 기준 안내 버튼 (! 호버/클릭 → 툴팁) — 자동·영웅 탭 공용 ──
 function TierInfoButton({ ariaLabel, title, children }: {
@@ -342,30 +226,6 @@ function TierInfoButton({ ariaLabel, title, children }: {
         </div>
       )}
     </div>
-  );
-}
-
-function AutoTierInfoButton() {
-  return (
-    <TierInfoButton ariaLabel="자동 티어 기준 안내" title="자동 티어 산정 기준">
-      <p style={{
-        margin: '0 0 10px', fontFamily: 'var(--font-ui)', fontSize: 12, lineHeight: 1.6,
-        color: 'var(--text-muted)',
-      }}>
-        경기 <b style={{ color: 'var(--text-high)' }}>승패</b>와 경기 내
-        <b style={{ color: 'var(--text-high)' }}> 스탯(딜·힐·공성 등)</b>을 함께 반영한
-        종합 점수로 티어를 매깁니다. 현재는 스탯 가중치를 높게 설정된 상태이고, 표본
-        <b style={{ color: 'var(--text-high)' }}> 5경기 이상</b>부터 티어가 부여되고
-        미만은 <b style={{ color: 'var(--text-high)' }}>?</b> 티어입니다.
-      </p>
-      <p style={{
-        margin: 0, fontFamily: 'var(--font-ui)', fontSize: 11, lineHeight: 1.55,
-        color: 'var(--text-faint)',
-      }}>
-        ※ 내전은 팀이 의도적으로 밸런싱되므로 승률만으로 개인 실력을 측정할 수 없습니다.
-        자동 티어는 실력 지표가 아닌 <b>전적 요약</b>이며 참고용입니다.
-      </p>
-    </TierInfoButton>
   );
 }
 
@@ -439,44 +299,6 @@ function HeroTierInfoButton() {
     </TierInfoButton>
   );
 }
-
-// ── 자동 티어리스트 탭 콘텐츠 ───────────────────────────────────
-function AutoTierTab({ stats, bp }: { stats: PlayerStats[]; bp: Bp }) {
-  const [role, setRole] = useState('전체');
-
-  const filtered = useMemo(
-    () => stats.filter(p => role === '전체' || p.fineRole === role),
-    [stats, role],
-  );
-
-  const groups = useMemo(() => groupStatsByTier(filtered), [filtered]);
-
-  return (
-    <div>
-      <AutoTierNotice />
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--sp-3)' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <FilterBar role={role} onRole={setRole} />
-        </div>
-        <div style={{ flexShrink: 0, height: 32, display: 'flex', alignItems: 'center' }}>
-          <AutoTierInfoButton />
-        </div>
-      </div>
-      {groups.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-faint)', marginTop: 60 }}>
-          검색 결과가 없습니다.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--sp-4)' }}>
-          {groups.map(({ tier, players }) => (
-            <TierRow key={tier} tier={tier} players={players} bp={bp} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Elo 상세 정보 패널 ───────────────────────────────────────
 // 세션 내 재클릭 시 API 재호출 방지 (서버는 unstable_cache로 Firestore 읽기 0)
 const eloDetailCache = new Map<string, EloDetail>();
@@ -969,7 +791,6 @@ export default function HomePage() {
       <MainTabBar tab={mainTab} onTab={setMainTab} />
 
       {/* 탭 패널 */}
-      {mainTab === 'auto' && <AutoTierTab stats={stats} bp={bp} />}
       {mainTab === 'elo' && <EloTab stats={stats} bp={bp} />}
       {mainTab === 'curation' && (
         <CurationTierTab streamers={streamers} matches={matches} />

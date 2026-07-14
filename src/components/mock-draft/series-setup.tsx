@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getStreamers } from '@/lib/firestore';
+import { getStreamers, getPrecomputedStats } from '@/lib/firestore';
+import { balanceByElo, teamElo } from '@/lib/draft/balance';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { Segmented } from './segmented';
 import type { Streamer } from '@/lib/types';
@@ -33,10 +34,21 @@ export function SeriesSetup({ onStart }: Props) {
   const [red, setRed] = useState<Player[]>([]);
   const [query, setQuery] = useState('');
   const [softNoticeClosed, setSoftNoticeClosed] = useState(false);
+  const [eloMap, setEloMap] = useState<Record<string, number>>({});
+  const [balanced, setBalanced] = useState(false);
 
   useEffect(() => {
     getStreamers().then(setStreamers).catch(() => setStreamers([]));
+    // Elo 밸런싱용 — 집계 문서 1 read. 없으면(집계 전) 전원 기본 1500 취급.
+    getPrecomputedStats()
+      .then((s) => {
+        if (!s) return;
+        setEloMap(Object.fromEntries(s.playerStats.map((p) => [p.streamerId, p.eloRating ?? 1500])));
+      })
+      .catch(() => {});
   }, []);
+
+  const eloOf = (id: string) => eloMap[id] ?? 1500;
 
   const teamOf = (id: string): Team | null =>
     blue.some((p) => p.id === id) ? 'blue' : red.some((p) => p.id === id) ? 'red' : null;
@@ -47,12 +59,14 @@ export function SeriesSetup({ onStart }: Props) {
     const setList = team === 'blue' ? setBlue : setRed;
     if (list.length >= 5) return;
     setList([...list, player]);
+    setBalanced(false); // 명단이 바뀌면 밸런싱 결과(Elo 합) 무효
   }
 
   function removeFrom(team: Team, id: string) {
     const setList = team === 'blue' ? setBlue : setRed;
     const list = team === 'blue' ? blue : red;
     setList(list.filter((p) => p.id !== id));
+    setBalanced(false);
   }
 
   const canStart = blue.length === 5 && red.length === 5;
@@ -60,6 +74,14 @@ export function SeriesSetup({ onStart }: Props) {
   function handleStart() {
     if (!canStart) return;
     onStart({ draftType, bestOf, blue, red, sets: [], current: null });
+  }
+
+  function handleBalance() {
+    if (!canStart) return;
+    const r = balanceByElo(blue, red, eloOf);
+    setBlue(r.blue);
+    setRed(r.red);
+    setBalanced(true);
   }
 
   function handleQuickStart() {
@@ -127,11 +149,30 @@ export function SeriesSetup({ onStart }: Props) {
 
       {/* 하단 버튼 — 중앙 세로 스택, 실제 버튼 */}
       <div style={{ display: 'grid', gap: 'var(--sp-2)', justifyItems: 'center' }}>
+        {/* Elo 합은 밸런싱 버튼을 누른 뒤에만 노출 */}
+        {balanced && canStart && (() => {
+          const b = Math.round(teamElo(blue, eloOf));
+          const r = Math.round(teamElo(red, eloOf));
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-3)',
+              fontFamily: 'var(--font-numeral)', fontSize: 'var(--fs-sm)' }}>
+              <span style={{ color: teamColor('blue'), fontWeight: 700 }}>{b}</span>
+              <span style={{ color: 'var(--text-faint)' }}>Elo 합 · 차이 {Math.abs(b - r)}</span>
+              <span style={{ color: teamColor('red'), fontWeight: 700 }}>{r}</span>
+            </div>
+          );
+        })()}
         <button onClick={handleStart} disabled={!canStart}
           style={{ ...primaryBtn, minWidth: 260, opacity: canStart ? 1 : 0.5, cursor: canStart ? 'pointer' : 'not-allowed' }}>
           {canStart ? '시리즈 시작' : '양 팀 5명씩 채워주세요'}
         </button>
-        <button onClick={handleQuickStart} style={{ ...secondaryBtn, minWidth: 200 }}>스트리머 없이 바로 시작</button>
+        <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button onClick={handleBalance} disabled={!canStart}
+            style={{ ...secondaryBtn, minWidth: 200, opacity: canStart ? 1 : 0.5, cursor: canStart ? 'pointer' : 'not-allowed' }}>
+            ⚖ Elo로 팀 밸런싱
+          </button>
+          <button onClick={handleQuickStart} style={{ ...secondaryBtn, minWidth: 200 }}>스트리머 없이 바로 시작</button>
+        </div>
       </div>
     </div>
   );
