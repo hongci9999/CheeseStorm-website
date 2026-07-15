@@ -21,9 +21,9 @@ export function calcTier(winRate: number, totalGames: number): Tier {
 }
 
 // 베이지안 승률: 소규모 표본의 극단값을 50%로 당겨줌
-// prior = 50%, weight = 3경기. (wins+1.5)/(total+3)
-export function calcBayesianWinRate(wins: number, total: number): number {
-  return (wins + 1.5) / (total + 3);
+// prior = 50%, strength = 가상 경기 수 (기본 3). (wins + strength/2) / (total + strength)
+export function calcBayesianWinRate(wins: number, total: number, strength = 3): number {
+  return (wins + strength / 2) / (total + strength);
 }
 
 // 티어 정렬·그룹화 공통 순서

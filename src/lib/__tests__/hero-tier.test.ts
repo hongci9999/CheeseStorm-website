@@ -28,7 +28,7 @@ describe('calcHeroTiers', () => {
     expect(genji.winRate).toBeCloseTo(2 / 3, 5);
   });
 
-  it('3경기 미만 영웅은 unranked로 분리된다 (임계 검증)', () => {
+  it('MIN_SAMPLE(5경기) 미만 영웅은 unranked로 분리된다 (임계 검증)', () => {
     const matches = [
       mk('m1', '겐지', 'blue'),
       mk('m2', '겐지', 'blue'), // 겐지 2판만 → 미달
@@ -38,7 +38,7 @@ describe('calcHeroTiers', () => {
     expect(genji.tier).toBe('unranked');
   });
 
-  it('3경기 이상이면 승률 기준 티어가 부여된다', () => {
+  it('5경기 이상이면 승률 기준 티어가 부여된다', () => {
     // 겐지 5전 5승 = 100% → S
     const matches = [1, 2, 3, 4, 5].map((n) => mk(`m${n}`, '겐지', 'blue'));
     const genji = calcHeroTiers(matches).find((h) => h.hero === '겐지')!;
@@ -66,14 +66,10 @@ describe('calcHeroTiers', () => {
   });
 
   it('티어 순으로 정렬된다 (S가 먼저)', () => {
-    // 갓영웅 3승(S), 폐영웅 3패(D)
+    // 갓영웅 5승(S), 폐영웅 5패(D) — MIN_SAMPLE 충족
     const matches: Match[] = [
-      mk('a1', '갓영웅', 'blue'),
-      mk('a2', '갓영웅', 'blue'),
-      mk('a3', '갓영웅', 'blue'),
-      mk('b1', '폐영웅', 'red'),
-      mk('b2', '폐영웅', 'red'),
-      mk('b3', '폐영웅', 'red'),
+      ...[1, 2, 3, 4, 5].map((n) => mk(`a${n}`, '갓영웅', 'blue')),
+      ...[1, 2, 3, 4, 5].map((n) => mk(`b${n}`, '폐영웅', 'red')),
     ];
     const result = calcHeroTiers(matches);
     const god = result.findIndex((h) => h.hero === '갓영웅');
@@ -85,14 +81,15 @@ describe('calcHeroTiers', () => {
     expect(calcHeroTiers([])).toEqual([]);
   });
 
-  it('동일 전적이면 소수 독점 영웅이 다양한 사용 영웅보다 점수가 낮다 (다양성 페널티)', () => {
-    // blueHero 슬롯의 스트리머 id를 바꿀 수 있는 헬퍼
-    const mkSid = (id: string, sid: string, hero: string): Match => ({
-      id, date: new Date('2025-06-01'), createdAt: new Date('2025-06-01'),
-      blueTeam: [[sid, hero], ['s2', 'x'], ['s3', 'x'], ['s4', 'x'], ['s5', 'x']],
-      redTeam: [['s6', 'y'], ['s7', 'y'], ['s8', 'y'], ['s9', 'y'], ['s10', 'y']],
-      winner: 'blue',
-    });
+  // blueHero 슬롯의 스트리머 id와 승패를 바꿀 수 있는 헬퍼
+  const mkSid = (id: string, sid: string, hero: string, winner: 'blue' | 'red' = 'blue'): Match => ({
+    id, date: new Date('2025-06-01'), createdAt: new Date('2025-06-01'),
+    blueTeam: [[sid, hero], ['s2', 'x'], ['s3', 'x'], ['s4', 'x'], ['s5', 'x']],
+    redTeam: [['s6', 'y'], ['s7', 'y'], ['s8', 'y'], ['s9', 'y'], ['s10', 'y']],
+    winner,
+  });
+
+  it('동일 고승률이면 독점 영웅이 다양한 사용 영웅보다 점수가 낮다 (집중도 수축)', () => {
     // 독점영웅: 3승 전부 a1 / 다양영웅: 3승 a1·a2·a3
     const matches: Match[] = [
       mkSid('m1', 'a1', '독점영웅'),
@@ -108,6 +105,22 @@ describe('calcHeroTiers', () => {
     expect(solo.score).toBeLessThan(varied.score);
     expect(result.findIndex((h) => h.hero === '다양영웅'))
       .toBeLessThan(result.findIndex((h) => h.hero === '독점영웅'));
+  });
+
+  it('동일 저승률이면 독점 영웅이 다양한 사용 영웅보다 점수가 높다 (양방향 수축)', () => {
+    // 수축은 50% 방향 — 독점 표본은 나쁜 승률도 덜 믿는다 (구 다양성 페널티는 더 깎았음)
+    const matches: Match[] = [
+      mkSid('m1', 'a1', '독점영웅', 'red'),
+      mkSid('m2', 'a1', '독점영웅', 'red'),
+      mkSid('m3', 'a1', '독점영웅', 'red'),
+      mkSid('n1', 'a1', '다양영웅', 'red'),
+      mkSid('n2', 'a2', '다양영웅', 'red'),
+      mkSid('n3', 'a3', '다양영웅', 'red'),
+    ];
+    const result = calcHeroTiers(matches);
+    const solo = result.find((h) => h.hero === '독점영웅')!;
+    const varied = result.find((h) => h.hero === '다양영웅')!;
+    expect(solo.score).toBeGreaterThan(varied.score);
   });
 });
 

@@ -104,7 +104,7 @@ describe('calcPlayerStats', () => {
 const makeStat = (tier: PlayerStats['tier'], name = 'x'): PlayerStats => ({
   streamerId: name, streamerName: name, wins: 0, losses: 0,
   totalGames: 0, winRate: 0, tier, heroStats: [],
-  recentWinRate: 0, streak: 0,
+  recentWinRate: 0, streak: 0, eloRating: 1500,
 });
 
 describe('groupStatsByTier', () => {
