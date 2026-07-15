@@ -24,20 +24,27 @@ export interface EloDetail {
   matches: EloMatchDetail[];
 }
 
-const K = 32; // 표준 K-factor
 const INITIAL_ELO = 1500;
 
-// 내전은 의도적으로 밸런싱되어 팀 평균 Elo 차이가 작다 → 기대승률이 30~70%에 갇혀
-// 표준 델타(K·(actual−E))가 ±32의 절반 남짓밖에 안 쓰인다.
-// 실제로 도달 가능한 기대승률 범위(25~75%)를 델타 전 구간(±K)에 대응시키기 위해
-// 델타를 1/0.75배 스케일하고 ±K로 클램프한다.
-// 양 팀 (actual−E)의 부호만 반대·크기는 같으므로 스케일·클램프 후에도 제로섬 유지.
-const MAX_SWING_EXPECTED = 0.25; // 기대승률 25%(또는 75%)에서 델타가 ±K에 도달
-const DELTA_SCALE = 1 / (1 - MAX_SWING_EXPECTED);
+// 승리 팀 증가폭을 기대승률의 감소 로지스틱(S자 곡선)으로 매핑한다.
+// 내전은 밸런싱돼 기대승률이 30~70%에 몰리므로 그 구간을 가파르게,
+// 바깥은 완만하게(포화) 만들어 이변에 크게·강팀 압승에 작게 반응시킨다.
+//   기대승률 50%(대등) 승 → +20
+//   기대승률 30%(언더독) 승 → +35,  70%(강팀) 승 → +5
+//   30/70% 바깥은 같은 방향으로 계속 이동하되 각각 40·0에 완만히 수렴
+const EQUAL_DELTA = 20; // 대등(50%)일 때 승자 증가폭 = 곡선 중앙값
+const MAX_DELTA = 2 * EQUAL_DELTA; // 완전 이변(기대승률 0%)의 점근 상한 = 40
+// MAX_DELTA / (1 + e^{k·(0.3−0.5)}) = 35 을 만족하는 기울기 → k = 5·ln7 ≈ 9.73
+const STEEPNESS = 5 * Math.log(7);
 
+// 승리 팀 증가폭 g(p): p=승리 팀 기대승률. 항상 (0, MAX_DELTA) 사이 양수.
+function winnerGain(p: number): number {
+  return MAX_DELTA / (1 + Math.exp(STEEPNESS * (p - 0.5)));
+}
+
+// 승자는 +g(E_승), 패자는 −g(E_승)=−g(1−E_패) → 크기 동일·부호 반대로 제로섬 유지.
 export function calcDelta(actual: 0 | 1, expected: number): number {
-  const raw = K * (actual - expected) * DELTA_SCALE;
-  return Math.max(-K, Math.min(K, raw));
+  return actual === 1 ? winnerGain(expected) : -winnerGain(1 - expected);
 }
 
 // 순수 표준 Elo — 팀 평균 vs 팀 평균, 팀원 전원 동일 델타.
