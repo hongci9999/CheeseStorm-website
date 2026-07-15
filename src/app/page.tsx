@@ -12,6 +12,7 @@ import { CurationTierTab } from '@/components/curation-tier-tab';
 import { heroImageUrl } from '@/lib/hero-image';
 import type { Match, Streamer } from '@/lib/types';
 import type { EloDetail, EloMatchDetail } from '@/lib/elo';
+import { calcDelta } from '@/lib/elo';
 import { useBreakpoint, type Bp } from '@/hooks/use-breakpoint';
 
 // 상위 탭 종류
@@ -249,6 +250,61 @@ function EloNotice() {
   );
 }
 
+// ── Elo 등락 곡선 그래프 ───────────────────────────────────────
+// 실제 calcDelta를 그대로 샘플링해 그리므로 로직과 항상 일치.
+// X = 승리 팀 기대승률(0~100%), Y = 승자 증감폭(0~40). 감소 로지스틱.
+function EloDeltaChart() {
+  const W = 258, H = 150;
+  const L = 34, R = W - 10, T = 12, B = H - 26; // 플롯 영역
+  const MAX = 40;
+  const px = (p: number) => L + p * (R - L);
+  const py = (d: number) => B - (d / MAX) * (B - T);
+  // p=0.02~0.98 샘플로 곡선 path 생성
+  const curve = Array.from({ length: 49 }, (_, i) => {
+    const p = 0.02 + i * 0.02;
+    return `${px(p).toFixed(1)},${py(calcDelta(1, p)).toFixed(1)}`;
+  }).join(' ');
+  const marks = [
+    { p: 0.3, label: '+35' },
+    { p: 0.5, label: '+20' },
+    { p: 0.7, label: '+5' },
+  ];
+  const axis = 'var(--border-line)';
+  const faint = 'var(--text-faint)';
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Elo 등락 곡선"
+      style={{ width: '100%', height: 'auto', margin: '2px 0 10px', display: 'block' }}>
+      {/* Y 눈금 +40/+20/0 */}
+      {[0, 20, 40].map((d) => (
+        <g key={d}>
+          <line x1={L} y1={py(d)} x2={R} y2={py(d)} stroke={axis} strokeWidth={0.5} strokeDasharray="2 3" />
+          <text x={L - 4} y={py(d) + 3} textAnchor="end" fontSize={8} fill={faint}>{d ? `+${d}` : 0}</text>
+        </g>
+      ))}
+      {/* X 눈금 대등 50% */}
+      <line x1={px(0.5)} y1={T} x2={px(0.5)} y2={B} stroke={axis} strokeWidth={0.5} strokeDasharray="2 3" />
+      {[0, 0.5, 1].map((p) => (
+        <text key={p} x={px(p)} y={B + 11} textAnchor="middle" fontSize={8} fill={faint}>
+          {p * 100}%
+        </text>
+      ))}
+      <text x={(L + R) / 2} y={H - 2} textAnchor="middle" fontSize={8} fill={faint}>승리 팀 기대 승률</text>
+      {/* 곡선 */}
+      <polyline points={curve} fill="none" stroke="var(--accent, #6ea8fe)" strokeWidth={2} strokeLinecap="round" />
+      {/* 마커 */}
+      {marks.map((m) => (
+        <g key={m.p}>
+          <circle cx={px(m.p)} cy={py(calcDelta(1, m.p))} r={2.6} fill="var(--accent, #6ea8fe)" />
+          <text x={px(m.p) + (m.p > 0.6 ? -3 : 4)} y={py(calcDelta(1, m.p)) - 4}
+            textAnchor={m.p > 0.6 ? 'end' : 'start'} fontSize={8.5} fontWeight={700} fill="var(--text-high)">
+            {m.label}
+          </text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 // ── Elo 산정 기준 안내 버튼 ───────────────────────────────────
 function EloInfoButton() {
   return (
@@ -262,6 +318,16 @@ function EloInfoButton() {
         기대보다 잘하면 오르고 못하면 내려갑니다. 강한 팀을 이기면 많이 오르고, 약한 팀에
         지면 많이 떨어집니다. 같은 팀 5명은 <b style={{ color: 'var(--text-high)' }}>같은 점수</b>를
         주고받습니다.
+      </p>
+      <EloDeltaChart />
+      <p style={{
+        margin: '0 0 10px', fontFamily: 'var(--font-ui)', fontSize: 11, lineHeight: 1.55,
+        color: 'var(--text-faint)',
+      }}>
+        대등한 팀(기대 50%)을 이기면 <b style={{ color: 'var(--text-high)' }}>+20</b>,
+        약팀이 강팀을 잡는 이변일수록 커져 최대 <b style={{ color: 'var(--text-high)' }}>+40</b>에
+        가까워지고, 강팀이 예상대로 이기면 <b style={{ color: 'var(--text-high)' }}>0</b>에 가깝게
+        조금만 오릅니다.
       </p>
       <p style={{
         margin: 0, fontFamily: 'var(--font-ui)', fontSize: 11, lineHeight: 1.55,
