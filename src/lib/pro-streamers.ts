@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 
 // 전프로 스트리머 — 개인 프로필에 트로피 스티커 표시
-const PRO_NAMES = new Set(['교차', 'ttsst']);
+const PRO_NAMES = new Set(['교차', 'ttsst', 'Hide']);
 const PRO_CHZZK_IDS = new Set(['ttsst']);
 
 export function isProStreamer(streamer: { name: string; chzzkId?: string }): boolean {
