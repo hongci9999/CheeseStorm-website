@@ -34,7 +34,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     );
   }
 
-  if (pathname.startsWith('/matches/new')) {
+  if (pathname.startsWith('/matches/new') || pathname.startsWith('/scrims/new')) {
     if (!session || session.role === 'viewer') {
       const url = req.nextUrl.clone();
       url.pathname = '/';

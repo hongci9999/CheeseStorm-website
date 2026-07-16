@@ -46,6 +46,7 @@ const NAV_ITEMS = [
   { href: '/matches',  ko: '내전기록실',   en: 'Match Room'   },
   { href: '/streamers',ko: '스트리머',     en: 'Roster'       },
   { href: '/mock-draft', ko: '모의밴픽',   en: 'Mock Draft'   },
+  { href: '/scrims',   ko: '스크림',       en: 'Scrim'        },
   { href: '/guide',    ko: '사용방법',     en: 'How To Use'   },
 ] as const;
 

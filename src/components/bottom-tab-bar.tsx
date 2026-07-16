@@ -8,6 +8,7 @@ const TAB_ITEMS = [
   { href: '/',          label: '티어리스트', icon: '★' },
   { href: '/matches',   label: '내전기록실', icon: '⚔' },
   { href: '/streamers', label: '스트리머',   icon: '◈' },
+  { href: '/scrims',    label: '스크림',     icon: '⬡' },
   { href: '/guide',     label: '사용방법',   icon: '?' },
 ] as const;
 
