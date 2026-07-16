@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getStreamers, getMatches } from '@/lib/firestore';
+import { getStreamersCachedServer, getMatchCachedServer } from '@/lib/firestore.server';
 import { displaySides } from '@/lib/match';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
 
@@ -18,9 +18,10 @@ export default async function MatchDetailPage({
 }) {
   const { id } = await params;
 
-  const [streamers, matches] = await Promise.all([getStreamers(), getMatches()]);
-
-  const match = matches.find((m) => m.id === id);
+  const [streamers, match] = await Promise.all([
+    getStreamersCachedServer(),
+    getMatchCachedServer(id),
+  ]);
   if (!match) notFound();
 
   const { left, right } = displaySides(match);

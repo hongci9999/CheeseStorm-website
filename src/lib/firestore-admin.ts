@@ -2,6 +2,7 @@
 // 클라이언트 컴포넌트에서 직접 import 금지. API 라우트에서만 사용.
 
 import { waitUntil } from '@vercel/functions';
+import { revalidateTag } from 'next/cache';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getAdminDb } from './firebase-admin';
 import { getCuratedTierLists, packMatchForStore, type PrecomputedProfile } from './firestore';
@@ -105,6 +106,9 @@ async function refreshStats(): Promise<void> {
       updatedAt: FieldValue.serverTimestamp(),
     });
     await batch.commit();
+    // matches/streamers와 달리 stats/current는 이 백그라운드 집계가 실제 쓰기 시점이라
+    // 여기서 무효화해야 함 — API 라우트 쪽 revalidateTag('matches')는 이 문서를 안 건드림.
+    revalidateTag('stats', 'max');
   } catch (err) {
     console.error('[refreshStats] 집계 실패:', err);
   }

@@ -1,11 +1,9 @@
-import { deriveFineRole } from './heroes';
 import { TIER_ORDER } from './tier';
 import type {
   CuratedPlacements,
   CuratedTier,
   CuratedTierLists,
   FineRole,
-  Match,
   Streamer,
   Tier,
 } from './types';
@@ -77,10 +75,12 @@ export function sanitizePlacements(
   return clean;
 }
 
+// fineRoleOf — 스트리머ID별 세분 역할군. 사전집계된 stats/current.playerStats에서 파생(1 read)해
+// 전달 — 경기 전체(matches)를 방문자 세션마다 다시 읽는 것을 피하기 위함 (ADR 참고: Firestore 읽기 절감).
 export function buildCuratedPlayers(
   streamers: Streamer[],
   lists: CuratedTierLists,
-  matches: Match[],
+  fineRoleOf: Map<string, FineRole | undefined>,
 ): CuratedPlayer[] {
   const clean = sanitizeLists(lists, streamers.map((s) => s.id));
   const byId = new Map(streamers.map((s) => [s.id, s]));
@@ -97,7 +97,7 @@ export function buildCuratedPlayers(
         streamerName: s.name,
         profileImageUrl: s.profileImageUrl,
         tier,
-        fineRole: deriveFineRole(matches, id),
+        fineRole: fineRoleOf.get(id),
       });
     }
   }
@@ -110,7 +110,7 @@ export function buildCuratedPlayers(
       streamerName: s.name,
       profileImageUrl: s.profileImageUrl,
       tier: 'unranked' as Tier,
-      fineRole: deriveFineRole(matches, s.id),
+      fineRole: fineRoleOf.get(s.id),
     }));
 
   return [...result, ...unranked];

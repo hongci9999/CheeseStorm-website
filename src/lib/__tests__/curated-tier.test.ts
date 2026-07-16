@@ -7,7 +7,9 @@ import {
   sanitizeLists,
 } from '../curated-tier';
 import { MOCK_STREAMERS } from '../../test/fixtures/streamers';
-import { MOCK_MATCHES } from '../../test/fixtures/matches';
+
+// buildCuratedPlayers는 매치 전체가 아니라 사전집계된 fineRole 맵을 받는다 (Firestore 읽기 절감).
+const emptyFineRoleOf = new Map();
 
 describe('listsFromPlacements', () => {
   it('placements를 티어별 순서 목록으로 변환한다', () => {
@@ -20,7 +22,7 @@ describe('listsFromPlacements', () => {
 describe('buildCuratedPlayers', () => {
   it('배치된 스트리머는 해당 티어, 나머지는 unranked', () => {
     const lists = listsFromPlacements({ s1: 'S', s2: 'B' }, MOCK_STREAMERS.slice(0, 3));
-    const list = buildCuratedPlayers(MOCK_STREAMERS.slice(0, 3), lists, MOCK_MATCHES);
+    const list = buildCuratedPlayers(MOCK_STREAMERS.slice(0, 3), lists, emptyFineRoleOf);
     expect(list.find((p) => p.streamerId === 's1')?.tier).toBe('S');
     expect(list.find((p) => p.streamerId === 's2')?.tier).toBe('B');
     expect(list.find((p) => p.streamerId === 's3')?.tier).toBe('unranked');
@@ -28,9 +30,16 @@ describe('buildCuratedPlayers', () => {
 
   it('티어 내 순서를 lists 순서대로 유지한다', () => {
     const lists = { S: ['s2', 's1'], A: [], B: [], C: [], D: [] };
-    const list = buildCuratedPlayers(MOCK_STREAMERS.slice(0, 2), lists, MOCK_MATCHES);
+    const list = buildCuratedPlayers(MOCK_STREAMERS.slice(0, 2), lists, emptyFineRoleOf);
     const sTier = list.filter((p) => p.tier === 'S');
     expect(sTier.map((p) => p.streamerId)).toEqual(['s2', 's1']);
+  });
+
+  it('fineRoleOf 맵의 역할군을 반영한다', () => {
+    const lists = listsFromPlacements({ s1: 'S' }, MOCK_STREAMERS.slice(0, 1));
+    const fineRoleOf = new Map([['s1', '지원가' as const]]);
+    const list = buildCuratedPlayers(MOCK_STREAMERS.slice(0, 1), lists, fineRoleOf);
+    expect(list.find((p) => p.streamerId === 's1')?.fineRole).toBe('지원가');
   });
 });
 

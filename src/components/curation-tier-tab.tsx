@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { getCuratedTierLists, getCuratedTierLastEditByAdmin, getStreamers, getMatches } from '@/lib/firestore';
+import { getCuratedTierLists, getCuratedTierLastEditByAdmin, getStreamers } from '@/lib/firestore';
 import { saveCuratedTierLists } from '@/lib/api-client';
 import {
   buildCuratedPlayers,
@@ -15,7 +15,7 @@ import {
   type CuratedPlayer,
 } from '@/lib/curated-tier';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
-import type { CuratedTierLists, FineRole, Match, Streamer, Tier } from '@/lib/types';
+import type { CuratedTierLists, FineRole, PlayerStats, Streamer, Tier } from '@/lib/types';
 
 const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
 const DRAG_TYPE = 'text/streamer-id';
@@ -424,17 +424,22 @@ function PlaceholderNoticeOverlay({ onClose }: { onClose: () => void }) {
 // ── 스트리머 티어표 탭 ─────────────────────────────────────────
 export function CurationTierTab({
   streamers: streamersProp,
-  matches: matchesProp,
+  playerStats,
 }: {
   streamers: Streamer[];
-  matches: Match[];
+  // 세분 역할군(fineRole) 조회용 — 사전집계된 stats/current 문서에서 옴(1 read).
+  // 경기 전체를 여기서 다시 읽지 않기 위해 matches 대신 이 요약을 받는다.
+  playerStats: PlayerStats[];
 }) {
   const { isStreamer, isAdmin, session } = useAuth();
   // 제작자(admin) 또는 개발 세션이면 수정해도 재조정 안내 유지
   const keepsNotice = isAdmin || session?.dev === true;
   const isMobile = useBreakpoint() === 'mobile';
   const [roster, setRoster] = useState<Streamer[]>(streamersProp);
-  const [matchList, setMatchList] = useState<Match[]>(matchesProp);
+  const fineRoleOf = useMemo(
+    () => new Map(playerStats.map((p) => [p.streamerId, p.fineRole])),
+    [playerStats],
+  );
   const [lists, setLists] = useState<CuratedTierLists>(emptyTierLists());
   const [role, setRole] = useState('전체');
   const [editMode, setEditMode] = useState(false);
@@ -454,15 +459,13 @@ export function CurationTierTab({
     let cancelled = false;
     (async () => {
       try {
-        const [s, m, raw, lastEditByAdmin] = await Promise.all([
+        const [s, raw, lastEditByAdmin] = await Promise.all([
           getStreamers(),
-          getMatches(),
           getCuratedTierLists(),
           getCuratedTierLastEditByAdmin(),
         ]);
         if (cancelled) return;
         setRoster(s);
-        setMatchList(m);
         setLists(sanitizeLists(raw, s.map((x) => x.id)));
         setTierLastEditByAdmin(lastEditByAdmin);
       } catch {
@@ -478,9 +481,6 @@ export function CurationTierTab({
   useEffect(() => {
     if (streamersProp.length > 0) setRoster(streamersProp);
   }, [streamersProp]);
-  useEffect(() => {
-    if (matchesProp.length > 0) setMatchList(matchesProp);
-  }, [matchesProp]);
 
   // 편집 모드 진입 시 최신 스트리머 목록 갱신
   useEffect(() => {
@@ -541,8 +541,8 @@ export function CurationTierTab({
   }, [draggingId, lists]);
 
   const players = useMemo(
-    () => buildCuratedPlayers(roster, lists, matchList),
-    [roster, lists, matchList],
+    () => buildCuratedPlayers(roster, lists, fineRoleOf),
+    [roster, lists, fineRoleOf],
   );
 
   const filtered = useMemo(

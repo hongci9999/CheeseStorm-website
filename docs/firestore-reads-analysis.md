@@ -56,6 +56,32 @@
 
 ---
 
+### 큐레이션 탭 (`/` 기본 탭) — ADR-0021
+
+| 상황 | 최적화 전 | 최적화 후 | 절감 |
+|------|-----------|-----------|------|
+| 방문 1회 | S + M + 2 | **S + 2** (매치 읽기 제거) | M만큼 (M=150 기준 ~98%) |
+| 1,000명 방문 (S=30, M=150) | ~183,000 reads | **~32,000 reads** | 82.5% |
+
+- **방식**: 매치 전체를 다시 읽어 `deriveFineRole` 즉석 계산하던 것을, 이미 로드된
+  `stats/current.playerStats[].fineRole`(사전집계 값)에서 Map으로 뽑아 재사용
+- **적용**: ADR-0021 (이번 세션 구현)
+- **잔여**: `getStreamers()` + `curatedTiers/current` 문서(2회 중복 읽기)는 아직 방문자 세션마다 발생 — ADR-0021 잔여 과제 1·2번 참고
+
+### 경기 상세 (`/matches/[id]`), 프로필 (`/streamers/[id]`) — ADR-0021
+
+| 상황 | 최적화 전 | 최적화 후 |
+|------|-----------|-----------|
+| `/matches/[id]` 방문 (캐시 히트) | S + M | **0 reads** |
+| `/streamers/[id]` 방문 (캐시 히트) | 2 reads | **0 reads** |
+
+- 두 페이지 모두 서버 컴포넌트인데 서버 캐시(`unstable_cache`)가 안 걸려 있어 방문마다
+  그대로 Firestore를 쳤던 걸 발견해 캐시 적용. `/matches/[id]`는 목록 페이지(ADR-0013)와
+  같은 캐시 엔트리를 공유, 프로필 페이지는 `stats/current` 갱신 시점(`refreshStats()`)에
+  `revalidateTag('stats')`를 새로 걸어 무효화 경로를 만듦.
+
+---
+
 ## 이벤트 비용 (뮤테이션당 추가 reads)
 
 | 이벤트 | reads 비용 | 원인 |
@@ -110,6 +136,18 @@
 
 ---
 
+## 다음에 손볼 것 — 우선순위순 (ADR-0021 잔여 과제 요약)
+
+1. **홈 페이지(`/`) 전체 서버 컴포넌트 전환** — 지금 `/`는 `'use client'`라 큐레이션 탭이
+   마운트 후 브라우저에서 `getStreamers()` 등을 직접 호출. `/matches`·`/streamers/[id]`와
+   같은 패턴(서버에서 캐시된 fetch → props로 클라이언트 아일랜드에 전달)으로 바꾸면
+   방문자당 읽기가 S+2 → **0**으로 감. 상호작용(드래그앤드롭·탭 전환)은 그대로 유지 가능.
+   현재도 방문 수백~천 단위까진 안전해 급하지 않음 — 급해지면 ADR-0021 "잔여 과제 1번" 참고.
+2. **큐레이션 탭 내부 중복 read 정리** — `getCuratedTierLists()`와 `getCuratedTierLastEditByAdmin()`가
+   같은 `curatedTiers/current` 문서를 두 번 읽음. 하나로 합치면 방문자당 1 read 추가 절감.
+3. **Blaze 전환 안전망** — 예산 알람($5)만 걸고 종량제로 전환해두면 위 최적화와 무관하게
+   어떤 경로로 폭주해도 서비스가 죽지 않고 소액 과금만 발생. 언제든 즉시 적용 가능한 카드로 남겨둠.
+
 ## 관련 ADR
 
 | ADR | 내용 |
@@ -117,3 +155,5 @@
 | [ADR-0006](adr/0006-traffic-spike-readiness.md) | 홈 페이지 stats/current 패턴 |
 | [ADR-0012](adr/0012-profile-page-read-optimization.md) | 프로필 페이지 stats/current 확장 |
 | [ADR-0013](adr/0013-matches-page-server-component.md) | 경기기록 페이지 서버 컴포넌트 전환 |
+| [ADR-0016](adr/0016-curation-tab-cache-and-drag-fixes.md) | 큐레이션 탭 캐시 버그·드래그 UX 수정 |
+| [ADR-0021](adr/0021-curation-tab-detail-pages-read-fixes.md) | 큐레이션 탭 matches 읽기 제거 + 상세 페이지 서버 캐시 |

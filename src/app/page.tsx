@@ -10,7 +10,7 @@ import type { PlayerStats, FineRole, Tier } from '@/lib/types';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
 import { CurationTierTab } from '@/components/curation-tier-tab';
 import { heroImageUrl } from '@/lib/hero-image';
-import type { Match, Streamer } from '@/lib/types';
+import type { Streamer } from '@/lib/types';
 import type { EloDetail, EloMatchDetail } from '@/lib/elo';
 import { calcDelta } from '@/lib/elo';
 import { useBreakpoint, type Bp } from '@/hooks/use-breakpoint';
@@ -807,7 +807,6 @@ export default function HomePage() {
   const [stats, setStats] = useState<PlayerStats[]>(initial?.stats ?? []);
   const [heroTiers, setHeroTiers] = useState<HeroTierStat[]>(initial?.heroTiers ?? []);
   const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
-  const [matches, setMatches] = useState<Match[]>(cachedMatches ?? []);
   const [loading, setLoading] = useState(initial === null);
   const [mainTab, setMainTab] = useState<MainTab>('curation');
   const bp = useBreakpoint();
@@ -830,7 +829,6 @@ export default function HomePage() {
       ]);
       const next = computeHome(streamers, matches);
       setStreamers(streamers);
-      setMatches(matches);
       setStats(next.stats);
       setHeroTiers(next.heroTiers);
       setLoading(false);
@@ -859,7 +857,7 @@ export default function HomePage() {
       {/* 탭 패널 */}
       {mainTab === 'elo' && <EloTab stats={stats} bp={bp} />}
       {mainTab === 'curation' && (
-        <CurationTierTab streamers={streamers} matches={matches} />
+        <CurationTierTab streamers={streamers} playerStats={stats} />
       )}
       {mainTab === 'hero' && <HeroTierTab heroTiers={heroTiers} bp={bp} />}
 
