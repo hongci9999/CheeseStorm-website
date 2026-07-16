@@ -19,15 +19,15 @@ describe('buildSequence', () => {
     );
   });
 
-  it('team 순서가 규격과 일치 (선픽=blue, F=blue S=red)', () => {
+  it('team 순서가 규격과 일치 (선픽=blue, F=blue S=red) — 미드밴은 후픽 팀 먼저', () => {
     expect(teams(buildSequence('blue'))).toBe(
-      'blue,red,blue,red,blue,red,red,blue,blue,blue,red,red,red,blue,blue,red',
+      'blue,red,blue,red,blue,red,red,blue,blue,red,blue,red,red,blue,blue,red',
     );
   });
 
   it('선픽=red면 F/S가 뒤바뀐다', () => {
     expect(teams(buildSequence('red'))).toBe(
-      'red,blue,red,blue,red,blue,blue,red,red,red,blue,blue,blue,red,red,blue',
+      'red,blue,red,blue,red,blue,blue,red,red,blue,red,blue,blue,red,red,blue',
     );
   });
 

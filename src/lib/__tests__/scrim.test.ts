@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { scrimTimeline, validateScrimPayload, PHASE_STARTS } from '../scrim';
 
-// 선픽=blue 고정 시퀀스 기준 슬롯 위치:
-// blue 밴 = 0,2,9 / red 밴 = 1,3,10 / blue 픽 = 4,7,8,13,14 / red 픽 = 5,6,11,12,15
+// 선픽=blue 고정 시퀀스 기준 슬롯 위치 (미드밴은 후픽 팀 먼저):
+// blue 밴 = 0,2,10 / red 밴 = 1,3,9 / blue 픽 = 4,7,8,13,14 / red 픽 = 5,6,11,12,15
 const bans = { blue: ['b밴1', 'b밴2', 'b밴3'], red: ['r밴1', 'r밴2', 'r밴3'] };
 const picks = {
   blue: ['b픽1', 'b픽2', 'b픽3', 'b픽4', 'b픽5'],
@@ -19,9 +19,9 @@ describe('scrimTimeline', () => {
     // 밴1 페이즈: 선픽(blue)부터 교대로
     expect(tl[0]).toEqual({ kind: 'ban', team: 'blue', hero: 'b밴1' });
     expect(tl[1]).toEqual({ kind: 'ban', team: 'red', hero: 'r밴1' });
-    // 미드밴은 각 팀 세 번째 밴
-    expect(tl[9]).toEqual({ kind: 'ban', team: 'blue', hero: 'b밴3' });
-    expect(tl[10]).toEqual({ kind: 'ban', team: 'red', hero: 'r밴3' });
+    // 미드밴은 각 팀 세 번째 밴 — 후픽(red)이 먼저
+    expect(tl[9]).toEqual({ kind: 'ban', team: 'red', hero: 'r밴3' });
+    expect(tl[10]).toEqual({ kind: 'ban', team: 'blue', hero: 'b밴3' });
     // 픽 순서 소비 확인 (red 연속 픽 5,6 / 마지막 픽 15)
     expect(tl[5]).toEqual({ kind: 'pick', team: 'red', hero: 'r픽1' });
     expect(tl[6]).toEqual({ kind: 'pick', team: 'red', hero: 'r픽2' });
