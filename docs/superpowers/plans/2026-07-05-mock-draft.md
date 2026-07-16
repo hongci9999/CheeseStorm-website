@@ -377,14 +377,15 @@ Expected: FAIL — `Cannot find module '../sequence'`.
 import type { Team, Step } from './types';
 
 // F(선픽 팀)/S(후픽 팀) 기준 16스텝 템플릿.
-// 밴1: F S F S / 픽1: F S S F F / 밴2: F S / 픽2: S S F F S
+// 밴1: F S F S / 픽1: F S S F F / 밴2: S F / 픽2: S S F F S
+// 미드밴(밴2)은 후픽 팀 먼저 — 초기 계획은 F S로 잘못 기재, 2026-07-17 정정.
 const TEMPLATE: Array<{ kind: 'ban' | 'pick'; ref: 'F' | 'S' }> = [
   { kind: 'ban', ref: 'F' }, { kind: 'ban', ref: 'S' },
   { kind: 'ban', ref: 'F' }, { kind: 'ban', ref: 'S' },
   { kind: 'pick', ref: 'F' },
   { kind: 'pick', ref: 'S' }, { kind: 'pick', ref: 'S' },
   { kind: 'pick', ref: 'F' }, { kind: 'pick', ref: 'F' },
-  { kind: 'ban', ref: 'F' }, { kind: 'ban', ref: 'S' },
+  { kind: 'ban', ref: 'S' }, { kind: 'ban', ref: 'F' },
   { kind: 'pick', ref: 'S' }, { kind: 'pick', ref: 'S' },
   { kind: 'pick', ref: 'F' }, { kind: 'pick', ref: 'F' },
   { kind: 'pick', ref: 'S' },

@@ -34,7 +34,9 @@
 ## HotS 드래프트 순서 (재사용)
 
 `src/lib/draft/sequence.ts`의 `buildSequence(firstPick: Team): Step[]`를 그대로
-재사용한다 — 밴1(F,S,F,S) → 픽1(F,S,S,F,F) → 밴2(F,S) → 픽2(S,S,F,F,S), 총 16스텝.
+재사용한다 — 밴1(F,S,F,S) → 픽1(F,S,S,F,F) → 밴2(S,F) → 픽2(S,S,F,F,S), 총 16스텝.
+밴2(미드밴)는 후픽 팀 먼저 — 초기 문서·구현은 F,S로 잘못 기재돼 있었고 2026-07-17 정정
+(구 순서로 저장된 스크림 6건은 scripts/migrate-scrim-midban-swap.mjs로 데이터 정정 완료).
 이 파일은 순수 함수이고 세트/피어리스 상태에 의존하지 않아 게임 단위 기록에도
 그대로 맞는다.
 

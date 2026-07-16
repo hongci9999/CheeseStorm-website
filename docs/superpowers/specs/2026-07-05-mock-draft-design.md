@@ -31,12 +31,14 @@
 | --- | --- | --- |
 | 밴 1 | F, S, F, S | 팀당 밴 2 |
 | 픽 1 | F×1, S×2, F×2 | 팀당 픽 F:3 / S:2 |
-| 밴 2 | F, S | 팀당 밴 3 |
+| 밴 2 | S, F | 팀당 밴 3 |
 | 픽 2 | S×2, F×2, S×1 | 팀당 픽 5 |
 
 - 총 16스텝: 밴 6(팀당 3) + 픽 10(팀당 5).
+- 밴 2(미드밴)는 다음 픽 차례인 후픽 팀이 먼저 밴한다 — 실제 HotS 드래프트 순서.
+  (초기 문서는 F, S로 잘못 기재 — 2026-07-17 스크림 기록 대조로 발견·정정)
 - 스텝을 team+kind 시퀀스로 펼치면 (F=선픽 팀 기준):
-  `ban:F, ban:S, ban:F, ban:S, pick:F, pick:S, pick:S, pick:F, pick:F, ban:F, ban:S, pick:S, pick:S, pick:F, pick:F, pick:S`
+  `ban:F, ban:S, ban:F, ban:S, pick:F, pick:S, pick:S, pick:F, pick:F, ban:S, ban:F, pick:S, pick:S, pick:F, pick:F, pick:S`
 
 ## 드래프트 종류 & 피어리스
 
