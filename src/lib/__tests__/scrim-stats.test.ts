@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   heroScrimStats, mapScrimStats, firstPickSummary,
   synergyPairs, counterPairs, roleCompStats, distinctPatches,
+  firstPickHeroStats, openBanHeroStats,
 } from '../scrim-stats';
 import type { Scrim } from '../scrim';
 
@@ -94,6 +95,32 @@ describe('역할군 조합', () => {
     // blue 픽 = 탱1(무라딘)·투1(소냐)·암2(발라·제이나)·힐1(우서)
     const blueComp = comps.find((c) => c.comp === '탱커1·투사1·암살자2·지원가1')!;
     expect(blueComp.games).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('firstPickHeroStats', () => {
+  it('선픽팀 첫 픽 횟수·승률', () => {
+    const [top] = firstPickHeroStats(all);
+    expect(top).toMatchObject({ hero: '무라딘', picks: 3, wins: 2 });
+    expect(top.winRate).toBeCloseTo(2 / 3);
+  });
+});
+
+describe('openBanHeroStats', () => {
+  it('오프닝 밴 4개만 집계 — 순번·주체 팀', () => {
+    const stats = openBanHeroStats(all);
+    const of = (h: string) => stats.find((s) => s.hero === h)!;
+    // 겐지 = blue 1밴 → 전역 1, 선픽팀 컷
+    expect(of('겐지')).toMatchObject({ bans: 3, byFirstPick: 3, avgBanOrder: 1 });
+    // 데커드 = red 2밴 → 전역 4, 후픽팀 컷
+    expect(of('데커드')).toMatchObject({ bans: 3, byFirstPick: 0, avgBanOrder: 4 });
+    // 미드밴(초갈밴·아눕아락)은 미포함
+    expect(stats.map((s) => s.hero).sort()).toEqual(['겐지', '데커드', '말퓨리온', '트레이서']);
+  });
+
+  it('정렬 — 횟수 desc, 동률이면 순번 asc', () => {
+    const stats = openBanHeroStats(all);
+    expect(stats[0].hero).toBe('겐지'); // 전부 3회 → 평균 순번 1이 최상단
   });
 });
 

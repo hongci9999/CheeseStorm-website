@@ -35,6 +35,21 @@ export default function ScrimsClient({ scrims, isStreamer }: {
     }
   }
 
+  // 스크림 대시보드는 넓은 표 위주 — 모바일은 PC 안내만 노출
+  if (bp === 'mobile') {
+    return (
+      <main style={{ padding: 'var(--sp-5)', display: 'grid', gap: 'var(--sp-3)',
+        placeContent: 'center', minHeight: '50vh', textAlign: 'center' }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
+          fontSize: 'var(--fs-xl)', color: 'var(--text-high)' }}>스크림</h1>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-sm)',
+          color: 'var(--text-faint)', lineHeight: 1.6 }}>
+          스크림 통계는 넓은 표가 많아 PC 화면에서만 제공됩니다.
+        </p>
+      </main>
+    );
+  }
+
   return (
     // 대시보드 탭은 좌우 제한 없음 — 밴픽 탭 내용만 좁게 중앙 정렬
     <main style={{ padding: 'var(--sp-5)', display: 'grid', gap: 'var(--sp-4)', alignContent: 'start' }}>
@@ -43,25 +58,6 @@ export default function ScrimsClient({ scrims, isStreamer }: {
           fontSize: 'var(--fs-xl)', color: 'var(--text-high)', letterSpacing: 'var(--ls-tight)' }}>
           스크림
         </h1>
-
-        {/* 탭 */}
-        <div style={{ display: 'flex', gap: 4 }}>
-          {TABS.map(({ key, label }) => {
-            const active = tab === key;
-            return (
-              <button key={key} onClick={() => setTab(key)}
-                style={{ height: 'var(--control-sm)', padding: '0 var(--sp-4)',
-                  borderRadius: 'var(--r-pill)',
-                  border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
-                  background: active ? 'color-mix(in srgb, var(--cheese-green) 14%, transparent)' : 'transparent',
-                  color: active ? 'var(--text-high)' : 'var(--text-muted)',
-                  fontFamily: 'var(--font-ui)', fontWeight: active ? 700 : 500,
-                  fontSize: 'var(--fs-sm)', cursor: 'pointer' }}>
-                {label}
-              </button>
-            );
-          })}
-        </div>
 
         {isStreamer && (
           <Link href="/scrims/new" style={{
@@ -73,6 +69,53 @@ export default function ScrimsClient({ scrims, isStreamer }: {
             ＋ 경기 기록
           </Link>
         )}
+      </div>
+
+      {/* 안내문 — 메인 페이지 EloNotice와 동일 스타일(초록), 탭 위 */}
+      <div style={{
+        borderRadius: 'var(--r-md)',
+        border: '1px solid color-mix(in srgb, var(--cheese-green) 55%, var(--border-line))',
+        background: 'color-mix(in srgb, var(--cheese-green) 14%, var(--surface-card))',
+        padding: 'var(--sp-3) var(--sp-4)',
+      }}>
+        <p style={{
+          margin: 0, fontSize: 13, fontFamily: 'var(--font-ui)',
+          color: 'var(--cheese-green)', fontWeight: 600, lineHeight: 1.55,
+        }}>
+          히오스 전프로 KyoCha님의 방송에서 진행한 스크림 내역을 바탕으로 만들어진 통계입니다.
+        </p>
+      </div>
+
+      {/* 탭 — 메인 페이지 상위 탭 바와 동일한 하단 강조선 스타일 */}
+      <div style={{
+        display: 'flex', gap: 0,
+        borderBottom: '2px solid var(--border-line)',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch',
+      }}>
+        {TABS.map(({ key, label }) => {
+          const active = tab === key;
+          return (
+            <button key={key} onClick={() => setTab(key)}
+              style={{
+                position: 'relative',
+                height: 44, padding: '0 20px',
+                flexShrink: 0, whiteSpace: 'nowrap',
+                background: 'transparent',
+                border: 'none',
+                fontFamily: 'var(--font-ui)', fontWeight: active ? 700 : 500,
+                fontSize: 14,
+                color: active ? 'var(--text-strong)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                transition: 'color var(--dur-fast) var(--ease-out)',
+                // 선택 탭 하단 강조선 — overflowX:auto 컨테이너라 inset 그림자 사용 (page.tsx와 동일)
+                boxShadow: active ? 'inset 0 -2px 0 var(--cheese-green)' : 'none',
+              }}>
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {tab === 'dashboard' ? (

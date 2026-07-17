@@ -195,6 +195,59 @@ export function roleCompStats(scrims: Scrim[]): RoleCompStat[] {
     .sort((x, y) => y.games - x.games || y.winRate - x.winRate);
 }
 
+// ── 1픽(퍼스트픽) 영웅 ───────────────────────────────────────
+
+export interface FirstPickHeroStat { hero: string; picks: number; wins: number; winRate: number; }
+
+// 전역 1픽 = 선픽팀(blue)의 팀 로컬 첫 픽. 밴 4장을 넘긴 영웅의 가치 신호.
+export function firstPickHeroStats(scrims: Scrim[]): FirstPickHeroStat[] {
+  const acc = new Map<string, { picks: number; wins: number }>();
+  for (const s of scrims) {
+    const hero = s.picks.blue[0];
+    if (!hero) continue;
+    const a = acc.get(hero) ?? { picks: 0, wins: 0 };
+    a.picks++;
+    if (s.winner === 'blue') a.wins++;
+    acc.set(hero, a);
+  }
+  return [...acc.entries()]
+    .map(([hero, a]) => ({ hero, ...a, winRate: a.wins / a.picks }))
+    .sort((x, y) => y.picks - x.picks || y.winRate - x.winRate || x.hero.localeCompare(y.hero, 'ko'));
+}
+
+// ── 오프닝 밴(전역 1~4) 영웅 ─────────────────────────────────
+
+export interface OpenBanHeroStat {
+  hero: string;
+  bans: number;        // 오프닝 밴 횟수
+  byFirstPick: number; // 그중 선픽팀이 자른 횟수
+  avgBanOrder: number; // 전역 밴 순번(1~4) 평균 — 낮을수록 최우선 컷
+}
+
+// 오프닝 밴 전역 순서: 1=선픽팀 1밴, 2=후픽팀 1밴, 3=선픽팀 2밴, 4=후픽팀 2밴
+export function openBanHeroStats(scrims: Scrim[]): OpenBanHeroStat[] {
+  const acc = new Map<string, { bans: number; byFirstPick: number; orderSum: number }>();
+  for (const s of scrims) {
+    const seq = [
+      { hero: s.bans.blue[0], first: true },
+      { hero: s.bans.red[0], first: false },
+      { hero: s.bans.blue[1], first: true },
+      { hero: s.bans.red[1], first: false },
+    ];
+    seq.forEach(({ hero, first }, i) => {
+      if (!hero) return;
+      const a = acc.get(hero) ?? { bans: 0, byFirstPick: 0, orderSum: 0 };
+      a.bans++;
+      if (first) a.byFirstPick++;
+      a.orderSum += i + 1;
+      acc.set(hero, a);
+    });
+  }
+  return [...acc.entries()]
+    .map(([hero, a]) => ({ hero, bans: a.bans, byFirstPick: a.byFirstPick, avgBanOrder: a.orderSum / a.bans }))
+    .sort((x, y) => y.bans - x.bans || x.avgBanOrder - y.avgBanOrder || x.hero.localeCompare(y.hero, 'ko'));
+}
+
 // ── 패치 필터 ────────────────────────────────────────────────
 
 // 기록에 존재하는 패치 목록 — 최신(내림차순) 우선, 미기입은 제외.
