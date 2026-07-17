@@ -16,7 +16,7 @@ import {
 } from '@/lib/ocr-corrections';
 import { isKnownHero, KNOWN_HEROES } from '@/lib/heroes';
 import { findDuplicateMatch } from '@/lib/dedupe';
-import { HOTS_MAPS } from '@/lib/draft/maps';
+import { HOTS_MAPS, resolveMapName } from '@/lib/draft/maps';
 import type { Streamer, PlayerMatchStat, Match } from '@/lib/types';
 import type { ParsedMatch } from '@/app/api/parse-screenshot/route';
 
@@ -351,7 +351,7 @@ function NewMatchPageInner() {
     getMatch(editId).then(m => {
       if (!m) return;
       setDate(m.date.toISOString().split('T')[0]);
-      setMap(m.map ?? '');
+      setMap(resolveMapName(m.map ?? '')); // 과거 오기(전장터 등) 저장분도 셀렉트에 매칭
       setDur(m.dur ?? '');
       setWinner(m.winner);
       setLeftTeam(m.leftTeam ?? '');
@@ -385,7 +385,7 @@ function NewMatchPageInner() {
       if (!res.ok) { setParseError((await res.json()).error ?? '파싱 실패'); return; }
       const parsed: ParsedMatch = await res.json();
 
-      if (parsed.map)    setMap(parsed.map);
+      if (parsed.map)    setMap(resolveMapName(parsed.map));
       if (parsed.dur) {
         const d = parseMatchDur(parsed.dur);
         setDur(d.valid ? (d.value ?? '') : parsed.dur);

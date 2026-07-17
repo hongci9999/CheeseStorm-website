@@ -1,5 +1,6 @@
 import type { Match } from './types';
 import { outcomeFor } from './match';
+import { resolveMapName } from './draft/maps';
 
 // 맵별 승률 집계 최소 경기 수 (티어 MIN_SAMPLE과 별개)
 const MIN_MAP_SAMPLE = 3;
@@ -23,7 +24,7 @@ export function mapWinRates(streamerId: string, matches: Match[]): MapWinRate[] 
   const byMap = new Map<string, { wins: number; losses: number }>();
 
   for (const m of matches) {
-    const mapName = m.map?.trim();
+    const mapName = resolveMapName(m.map ?? ''); // 과거 오기(전장터 등)를 정식명으로 합산
     if (!mapName) continue; // 맵 미기록 제외
 
     const outcome = outcomeFor(m, streamerId);
