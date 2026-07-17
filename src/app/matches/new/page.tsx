@@ -328,7 +328,8 @@ function NewMatchPageInner() {
   // 팀별 최종 레벨 (선택) — HotS 공유 레벨
   const [blueLevel, setBlueLevel] = useState('');
   const [redLevel,  setRedLevel]  = useState('');
-  const [date,     setDate]     = useState(new Date().toISOString().split('T')[0]);
+  // 로컬(KST) 기준 오늘 날짜 — toISOString은 UTC라 자정~오전9시 하루 밀림
+  const [date,     setDate]     = useState(new Date().toLocaleDateString('en-CA'));
   const [note,     setNote]     = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [parsing,    setParsing]    = useState(false);
