@@ -25,6 +25,7 @@ import type { Match, OcrCorrections, CuratedTierLists, Streamer } from './types'
 import { emptyTierLists, listsFromPlacements, sanitizeLists, CURATED_TIER_ORDER } from './curated-tier';
 import { EMPTY_OCR_CORRECTIONS } from './ocr-corrections';
 import { normalizeMatchDur } from './match';
+import type { Scrim } from './scrim';
 import { fineRoleAffinity } from './heroes';
 import { aggregateHeroStats } from './hero-stats';
 import type { HeroAggregate } from './hero-stats';
@@ -449,6 +450,25 @@ export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdA
   await updateDoc(doc(db, 'matches', id), payload);
   matchesCache = null;
   void refreshStats();
+}
+
+// --- Scrims (프로 스크림 밴픽 기록) ---
+
+export async function getScrims(): Promise<Scrim[]> {
+  const q = query(collection(db, 'scrims'), orderBy('date', 'desc'));
+  const snapshot = await getDocs(q);
+  const list = snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      ...data,
+      id: d.id,
+      date: (data.date as Timestamp).toDate(),
+      createdAt: (data.createdAt as Timestamp).toDate(),
+    } as Scrim;
+  });
+  // 복합 인덱스 없이 최신 항목이 맨 위 — 날짜 내림차순, 같은 날짜는 입력 역순(createdAt 내림차순)
+  list.sort((a, b) => b.date.getTime() - a.date.getTime() || b.createdAt.getTime() - a.createdAt.getTime());
+  return list;
 }
 
 // React 서버 렌더링 내 중복 Firestore 호출 제거 (Suspense 스트리밍 시 사이드바·탭이 동시에 호출해도 1회만 실행)

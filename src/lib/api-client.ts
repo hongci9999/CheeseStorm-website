@@ -2,6 +2,7 @@
 // firestore.ts의 동일 함수를 대체 — 직접 Firestore 접근 없이 JWT 인증을 거침.
 
 import type { Match, Streamer, CuratedTierLists } from './types';
+import type { Scrim } from './scrim';
 import {
   invalidateStreamersCache,
   invalidateMatchesCache,
@@ -72,6 +73,19 @@ export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdA
 export async function updateMatchDate(id: string, date: Date): Promise<void> {
   await apiFetch(`/api/matches/${id}`, 'PATCH', { action: 'date', date: date.toISOString() });
   invalidateMatchesCache();
+}
+
+// ── Scrims (프로 스크림 밴픽 기록) ───────────────────────────
+export async function addScrim(data: Omit<Scrim, 'id' | 'createdAt'>): Promise<string> {
+  const res = await apiFetch('/api/scrims', 'POST', {
+    ...data,
+    date: data.date.toISOString(),
+  }) as { id: string };
+  return res.id;
+}
+
+export async function deleteScrim(id: string): Promise<void> {
+  await apiFetch(`/api/scrims/${id}`, 'DELETE');
 }
 
 // ── Curated tiers ────────────────────────────────────────────

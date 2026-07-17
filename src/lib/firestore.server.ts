@@ -2,10 +2,11 @@
 // 클라이언트 컴포넌트에서 이 파일을 import하면 빌드 에러 발생 (의도된 동작).
 import 'server-only';
 import { unstable_cache } from 'next/cache';
-import { getMatches, getStreamers, getPrecomputedStats, getPrecomputedProfile } from './firestore';
+import { getMatches, getStreamers, getScrims, getPrecomputedStats, getPrecomputedProfile } from './firestore';
 import type { PrecomputedProfile } from './firestore';
 import type { Match, Streamer, PlayerStats } from './types';
 import type { HeroTierStat } from './hero-tier';
+import type { Scrim } from './scrim';
 
 // ── Matches ───────────────────────────────────────────────────
 // unstable_cache는 JSON 직렬화를 거치므로 Date → string 변환됨. 역직렬화 복원 필요.
@@ -72,3 +73,21 @@ const _getPrecomputedProfileRaw = unstable_cache(
 export const getPrecomputedProfileCachedServer = _getPrecomputedProfileRaw as (
   streamerId: string,
 ) => Promise<PrecomputedProfile | null>;
+
+// ── Scrims (프로 스크림 밴픽 기록) ────────────────────────────
+const _getScrimsRaw = unstable_cache(
+  () => getScrims(),
+  ['scrims'],
+  { tags: ['scrims'] },
+);
+
+type RawScrim = Omit<Scrim, 'date' | 'createdAt'> & { date: string | Date; createdAt: string | Date };
+
+export async function getScrimsCachedServer(): Promise<Scrim[]> {
+  const raw = await _getScrimsRaw() as RawScrim[];
+  return raw.map((s) => ({
+    ...s,
+    date: s.date instanceof Date ? s.date : new Date(s.date),
+    createdAt: s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt),
+  }));
+}

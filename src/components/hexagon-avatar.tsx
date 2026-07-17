@@ -24,6 +24,7 @@ export function HexAvatar({
   ringFixed = false,
   children,
   style,
+  imgStyle,
 }: {
   name: string;
   imageUrl?: string;
@@ -34,6 +35,7 @@ export function HexAvatar({
                        // → 커서 추적 스포트라이트 글로우를 카드 전체에서 연속으로 표현
   children?: ReactNode;
   style?: CSSProperties;
+  imgStyle?: CSSProperties; // 내부 이미지에만 적용 (링 색 영향 없이 흑백 처리 등)
 }) {
   // 이미지 로드 실패(파일 없음 등) 시 이니셜로 폴백
   const [broken, setBroken] = useState(false);
@@ -65,7 +67,7 @@ export function HexAvatar({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imageUrl} alt={name} draggable={false}
               onError={() => setBroken(true)}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              style={{ width: '100%', height: '100%', objectFit: 'cover', ...imgStyle }} />
           ) : (
             <span style={{
               color: initialsColor, fontFamily: 'var(--font-display)',

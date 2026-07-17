@@ -17,6 +17,7 @@ import { computeRelations } from './relations';
 import { mapWinRates } from './map-stats';
 import type { SessionPayload } from './session';
 import type { Match, Streamer, CuratedTierLists } from './types';
+import type { Scrim } from './scrim';
 
 type StoredPick = { id: string; hero: string };
 function packTeam(team: [string, string][]): StoredPick[] {
@@ -273,6 +274,25 @@ export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdA
 export async function updateMatchDate(id: string, date: Date): Promise<void> {
   await getAdminDb().collection('matches').doc(id).update({ date });
   scheduleRefresh();
+}
+
+// ── Scrims (프로 스크림 밴픽 기록) ───────────────────────────
+// 티어·Elo 집계와 무관 → refreshStats 불필요.
+
+export async function addScrim(data: Omit<Scrim, 'id' | 'createdAt'>): Promise<string> {
+  const payload: Record<string, unknown> = {
+    ...data,
+    createdAt: FieldValue.serverTimestamp(),
+  };
+  for (const k of Object.keys(payload)) {
+    if (payload[k] === undefined) delete payload[k]; // patch 등 선택 필드
+  }
+  const ref = await getAdminDb().collection('scrims').add(payload);
+  return ref.id;
+}
+
+export async function deleteScrim(id: string): Promise<void> {
+  await getAdminDb().collection('scrims').doc(id).delete();
 }
 
 // ── Curated tiers already exported above ────────────────────
