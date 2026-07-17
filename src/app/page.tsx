@@ -8,7 +8,7 @@ import { calcHeroTiers, groupHeroesByTier } from '@/lib/hero-tier';
 import type { HeroTierStat } from '@/lib/hero-tier';
 import type { PlayerStats, FineRole, Tier } from '@/lib/types';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
-import { CurationTierTab } from '@/components/curation-tier-tab';
+import { CurationTierTab, isCurationDirty, UNSAVED_TIER_MESSAGE } from '@/components/curation-tier-tab';
 import { heroImageUrl } from '@/lib/hero-image';
 import type { Streamer } from '@/lib/types';
 import type { EloDetail, EloMatchDetail } from '@/lib/elo';
@@ -852,7 +852,12 @@ export default function HomePage() {
   return (
     <div style={{ paddingTop: 'var(--sp-7)' }}>
       {/* 상위 3대 탭 — 역할 필터와 시각적 계층 구분 */}
-      <MainTabBar tab={mainTab} onTab={setMainTab} />
+      <MainTabBar tab={mainTab} onTab={(t) => {
+        // 큐레이션 편집 중 미저장 변경이 있으면 탭 전환 전 확인 (전환 시 컴포넌트 unmount로 유실)
+        if (mainTab === 'curation' && t !== 'curation' && isCurationDirty()
+          && !window.confirm(UNSAVED_TIER_MESSAGE)) return;
+        setMainTab(t);
+      }} />
 
       {/* 탭 패널 */}
       {mainTab === 'elo' && <EloTab stats={stats} bp={bp} />}

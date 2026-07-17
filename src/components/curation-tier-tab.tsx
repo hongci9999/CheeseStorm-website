@@ -25,6 +25,11 @@ const POOL_WIDTH = 260;
 // 풀 새로고침 때만 모듈이 재실행돼 false로 리셋된다 (= 새로고침에만 재등장).
 let placeholderNoticeDismissed = false;
 
+// 편집 중 미저장 변경 여부 — 메인 탭 전환 가드용 (page.tsx에서 읽음)
+let curationDirtyFlag = false;
+export function isCurationDirty() { return curationDirtyFlag; }
+export const UNSAVED_TIER_MESSAGE = '저장하지 않은 티어 변경사항이 있습니다. 이동하시겠습니까?';
+
 // ── TierBadge (자동 탭과 동일 스타일) ───────────────────────────
 function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg' | 'xl' }) {
   const dims = { sm: 28, md: 40, lg: 56, xl: 84 }[size] ?? 40;
@@ -491,6 +496,35 @@ export function CurationTierTab({
     });
     return () => { cancelled = true; };
   }, [editMode]);
+
+  // 미저장 변경 감지 — 새로고침·탭 닫기(beforeunload) + SPA 링크 클릭 가드
+  const dirty = editMode && snapshot !== null
+    && JSON.stringify(lists) !== JSON.stringify(snapshot);
+
+  useEffect(() => {
+    curationDirtyFlag = dirty;
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ''; // 크롬 호환 — 브라우저 기본 확인창 표시
+    };
+    // Next.js App Router엔 라우트 이탈 가드 API가 없어 앵커 클릭을 캡처 단계에서 가로챈다
+    const onClickCapture = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest?.('a[href]');
+      if (!anchor) return;
+      if (!window.confirm(UNSAVED_TIER_MESSAGE)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('click', onClickCapture, true);
+    return () => {
+      curationDirtyFlag = false;
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('click', onClickCapture, true);
+    };
+  }, [dirty]);
 
   const persist = useCallback(async (next: CuratedTierLists): Promise<boolean> => {
     setSaving(true);
