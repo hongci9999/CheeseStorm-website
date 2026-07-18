@@ -55,10 +55,12 @@ export const getStreamersCachedServer = _getStreamersRaw as () => Promise<Stream
 // ── 사전집계 통계 (프로필 페이지) ────────────────────────────
 // stats/current 문서는 API 라우트가 아니라 refreshStats() 백그라운드 집계가 실제 쓰기 시점이라
 // tag 무효화도 그쪽(firestore-admin.ts)에서 revalidateTag('stats')로 처리한다.
+// revalidate: 백그라운드(waitUntil) 컨텍스트의 revalidateTag('stats')가 씹혀도
+// 최대 5분 내 자동 복구되는 안전망. 평시 읽기 증가는 5분당 1회 수준.
 const _getPrecomputedStatsRaw = unstable_cache(
   () => getPrecomputedStats(),
   ['stats-current'],
-  { tags: ['stats'] },
+  { tags: ['stats'], revalidate: 300 },
 );
 export const getPrecomputedStatsCachedServer = _getPrecomputedStatsRaw as () => Promise<{
   playerStats: PlayerStats[];
@@ -68,7 +70,7 @@ export const getPrecomputedStatsCachedServer = _getPrecomputedStatsRaw as () => 
 const _getPrecomputedProfileRaw = unstable_cache(
   (streamerId: string) => getPrecomputedProfile(streamerId),
   ['stats-profile'],
-  { tags: ['stats'] },
+  { tags: ['stats'], revalidate: 300 },
 );
 export const getPrecomputedProfileCachedServer = _getPrecomputedProfileRaw as (
   streamerId: string,
