@@ -190,6 +190,8 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
     : { display: 'grid', gap: 'var(--sp-4)' };
   // 목록이 길어지면 카드 안에서 세로 스크롤
   const scrollBox: CSSProperties = { maxHeight: 340, overflowY: 'auto' };
+  // 상단 3박스(영웅/오프닝밴/1픽)는 높이 고정 — 내용 많으면 스크롤, 적어도 박스 유지
+  const fixedBox: CSSProperties = { height: 340, overflowY: 'auto' };
 
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
@@ -215,7 +217,7 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
             <h2 style={sectionTitle}>영웅 메타 TOP {HERO_TOP_N}</h2>
             <span style={sectionHint}>관여율 = (밴+픽)/경기</span>
           </div>
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ ...fixedBox, overflowX: 'auto' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
               <thead>
                 <tr>
@@ -255,12 +257,13 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
           {firstPicks.length === 0 ? (
             <EmptyHint>기록이 없습니다.</EmptyHint>
           ) : (
+            <div style={fixedBox}>
             <table style={{ borderCollapse: 'collapse' }}>
               <thead><tr>
                 <th style={{ ...th, textAlign: 'left' }}>영웅</th><th style={th}>횟수</th><th style={th}>승률</th>
               </tr></thead>
               <tbody>
-                {firstPicks.slice(0, 6).map((f) => (
+                {firstPicks.map((f) => (
                   <tr key={f.hero}>
                     <td style={tdLeft}><HeroCell hero={f.hero} /></td>
                     <td style={td}>{f.picks}</td>
@@ -269,6 +272,7 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
 
@@ -279,13 +283,14 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
           {openBans.length === 0 ? (
             <EmptyHint>기록이 없습니다.</EmptyHint>
           ) : (
+            <div style={fixedBox}>
             <table style={{ borderCollapse: 'collapse' }}>
               <thead><tr>
                 <th style={{ ...th, textAlign: 'left' }}>영웅</th>
                 <th style={th}>횟수</th><th style={th}>밴 비율</th><th style={th}>선/후</th>
               </tr></thead>
               <tbody>
-                {openBans.slice(0, 8).map((b) => (
+                {openBans.map((b) => (
                   <tr key={b.hero}>
                     <td style={tdLeft}><HeroCell hero={b.hero} /></td>
                     <td style={{ ...td, fontWeight: 700, color: 'var(--text-high)' }}>{b.bans}</td>
@@ -295,6 +300,7 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
       </div>
