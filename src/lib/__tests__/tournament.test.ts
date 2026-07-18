@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveTeams, classifyGames, teamRecords, headToHead, positionStats,
-  sortByPosition, buildTournamentData,
+  sortByPosition, buildTournamentData, mapRecords, teamMapRecords,
   type TournamentTeamConfig,
 } from '../tournament';
 import type { Match, PlayerMatchStat, Streamer } from '../types';
@@ -149,6 +149,51 @@ describe('positionStats', () => {
     expect(a0!.games).toBe(1);
     expect(a0!.kda).toBeNull();
     expect(a0!.kp).toBeNull();
+  });
+});
+
+// ── 맵별 통계 ────────────────────────────────────────────────
+
+describe('mapRecords', () => {
+  it('선픽 팀 승률을 맵별로 집계하고 미기록 선픽은 분모에서 제외', () => {
+    const games = classifyGames([
+      mkMatch({ map: '용의 둥지', firstPick: 'blue', winner: 'blue' }), // 선픽 승
+      mkMatch({ map: '용의 둥지', firstPick: 'red', winner: 'blue' }),  // 선픽 패
+      mkMatch({ map: '용의 둥지', winner: 'blue' }),                     // 선픽 미기록
+    ], rosters);
+    const rec = mapRecords(games).find((m) => m.map === '용의 둥지')!;
+    expect(rec.games).toBe(3);
+    expect(rec.firstPickKnown).toBe(2);
+    expect(rec.firstPickWins).toBe(1);
+    expect(rec.firstPickWinRate).toBeCloseTo(0.5);
+  });
+
+  it('선픽이 전부 미기록이면 winRate=null', () => {
+    const games = classifyGames([mkMatch({ map: '파멸의 탑' })], rosters);
+    const rec = mapRecords(games).find((m) => m.map === '파멸의 탑')!;
+    expect(rec.firstPickWinRate).toBeNull();
+  });
+
+  it('설정된 6개 맵을 우선 순서로 반환', () => {
+    const rec = mapRecords([]);
+    expect(rec.slice(0, 6).map((m) => m.map)).toEqual([
+      '용의 둥지', '저주받은 골짜기', '거미 여왕의 무덤', '불지옥 신단', '파멸의 탑', '영원의 전쟁터',
+    ]);
+  });
+});
+
+describe('teamMapRecords', () => {
+  it('팀별 맵 승률을 집계한다', () => {
+    const games = classifyGames([
+      mkMatch({ map: '용의 둥지', winner: 'blue' }), // A 승
+      mkMatch({ map: '용의 둥지', winner: 'red' }),  // A 패
+      mkMatch({ map: '파멸의 탑', winner: 'blue' }), // A 승
+    ], rosters);
+    const tm = teamMapRecords(games);
+    expect(tm.get('A|용의 둥지')).toEqual({ games: 2, wins: 1, winRate: 0.5 });
+    expect(tm.get('B|용의 둥지')).toEqual({ games: 2, wins: 1, winRate: 0.5 });
+    expect(tm.get('A|파멸의 탑')).toEqual({ games: 1, wins: 1, winRate: 1 });
+    expect(tm.get('B|파멸의 탑')).toEqual({ games: 1, wins: 0, winRate: 0 });
   });
 });
 

@@ -9,6 +9,7 @@ import { HexAvatar } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
 import { sectionCard, sectionTitle, sectionHint, th, td, tdLeft } from '@/components/scrim-dashboard';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { TOURNAMENT_NAME, TOURNAMENT_SEASON } from '@/lib/tournament';
 import type { TournamentData, TeamVM, GameVM, SideVM, PlayerVM } from '@/lib/tournament';
 
 // 팀 구분 액센트 — 카드 링·표 강조 공용 (인덱스 = 설정 순서)
@@ -43,33 +44,56 @@ export default function TournamentClient({ data }: { data: TournamentData }) {
       padding: desktop ? 'var(--sp-6) var(--sp-6) var(--sp-8)' : 'var(--sp-4) var(--sp-4) 84px',
       display: 'grid', gap: 'var(--sp-4)', alignContent: 'start',
     }}>
-      {/* 타이틀 */}
-      <div>
+      {/* 타이틀 — 대회 이름 + 시즌 */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
           fontSize: 'var(--fs-2xl)', color: 'var(--text-strong)', lineHeight: 1.2 }}>
-          대회
+          {TOURNAMENT_NAME}
         </h1>
-        <p style={{ ...sectionHint, marginTop: 4 }}>
-          스트리머 대회 스크림 기록 — 팀 로스터 기준으로 내전 기록실 경기를 자동 분류합니다.
-        </p>
+        <span style={{
+          padding: '2px 10px', borderRadius: 'var(--r-pill)',
+          background: 'color-mix(in srgb, var(--cheese-green) 14%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--cheese-green) 40%, transparent)',
+          color: 'var(--cheese-green)', fontFamily: 'var(--font-numeral)',
+          fontWeight: 700, fontSize: 'var(--fs-xs)', letterSpacing: '0.06em',
+        }}>
+          {TOURNAMENT_SEASON}
+        </span>
+        {data.demo && (
+          <span style={{
+            padding: '2px 10px', borderRadius: 'var(--r-pill)',
+            background: 'color-mix(in srgb, var(--loss) 12%, transparent)',
+            border: '1px solid color-mix(in srgb, var(--loss) 35%, transparent)',
+            color: 'var(--loss)', fontFamily: 'var(--font-ui)',
+            fontWeight: 700, fontSize: 'var(--fs-2xs)', letterSpacing: '0.06em',
+          }}>
+            더미 데이터 미리보기 — 실경기 입력 시 자동 교체
+          </span>
+        )}
       </div>
 
-      {/* 탭 */}
-      <div role="tablist" style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
+      {/* 탭 — 메인 페이지와 동일한 하단 강조선 스타일 */}
+      <div role="tablist" style={{
+        display: 'flex', gap: 0,
+        borderBottom: '2px solid var(--border-line)',
+        overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+      }}>
         {TABS.map(({ key, label }) => {
           const active = tab === key;
           return (
             <button key={key} role="tab" aria-selected={active} onClick={() => setTab(key)}
               style={{
-                height: 'var(--control-md, 38px)', padding: '0 var(--sp-4)',
-                borderRadius: 'var(--r-pill)', cursor: 'pointer',
-                border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
-                background: active
-                  ? 'color-mix(in srgb, var(--cheese-green) 14%, transparent)' : 'transparent',
-                color: active ? 'var(--text-high)' : 'var(--text-muted)',
+                position: 'relative',
+                height: 44, padding: '0 20px',
+                flexShrink: 0, whiteSpace: 'nowrap',
+                background: 'transparent', border: 'none',
                 fontFamily: 'var(--font-ui)', fontWeight: active ? 700 : 500,
-                fontSize: 'var(--fs-sm)',
-                transition: 'all var(--dur-fast) var(--ease-out)',
+                fontSize: 14,
+                color: active ? 'var(--text-strong)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                transition: 'color var(--dur-fast) var(--ease-out)',
+                // 메인 탭과 동일 — overflowX 컨테이너라 inset 그림자로 강조선
+                boxShadow: active ? 'inset 0 -2px 0 var(--cheese-green)' : 'none',
               }}>
               {label}
             </button>
@@ -103,21 +127,23 @@ function TeamCard({ team, accent }: { team: TeamVM; accent: string }) {
         ring={leader ? accent : `color-mix(in srgb, ${accent} 45%, var(--border-line))`}
         ringWidth={leader ? 3 : 2}
         imgStyle={m.resolved ? undefined : { filter: 'grayscale(1)' }} />
-      <span style={{
-        fontFamily: 'var(--font-ui)', fontWeight: leader ? 800 : 600,
-        fontSize: leader ? 'var(--fs-sm)' : 'var(--fs-xs)',
-        color: m.resolved ? 'var(--text-high)' : 'var(--text-faint)',
-        maxWidth: size + 26, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>{m.name}</span>
-      {leader && (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: size + 50 }}>
+        {leader && (
+          <span style={{
+            flexShrink: 0, padding: '1px 7px', borderRadius: 'var(--r-pill)',
+            background: `color-mix(in srgb, ${accent} 16%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)`,
+            color: accent, fontFamily: 'var(--font-numeral)', fontWeight: 700,
+            fontSize: 10, letterSpacing: '0.08em',
+          }}>팀장</span>
+        )}
         <span style={{
-          padding: '1px 8px', borderRadius: 'var(--r-pill)',
-          background: `color-mix(in srgb, ${accent} 16%, transparent)`,
-          border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)`,
-          color: accent, fontFamily: 'var(--font-numeral)', fontWeight: 700,
-          fontSize: 10, letterSpacing: '0.08em',
-        }}>팀장</span>
-      )}
+          fontFamily: 'var(--font-ui)', fontWeight: leader ? 800 : 600,
+          fontSize: leader ? 'var(--fs-sm)' : 'var(--fs-xs)',
+          color: m.resolved ? 'var(--text-high)' : 'var(--text-faint)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>{m.name}</span>
+      </span>
     </div>
   );
 
@@ -239,6 +265,47 @@ function TeamsTab({ data, desktop }: { data: TournamentData; desktop: boolean })
         </div>
         <span style={sectionHint}>셀 값은 행 기준 팀의 승-패 · 아래는 총 경기수와 행 기준 팀의 승률.</span>
       </section>
+
+      {/* 팀별 맵 승률 매트릭스 */}
+      <section style={sectionCard}>
+        <h2 style={sectionTitle}>팀별 맵 승률</h2>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+            <thead><tr>
+              <th style={{ ...th, textAlign: 'left' }}>팀 \ 맵</th>
+              {data.maps.map((m) => (
+                <th key={m.map} style={{ ...th, textAlign: 'center' }}>{m.map}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {teams.map((t, ri) => (
+                <tr key={t.id}>
+                  <td style={{ ...tdLeft, fontWeight: 800, color: TEAM_ACCENTS[ri % TEAM_ACCENTS.length] }}>
+                    {t.name}
+                  </td>
+                  {data.maps.map((m, ci) => {
+                    const cell = data.teamMaps[ri]?.[ci];
+                    if (!cell || cell.games === 0) return (
+                      <td key={m.map} style={{ ...td, textAlign: 'center', color: 'var(--text-faint)' }}>—</td>
+                    );
+                    const wr = cell.winRate!;
+                    const bg = wr > 0.5 ? 'var(--win-soft)' : wr < 0.5 ? 'var(--loss-soft)' : 'transparent';
+                    return (
+                      <td key={m.map} style={{ ...td, textAlign: 'center', background: bg, padding: '8px' }}>
+                        <span style={{ fontWeight: 800, color: rateColor(wr) }}>{pct(wr)}</span>
+                        <span style={{ ...sectionHint, display: 'block', marginTop: 2 }}>
+                          {cell.wins}/{cell.games}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <span style={sectionHint}>맵별 팀 승률 · 아래는 승/경기. — = 해당 맵 미플레이.</span>
+      </section>
     </div>
   );
 }
@@ -353,20 +420,92 @@ function GameCard({ g, desktop }: { g: GameVM; desktop: boolean }) {
   );
 }
 
+const GAMES_PER_PAGE = 8;
+
 function GamesTab({ games, desktop }: { games: GameVM[]; desktop: boolean }) {
+  const [page, setPage] = useState(1);
+
   if (games.length === 0) {
     return <p style={{ ...sectionCard, ...sectionHint, display: 'block' }}>
       분류된 대회 스크림이 없습니다. 내전기록실에 경기를 입력하면 팀 로스터 기준으로 자동 분류됩니다.
     </p>;
   }
+
+  const pages = Math.ceil(games.length / GAMES_PER_PAGE);
+  const cur = Math.min(page, pages); // 데이터 축소 시 범위 보정
+  const start = (cur - 1) * GAMES_PER_PAGE;
+  const shown = games.slice(start, start + GAMES_PER_PAGE);
+  const goto = (p: number) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
-      {games.map((g) => <GameCard key={g.id} g={g} desktop={desktop} />)}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--sp-2)' }}>
+        <span style={sectionHint}>총 {games.length}경기 · 최신순</span>
+        {pages > 1 && <span style={sectionHint}>{cur} / {pages} 페이지</span>}
+      </div>
+
+      {shown.map((g) => <GameCard key={g.id} g={g} desktop={desktop} />)}
+
+      {pages > 1 && (
+        <nav style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap', paddingTop: 'var(--sp-2)' }}>
+          <PageBtn label="‹" disabled={cur === 1} onClick={() => goto(cur - 1)} />
+          {Array.from({ length: pages }, (_, i) => i + 1).map((p) => (
+            <PageBtn key={p} label={String(p)} active={p === cur} onClick={() => goto(p)} />
+          ))}
+          <PageBtn label="›" disabled={cur === pages} onClick={() => goto(cur + 1)} />
+        </nav>
+      )}
     </div>
   );
 }
 
+function PageBtn({ label, active, disabled, onClick }: {
+  label: string; active?: boolean; disabled?: boolean; onClick: () => void;
+}) {
+  return (
+    <button onClick={onClick} disabled={disabled} aria-current={active ? 'page' : undefined}
+      style={{
+        minWidth: 34, height: 34, padding: '0 8px', borderRadius: 'var(--r-sm)',
+        border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+        background: active ? 'color-mix(in srgb, var(--cheese-green) 14%, transparent)' : 'transparent',
+        color: disabled ? 'var(--text-faint)' : active ? 'var(--text-high)' : 'var(--text-muted)',
+        fontFamily: 'var(--font-numeral)', fontWeight: active ? 800 : 600, fontSize: 'var(--fs-sm)',
+        cursor: disabled ? 'default' : 'pointer',
+        transition: 'all var(--dur-fast) var(--ease-out)',
+      }}>
+      {label}
+    </button>
+  );
+}
+
 // ── 탭 3: 포지션 통계 ────────────────────────────────────────
+
+// 지표 열 정의 — 전부 "높을수록 우수", 열 내 상대값으로 히트맵 색상.
+type PosRow = TournamentData['positions'][number]['rows'][number];
+const POS_METRICS: {
+  label: string; val: (r: PosRow) => number | null; fmt: (r: PosRow) => string;
+}[] = [
+  { label: '승률',     val: (r) => r.winRate,        fmt: (r) => pct(r.winRate) },
+  { label: 'KDA',      val: (r) => r.kda,            fmt: (r) => fmt1(r.kda) },
+  { label: 'KP',       val: (r) => r.kp,             fmt: (r) => (r.kp === null ? '—' : pct(r.kp)) },
+  { label: '영웅딜/분', val: (r) => r.heroDmgPerMin,  fmt: (r) => fmtInt(r.heroDmgPerMin) },
+  { label: '공성딜/분', val: (r) => r.siegeDmgPerMin, fmt: (r) => fmtInt(r.siegeDmgPerMin) },
+  { label: '힐/분',    val: (r) => r.healingPerMin,  fmt: (r) => fmtInt(r.healingPerMin) },
+  { label: 'XP/분',    val: (r) => r.xpPerMin,       fmt: (r) => fmtInt(r.xpPerMin) },
+];
+
+// 열 내 상대값(0~1)을 배경 틴트로 — 높으면 파랑, 낮으면 빨강 (스크린샷 규약).
+function heatBg(value: number | null, min: number, max: number): string {
+  if (value === null || max <= min) return 'transparent';
+  const norm = (value - min) / (max - min); // 0~1
+  const MAX_ALPHA = 26;
+  if (norm >= 0.5) {
+    const a = Math.round((norm - 0.5) * 2 * MAX_ALPHA);
+    return `color-mix(in srgb, var(--cheese-blue) ${a}%, transparent)`;
+  }
+  const a = Math.round((0.5 - norm) * 2 * MAX_ALPHA);
+  return `color-mix(in srgb, var(--loss) ${a}%, transparent)`;
+}
 
 function PositionsTab({ data }: { data: TournamentData }) {
   if (data.positions.length === 0) {
@@ -374,50 +513,74 @@ function PositionsTab({ data }: { data: TournamentData }) {
       집계할 경기가 없습니다.
     </p>;
   }
+  // 팀 이름 → 팀장 이름 (팀 열 부제)
+  const captainOf = new Map(data.teams.map((t) => [t.name, t.captain.name]));
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
-      {data.positions.map(({ role, rows }) => (
-        <section key={role} style={sectionCard}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)' }}>
-            <h2 style={sectionTitle}>{role}</h2>
-            <span style={sectionHint}>KP = 킬 관여율 · /분 지표는 경기시간 기록된 경기만 집계</span>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-              <thead><tr>
-                <th style={{ ...th, textAlign: 'left' }}>스트리머</th>
-                <th style={{ ...th, textAlign: 'left' }}>팀</th>
-                <th style={th}>경기</th><th style={th}>승</th><th style={th}>승률</th>
-                <th style={th}>KDA</th><th style={th}>KP</th>
-                <th style={th}>영웅딜/분</th><th style={th}>공성딜/분</th>
-                <th style={th}>힐/분</th><th style={th}>XP/분</th>
-              </tr></thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.name} style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-line) 55%, transparent)' }}>
-                    <td style={tdLeft}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <HexAvatar name={r.name} imageUrl={r.img} ring="var(--border-strong)" size={26} />
-                        <span style={{ fontWeight: 700, color: 'var(--text-high)' }}>{r.name}</span>
-                      </span>
-                    </td>
-                    <td style={{ ...tdLeft, color: 'var(--text-muted)' }}>{r.teamName}</td>
-                    <td style={td}>{r.games}</td>
-                    <td style={td}>{r.wins}</td>
-                    <td style={{ ...td, fontWeight: 800, color: rateColor(r.winRate) }}>{pct(r.winRate)}</td>
-                    <td style={{ ...td, fontWeight: 700, color: 'var(--text-high)' }}>{fmt1(r.kda)}</td>
-                    <td style={td}>{r.kp === null ? '—' : pct(r.kp)}</td>
-                    <td style={td}>{fmtInt(r.heroDmgPerMin)}</td>
-                    <td style={td}>{fmtInt(r.siegeDmgPerMin)}</td>
-                    <td style={td}>{fmtInt(r.healingPerMin)}</td>
-                    <td style={td}>{fmtInt(r.xpPerMin)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ))}
+      {data.positions.map(({ role, rows }) => {
+        // 열별 min/max 사전계산 — 셀 히트맵 기준
+        const range = POS_METRICS.map((m) => {
+          const vals = rows.map(m.val).filter((v): v is number => v !== null);
+          return vals.length ? { min: Math.min(...vals), max: Math.max(...vals) } : { min: 0, max: 0 };
+        });
+        return (
+          <section key={role} style={sectionCard}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)' }}>
+              <h2 style={sectionTitle}>{role}</h2>
+              <span style={sectionHint}>KP = 킬 관여율 · /분 지표는 경기시간 기록된 경기만 집계 · 색은 열 내 상대값</span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead><tr>
+                  <th style={{ ...th, textAlign: 'left' }}>스트리머</th>
+                  <th style={{ ...th, textAlign: 'left' }}>팀</th>
+                  <th style={th}>경기</th><th style={th}>승</th>
+                  {POS_METRICS.map((m) => <th key={m.label} style={th}>{m.label}</th>)}
+                </tr></thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const captain = captainOf.get(r.teamName);
+                    return (
+                      <tr key={r.name} style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-line) 55%, transparent)' }}>
+                        <td style={tdLeft}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                            <HexAvatar name={r.name} imageUrl={r.img} ring="var(--border-strong)" size={36} />
+                            <span style={{ fontWeight: 700, color: 'var(--text-high)' }}>{r.name}</span>
+                          </span>
+                        </td>
+                        <td style={tdLeft}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-high)' }}>{r.teamName}</span>
+                          {captain && <span style={{ ...sectionHint, marginLeft: 6 }}>{captain}</span>}
+                        </td>
+                        <td style={td}>{r.games}</td>
+                        <td style={td}>{r.wins}</td>
+                        {POS_METRICS.map((m, ci) => {
+                          // 승률은 배경 히트맵 대신, 역할군 내 최고=그린·최하=레드 글자색만
+                          const isWinRate = m.label === '승률';
+                          let color = 'var(--text-high)';
+                          if (isWinRate && range[ci].max > range[ci].min) {
+                            if (r.winRate === range[ci].max) color = 'var(--win)';
+                            else if (r.winRate === range[ci].min) color = 'var(--loss)';
+                          }
+                          return (
+                            <td key={m.label} style={{
+                              ...td, fontWeight: isWinRate || m.label === 'KDA' ? 800 : 600,
+                              color,
+                              background: isWinRate ? 'transparent' : heatBg(m.val(r), range[ci].min, range[ci].max),
+                            }}>
+                              {m.fmt(r)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }

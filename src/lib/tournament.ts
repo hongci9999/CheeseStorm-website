@@ -15,16 +15,28 @@ export interface TournamentTeamConfig {
   members: string[]; // 팀원 4명 이름
 }
 
+// 대회 이름·시즌 — 향후 다른 대회 기록 시 여기와 TOURNAMENT_TEAMS를 갱신
+// (대회가 2개 이상 쌓이면 배열 구조로 리팩터링)
+export const TOURNAMENT_NAME = '히오스는 살아있다';
+export const TOURNAMENT_SEASON = '2026 여름 시즌';
+
 // 이 날짜 이후의 matches만 대회 스크림 후보로 취급 (과거 내전 제외)
 export const TOURNAMENT_START = new Date('2026-07-01');
 
-// TODO: 팀 확정 시 실제 스트리머 이름으로 채울 것 (빈 문자열 = 미정)
+// 팀장: 베릴·네클릿·진수도사·인간젤리 확정.
+// TODO: 팀원 배분은 임시(참가자 목록 순) — 드래프트 확정 시 수정할 것.
 export const TOURNAMENT_TEAMS: TournamentTeamConfig[] = [
-  { id: 'team1', name: '1팀', captain: '', members: ['', '', '', ''] },
-  { id: 'team2', name: '2팀', captain: '', members: ['', '', '', ''] },
-  { id: 'team3', name: '3팀', captain: '', members: ['', '', '', ''] },
-  { id: 'team4', name: '4팀', captain: '', members: ['', '', '', ''] },
+  { id: 'team1', name: '1팀', captain: '베릴',     members: ['강소연', '끼월마녀', '노페', '던'] },
+  { id: 'team2', name: '2팀', captain: '네클릿',   members: ['룩삼', '반님', '뱅', '소우릎'] },
+  { id: 'team3', name: '3팀', captain: '진수도사', members: ['승우아빠', '울프', '철면수심', '츠밍'] },
+  { id: 'team4', name: '4팀', captain: '인간젤리', members: ['침착맨', '캡틴잭', '플레임', '헤징'] },
 ];
+
+// 이번 대회 사용 맵 6종 (맵별 통계 표시 순서)
+export const TOURNAMENT_MAPS = [
+  '용의 둥지', '저주받은 골짜기', '거미 여왕의 무덤',
+  '불지옥 신단', '파멸의 탑', '영원의 전쟁터',
+] as const;
 
 // 게임 카드 영웅 배치 순서 (탱커 → 투사 → 암살자 → 전문가 → 지원가)
 export const POSITION_ORDER: Role[] = ['탱커', '투사', '암살자', '전문가', '지원가'];
@@ -126,6 +138,72 @@ export function teamRecords(games: TournamentGame[], rosters: TeamRoster[]): Tea
       winRate: a.games ? a.wins / a.games : 0, streak,
     };
   });
+}
+
+// ── 맵별 통계 ────────────────────────────────────────────────
+
+export interface MapRecord {
+  map: string;
+  games: number;
+  firstPickWins: number;   // 선픽(firstPick) 팀이 이긴 경기 수
+  firstPickKnown: number;  // 선픽 팀이 기록된 경기 수 (승률 분모)
+  firstPickWinRate: number | null; // 선픽 미기록만 있으면 null
+}
+
+// 설정된 6개 맵 순서로 반환 — 기록 없는 맵도 0으로 노출.
+export function mapRecords(games: TournamentGame[]): MapRecord[] {
+  const acc = new Map<string, { games: number; fpWins: number; fpKnown: number }>();
+  for (const g of games) {
+    const map = g.match.map;
+    if (!map) continue;
+    const a = acc.get(map) ?? { games: 0, fpWins: 0, fpKnown: 0 };
+    a.games++;
+    const fp = g.match.firstPick;
+    if (fp) {
+      a.fpKnown++;
+      if (g.match.winner === fp) a.fpWins++;
+    }
+    acc.set(map, a);
+  }
+  // 설정 맵 우선 정렬, 그 외 기록된 맵은 뒤에 경기수 내림차순
+  const order = new Map(TOURNAMENT_MAPS.map((m, i) => [m as string, i]));
+  const keys = new Set([...TOURNAMENT_MAPS, ...acc.keys()]);
+  return [...keys]
+    .map((map) => {
+      const a = acc.get(map) ?? { games: 0, fpWins: 0, fpKnown: 0 };
+      return {
+        map, games: a.games, firstPickWins: a.fpWins, firstPickKnown: a.fpKnown,
+        firstPickWinRate: a.fpKnown ? a.fpWins / a.fpKnown : null,
+      };
+    })
+    .sort((x, y) => {
+      const ox = order.has(x.map) ? order.get(x.map)! : 999;
+      const oy = order.has(y.map) ? order.get(y.map)! : 999;
+      return ox - oy || y.games - x.games || x.map.localeCompare(y.map, 'ko');
+    });
+}
+
+// ── 팀별 맵 승률 ─────────────────────────────────────────────
+
+export interface TeamMapCell { games: number; wins: number; winRate: number | null; }
+
+// key `${teamId}|${map}` = 그 팀이 그 맵에서 거둔 전적.
+export function teamMapRecords(games: TournamentGame[]): Map<string, TeamMapCell> {
+  const acc = new Map<string, { games: number; wins: number }>();
+  for (const g of games) {
+    const map = g.match.map;
+    if (!map) continue;
+    for (const bucket of ['blue', 'red'] as const) {
+      const key = `${g.teams[bucket]}|${map}`;
+      const a = acc.get(key) ?? { games: 0, wins: 0 };
+      a.games++;
+      if (g.match.winner === bucket) a.wins++;
+      acc.set(key, a);
+    }
+  }
+  const out = new Map<string, TeamMapCell>();
+  for (const [key, a] of acc) out.set(key, { games: a.games, wins: a.wins, winRate: a.games ? a.wins / a.games : null });
+  return out;
 }
 
 // ── 팀 간 상대전적 ───────────────────────────────────────────
@@ -260,10 +338,18 @@ export interface PositionRowVM {
   heroDmgPerMin: number | null; siegeDmgPerMin: number | null;
   healingPerMin: number | null; xpPerMin: number | null;
 }
+export interface MapRowVM {
+  map: string; img: string | null;
+  games: number; firstPickWinRate: number | null; firstPickKnown: number;
+}
+export interface TeamMapCellVM { games: number; wins: number; winRate: number | null; }
 export interface TournamentData {
+  demo?: boolean;      // 더미 미리보기 데이터 여부 (tournament-demo.ts)
   configured: boolean; // 로스터가 하나라도 실제 스트리머와 매칭됐는지
   teams: TeamVM[];
   teamNames: Record<string, string>;
+  maps: MapRowVM[];
+  teamMaps: TeamMapCellVM[][]; // [teams 행][maps 열] 정렬
   h2h: (H2HCellVM | null)[][]; // [행 팀][열 팀], 같은 팀 = null
   games: GameVM[]; // 최신순
   positions: { role: Role; rows: PositionRowVM[] }[];
@@ -311,6 +397,18 @@ export function buildTournamentData(
     };
   });
 
+  const maps: MapRowVM[] = mapRecords(games)
+    .filter((m) => m.games > 0)
+    .map((m) => ({
+      map: m.map, img: mapImageUrl(m.map),
+      games: m.games, firstPickWinRate: m.firstPickWinRate, firstPickKnown: m.firstPickKnown,
+    }));
+
+  // 팀별 맵 승률 — 행=teams, 열=maps 순서 정렬
+  const tmMap = teamMapRecords(games);
+  const teamMaps: TeamMapCellVM[][] = rosters.map((r) =>
+    maps.map((m) => tmMap.get(`${r.id}|${m.map}`) ?? { games: 0, wins: 0, winRate: null }));
+
   const h2h = rosters.map((row) => rosters.map((col) => {
     if (row.id === col.id) return null;
     const r = h2hMap.get(`${row.id}|${col.id}`);
@@ -357,11 +455,19 @@ export function buildTournamentData(
     for (const r of rosters) if (r.ids.has(id)) return r.name;
     return '용병';
   };
+  // 팀 순서(설정 순 1→4, 용병은 맨 뒤) 정렬 인덱스
+  const teamIndexOf = (id: string): number => {
+    const i = rosters.findIndex((r) => r.ids.has(id));
+    return i < 0 ? rosters.length : i;
+  };
   const rows = positionStats(games);
   const positions = POSITION_ORDER
     .map((role) => ({
       role,
-      rows: rows.filter((r) => r.role === role).map((r) => {
+      rows: rows.filter((r) => r.role === role)
+        // 팀 순서 우선, 같은 팀 내는 positionStats 기존 정렬(경기·승률) 유지
+        .sort((a, b) => teamIndexOf(a.streamerId) - teamIndexOf(b.streamerId))
+        .map((r) => {
         const s = byId.get(r.streamerId);
         return {
           name: s?.name ?? r.streamerId, img: s?.profileImageUrl,
@@ -375,5 +481,5 @@ export function buildTournamentData(
     }))
     .filter((p) => p.rows.length > 0);
 
-  return { configured, teams, teamNames, h2h, games: gameVMs, positions };
+  return { configured, teams, teamNames, maps, teamMaps, h2h, games: gameVMs, positions };
 }

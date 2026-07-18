@@ -48,7 +48,7 @@ const NAV_ITEMS = [
   { href: '/mock-draft', ko: '모의밴픽',   en: 'Mock Draft'   },
   { href: '/scrims',   ko: '프로 스크림',       en: 'Scrim'        },
   { href: '/tournament', ko: '대회',        en: 'Tournament'   },
-  { href: '/guide',    ko: '사용방법',     en: 'How To Use'   },
+  // 사용방법은 네비 칸 절약을 위해 우측 ? 아이콘으로 이동 (모바일은 하단 탭 유지)
 ] as const;
 
 export default function SiteHeader() {
@@ -123,7 +123,7 @@ export default function SiteHeader() {
                 href={href}
                 style={{
                   display: 'flex', flexDirection: 'column', gap: 1,
-                  padding: '9px 16px', borderRadius: 'var(--r-sm)',
+                  padding: '9px 13px', borderRadius: 'var(--r-sm)',
                   fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15,
                   color: active ? 'var(--text-strong)' : 'var(--text-muted)',
                   textDecoration: 'none', position: 'relative',
@@ -140,7 +140,7 @@ export default function SiteHeader() {
                 </span>
                 {active && (
                   <span style={{
-                    position: 'absolute', left: 16, right: 16, bottom: -1, height: 2,
+                    position: 'absolute', left: 13, right: 13, bottom: -1, height: 2,
                     background: 'var(--accent)',
                     boxShadow: '0 0 8px var(--accent)',
                     borderRadius: 2,
@@ -228,6 +228,27 @@ export default function SiteHeader() {
               스트리머 로그인
             </a>
           )
+        )}
+
+        {/* 사용방법 — 네비 대신 ? 아이콘 (desktop만, 모바일은 하단 탭) */}
+        {!isMobile && (
+          <Link href="/guide" title="사용방법" aria-label="사용방법"
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: 'var(--r-pill)',
+              border: `1px solid ${isActive('/guide') ? 'var(--accent)' : 'var(--border-line)'}`,
+              background: isActive('/guide')
+                ? 'color-mix(in srgb, var(--accent) 14%, transparent)' : 'transparent',
+              color: isActive('/guide') ? 'var(--accent)' : 'var(--text-faint)',
+              fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15,
+              textDecoration: 'none',
+              transition: 'color var(--dur-fast), border-color var(--dur-fast)',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-high)')}
+            onMouseLeave={e => (e.currentTarget.style.color = isActive('/guide') ? 'var(--accent)' : 'var(--text-faint)')}
+          >
+            ?
+          </Link>
         )}
 
         {/* 테마 토글 */}
