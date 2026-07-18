@@ -323,6 +323,8 @@ function NewMatchPageInner() {
   const [winner,   setWinner]   = useState<'blue' | 'red'>('blue');
   // 인게임 좌측 진영 버킷 — 미지정 시 undefined로 저장 생략
   const [leftTeam, setLeftTeam] = useState<'blue' | 'red' | ''>('');
+  // 밴픽 선픽 팀 버킷 (대회 스크림용) — 미지정 시 undefined로 저장 생략
+  const [firstPick, setFirstPick] = useState<'blue' | 'red' | ''>('');
   const [map,      setMap]      = useState('');
   const [dur,      setDur]      = useState('');
   // 팀별 최종 레벨 (선택) — HotS 공유 레벨
@@ -356,6 +358,7 @@ function NewMatchPageInner() {
       setDur(m.dur ?? '');
       setWinner(m.winner);
       setLeftTeam(m.leftTeam ?? '');
+      setFirstPick(m.firstPick ?? '');
       setBlueLevel(m.blueLevel != null ? String(m.blueLevel) : '');
       setRedLevel(m.redLevel != null ? String(m.redLevel) : '');
       setNote(m.note ?? '');
@@ -501,6 +504,7 @@ function NewMatchPageInner() {
         blueStats: toStats(blueSlots), redStats: toStats(redSlots),
         winner,
         leftTeam: leftTeam || undefined,
+        firstPick: firstPick || undefined,
         blueLevel: parseLevel(blueLevel), redLevel: parseLevel(redLevel),
         map: map || undefined, dur: normalizedDur, note: note || undefined,
       };
@@ -729,6 +733,39 @@ function NewMatchPageInner() {
                   key={opt.value}
                   type="button"
                   onClick={() => setLeftTeam(opt.value)}
+                  style={{
+                    height: 36, borderRadius: 'var(--r-sm)', fontFamily: 'var(--font-ui)',
+                    fontWeight: 600, fontSize: 12.5, cursor: 'pointer',
+                    border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+                    background: active
+                      ? 'color-mix(in srgb, var(--cheese-green) 12%, var(--surface-card))'
+                      : 'var(--surface-card)',
+                    color: active ? 'var(--cheese-green)' : 'var(--text-muted)',
+                    transition: 'all var(--dur-fast) var(--ease-out)',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── 선픽 팀 (선택) — 대회 스크림 기록용 ── */}
+        <div>
+          <label style={LABEL}>선픽 팀 (선택)</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--sp-2)' }}>
+            {([
+              { value: '',     label: '모름' },
+              { value: 'blue', label: '팀 1이 선픽' },
+              { value: 'red',  label: '팀 2가 선픽' },
+            ] as { value: '' | 'blue' | 'red'; label: string }[]).map(opt => {
+              const active = firstPick === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setFirstPick(opt.value)}
                   style={{
                     height: 36, borderRadius: 'var(--r-sm)', fontFamily: 'var(--font-ui)',
                     fontWeight: 600, fontSize: 12.5, cursor: 'pointer',

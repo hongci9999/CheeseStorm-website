@@ -29,6 +29,17 @@ export async function getMatchesCachedServer(): Promise<Match[]> {
   }));
 }
 
+// 대회 페이지용 — 개인 스탯 포함 전체 목록. _getMatchesRaw와 같은 캐시 엔트리를
+// 공유하므로 추가 Firestore 읽기 없음. 서버에서 집계 후 뷰모델만 클라이언트로 전달할 것.
+export async function getMatchesWithStatsCachedServer(): Promise<Match[]> {
+  const raw = await _getMatchesRaw() as RawMatch[];
+  return raw.map((m) => ({
+    ...m,
+    date: m.date instanceof Date ? m.date : new Date(m.date),
+    createdAt: m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt),
+  }));
+}
+
 // /matches/[id] 서버 상세 페이지용 — 스탯 포함 단건. _getMatchesRaw()와 같은 캐시 엔트리를
 // 공유해 추가 Firestore 읽기 없이 조회(방문마다 M+S 읽기 발생하던 것을 캐시 무효화 시 1회로 절감).
 export async function getMatchCachedServer(id: string): Promise<Match | null> {
