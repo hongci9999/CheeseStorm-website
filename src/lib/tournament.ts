@@ -322,7 +322,10 @@ export interface TeamVM {
 export interface H2HCellVM { wins: number; losses: number; games: number; winRate: number; }
 export interface PlayerVM {
   name: string; gameName?: string; hero: string;
-  kda?: string; // "K/D/A" 문자열 — 스탯 없으면 undefined
+  kda?: string;          // "K/D/A" 문자열 — 스탯 없으면 undefined
+  barKind?: 'dmg' | 'heal'; // 힐러=heal(치유량), 그 외=dmg(영웅딜)
+  barValue?: number;     // 막대 원값 (딜 또는 힐)
+  barLabel?: string;     // 축약 표기 (예: "42.3k")
 }
 export interface SideVM { teamName: string; won: boolean; firstPick: boolean; players: PlayerVM[]; }
 export interface GameVM {
@@ -330,6 +333,8 @@ export interface GameVM {
   map?: string; mapImg: string | null; dur?: string;
   left: SideVM; right: SideVM;
   firstPickKnown: boolean;
+  maxDmg: number;  // 이 경기 내 최대 영웅딜 (막대 정규화 기준)
+  maxHeal: number; // 이 경기 내 최대 치유량
 }
 export interface PositionRowVM {
   name: string; img?: string; teamName: string;
@@ -353,6 +358,12 @@ export interface TournamentData {
   h2h: (H2HCellVM | null)[][]; // [행 팀][열 팀], 같은 팀 = null
   games: GameVM[]; // 최신순
   positions: { role: Role; rows: PositionRowVM[] }[];
+}
+
+// 큰 수 축약 — 막대 라벨용 (12345 → "12.3k")
+function abbrevNum(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
 const dateLabel = (d: Date) =>
@@ -429,9 +440,14 @@ export function buildTournamentData(
       players: sortByPosition(roster).map(([id, hero]) => {
         const s = byId.get(id);
         const st = statBySlot.get(id);
+        const isHealer = roleOfHero(hero) === '지원가';
+        const barValue = st ? (isHealer ? st.healing : st.heroDmg) : undefined;
         return {
           name: s?.name ?? id, gameName: s?.gameNames?.[0], hero,
           kda: st ? `${st.kills}/${st.deaths}/${st.assists}` : undefined,
+          barKind: st ? (isHealer ? 'heal' as const : 'dmg' as const) : undefined,
+          barValue,
+          barLabel: barValue !== undefined ? abbrevNum(barValue) : undefined,
         };
       }),
     };
@@ -442,11 +458,17 @@ export function buildTournamentData(
     // 선픽팀을 왼쪽에 — 미지정이면 blue 버킷 왼쪽
     const leftBucket: 'blue' | 'red' = m.firstPick === 'red' ? 'red' : 'blue';
     const rightBucket = leftBucket === 'blue' ? 'red' : 'blue';
+    const left = sideVM(g, leftBucket);
+    const right = sideVM(g, rightBucket);
+    // 막대 정규화 기준 — 경기 내 전체 선수 중 종류별 최대값
+    const all = [...left.players, ...right.players];
+    const maxOf = (kind: 'dmg' | 'heal') =>
+      all.reduce((mx, p) => (p.barKind === kind && p.barValue ? Math.max(mx, p.barValue) : mx), 0);
     return {
       id: m.id, no: g.no, dateLabel: dateLabel(m.date),
       map: m.map, mapImg: m.map ? mapImageUrl(m.map) : null, dur: m.dur,
-      left: sideVM(g, leftBucket), right: sideVM(g, rightBucket),
-      firstPickKnown: !!m.firstPick,
+      left, right, firstPickKnown: !!m.firstPick,
+      maxDmg: maxOf('dmg'), maxHeal: maxOf('heal'),
     };
   });
 

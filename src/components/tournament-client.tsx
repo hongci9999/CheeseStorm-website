@@ -270,11 +270,15 @@ function TeamsTab({ data, desktop }: { data: TournamentData; desktop: boolean })
       <section style={sectionCard}>
         <h2 style={sectionTitle}>팀별 맵 승률</h2>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', minWidth: 560 }}>
+            <colgroup>
+              <col style={{ width: 72 }} />
+              {data.maps.map((m) => <col key={m.map} style={{ width: `calc((100% - 72px) / ${data.maps.length})` }} />)}
+            </colgroup>
             <thead><tr>
               <th style={{ ...th, textAlign: 'left' }}>팀 \ 맵</th>
               {data.maps.map((m) => (
-                <th key={m.map} style={{ ...th, textAlign: 'center' }}>{m.map}</th>
+                <th key={m.map} style={{ ...th, textAlign: 'center', whiteSpace: 'normal', wordBreak: 'keep-all' }}>{m.map}</th>
               ))}
             </tr></thead>
             <tbody>
@@ -312,59 +316,95 @@ function TeamsTab({ data, desktop }: { data: TournamentData; desktop: boolean })
 
 // ── 탭 2: 경기 기록 ──────────────────────────────────────────
 
-function PlayerRow({ p, mirror }: { p: PlayerVM; mirror: boolean }) {
-  // mirror=false(왼쪽 팀): 텍스트 | 영웅헥스 / mirror=true(오른쪽 팀): 영웅헥스 | 텍스트
-  const info = (
-    <span style={{ minWidth: 0, display: 'grid', gap: 1, textAlign: mirror ? 'left' : 'right' }}>
-      <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
-        color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {p.name}
-        {p.kda && (
-          <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 600,
-            color: 'rgba(255,255,255,0.75)', marginLeft: 6 }}>{p.kda}</span>
-        )}
+// 딜=블루, 힐=그린 막대. 중앙(헥스)에서 바깥으로 뻗음.
+function StatBar({ p, mirror, maxDmg, maxHeal }: { p: PlayerVM; mirror: boolean; maxDmg: number; maxHeal: number }) {
+  if (p.barKind === undefined || p.barValue === undefined) {
+    return <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 9,
+      color: 'rgba(255,255,255,0.35)' }}>기록 없음</span>;
+  }
+  const max = p.barKind === 'heal' ? maxHeal : maxDmg;
+  const w = max > 0 ? Math.round((p.barValue / max) * 100) : 0;
+  const color = p.barKind === 'heal' ? 'var(--win)' : 'var(--cheese-blue)';
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4,
+      flexDirection: mirror ? 'row' : 'row-reverse' }}>
+      <span style={{ position: 'relative', flex: 1, height: 5, minWidth: 0,
+        borderRadius: 999, background: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
+        <span style={{ position: 'absolute', top: 0, bottom: 0,
+          [mirror ? 'left' : 'right']: 0, width: `${w}%`, background: color,
+          borderRadius: 999 } as React.CSSProperties} />
       </span>
-      <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10,
-        color: 'rgba(255,255,255,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {p.gameName ?? ''}
+      <span style={{ flexShrink: 0, fontFamily: 'var(--font-numeral)', fontSize: 9, fontWeight: 700,
+        color: 'rgba(255,255,255,0.8)', minWidth: 30, textAlign: mirror ? 'left' : 'right' }}>
+        {p.barLabel}
       </span>
     </span>
   );
+}
+
+function PlayerRow({ p, mirror, maxDmg, maxHeal }: {
+  p: PlayerVM; mirror: boolean; maxDmg: number; maxHeal: number;
+}) {
+  // mirror=false(왼쪽 팀): 텍스트 | 헥스(중앙) / mirror=true(오른쪽 팀): 헥스(중앙) | 텍스트
+  const info = (
+    <span style={{ minWidth: 0, display: 'grid', gap: 2, textAlign: mirror ? 'left' : 'right' }}>
+      <span style={{ display: 'flex', gap: 5, alignItems: 'baseline',
+        flexDirection: mirror ? 'row' : 'row-reverse',
+        justifyContent: mirror ? 'flex-start' : 'flex-start' }}>
+        <span title={p.gameName} style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
+          color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+        {p.kda && (
+          <span style={{ flexShrink: 0, fontFamily: 'var(--font-numeral)', fontWeight: 600, fontSize: 10,
+            color: 'rgba(255,255,255,0.7)' }}>{p.kda}</span>
+        )}
+      </span>
+      <StatBar p={p} mirror={mirror} maxDmg={maxDmg} maxHeal={maxHeal} />
+    </span>
+  );
   const hex = (
-    <HexAvatar name={p.hero} imageUrl={heroImageUrl(p.hero)} size={44}
+    <HexAvatar name={p.hero} imageUrl={heroImageUrl(p.hero)} size={34}
       ring="rgba(255,255,255,0.5)" />
   );
   return (
     <div style={{
       display: 'grid', gap: 'var(--sp-2)', alignItems: 'center',
-      gridTemplateColumns: mirror ? '44px minmax(0, 1fr)' : 'minmax(0, 1fr) 44px',
-      justifyItems: mirror ? 'start' : 'end',
+      gridTemplateColumns: mirror ? '34px minmax(0, 1fr)' : 'minmax(0, 1fr) 34px',
     }}>
       {mirror ? <>{hex}{info}</> : <>{info}{hex}</>}
     </div>
   );
 }
 
-function SideBlock({ side, mirror, showFirstPick }: { side: SideVM; mirror: boolean; showFirstPick: boolean }) {
+function SideBlock({ side, mirror, showFirstPick, maxDmg, maxHeal }: {
+  side: SideVM; mirror: boolean; showFirstPick: boolean; maxDmg: number; maxHeal: number;
+}) {
   return (
-    <div style={{ display: 'grid', gap: 'var(--sp-2)', alignContent: 'start', minWidth: 0 }}>
+    <div style={{
+      display: 'grid', gap: 6, alignContent: 'start', minWidth: 0,
+      borderRadius: 'var(--r-md)', padding: '8px 10px',
+      // 이긴 쪽 초록 그라데이션
+      background: side.won
+        ? `linear-gradient(${mirror ? '270deg' : '90deg'}, color-mix(in srgb, var(--win) 26%, transparent), transparent 85%)`
+        : 'transparent',
+      border: side.won ? '1px solid color-mix(in srgb, var(--win) 35%, transparent)' : '1px solid transparent',
+    }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)',
         flexDirection: mirror ? 'row' : 'row-reverse' }}>
         <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
           fontSize: 'var(--fs-sm)', color: '#fff' }}>{side.teamName}</span>
         {side.won && (
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 22, height: 22, borderRadius: 999, background: 'var(--win)',
-            color: 'var(--bg-void)', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: 11 }}>승</span>
+            height: 18, padding: '0 7px', borderRadius: 999, background: 'var(--win)',
+            color: 'var(--bg-void)', fontFamily: 'var(--font-ui)', fontWeight: 800, fontSize: 10 }}>승</span>
         )}
         {showFirstPick && side.firstPick && (
-          <span style={{ padding: '1px 8px', borderRadius: 'var(--r-pill)',
+          <span style={{ padding: '1px 7px', borderRadius: 'var(--r-pill)',
             background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.35)',
-            color: '#fff', fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 10,
+            color: '#fff', fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 9,
             letterSpacing: '0.08em' }}>선픽</span>
         )}
       </div>
-      {side.players.map((p, i) => <PlayerRow key={i} p={p} mirror={mirror} />)}
+      {side.players.map((p, i) => <PlayerRow key={i} p={p} mirror={mirror} maxDmg={maxDmg} maxHeal={maxHeal} />)}
     </div>
   );
 }
@@ -380,40 +420,32 @@ function GameCard({ g, desktop }: { g: GameVM; desktop: boolean }) {
       <span aria-hidden style={{ position: 'absolute', inset: 0,
         background: 'linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.25) 40%, rgba(0,0,0,0.65))' }} />
 
-      <div style={{ position: 'relative', display: 'grid', gap: 'var(--sp-3)', padding: 'var(--sp-4)' }}>
-        {/* 헤더: 날짜 · 스크림 번호 */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-3)' }}>
-          <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 700,
-            fontSize: 'var(--fs-sm)', color: '#fff', letterSpacing: '0.04em' }}>{g.dateLabel}</span>
+      <div style={{ position: 'relative', display: 'grid', gap: 'var(--sp-2)', padding: 'var(--sp-3)' }}>
+        {/* 헤더: 날짜 · 스크림 번호 · 맵 · 시간 한 줄 */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)', flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 800,
-            fontSize: 'var(--fs-xs)', color: 'rgba(255,255,255,0.8)' }}>스크림 #{g.no}</span>
-          {!g.firstPickKnown && (
-            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-ui)', fontSize: 10,
-              color: 'rgba(255,255,255,0.45)' }}>선픽 미기록</span>
+            fontSize: 'var(--fs-xs)', color: 'var(--win)' }}>#{g.no}</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: 'var(--fs-sm)', color: '#fff' }}>{g.map ?? '맵 미기록'}</span>
+          {g.dur && (
+            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10,
+              color: 'rgba(255,255,255,0.7)' }}>{g.dur}</span>
           )}
+          <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 10,
+            color: 'rgba(255,255,255,0.55)' }}>{g.dateLabel}</span>
+          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-ui)', fontSize: 9,
+            color: 'rgba(255,255,255,0.45)' }}>
+            {g.firstPickKnown ? '왼쪽 선픽' : '선픽 미기록'}
+          </span>
         </div>
 
         {/* 본문: 좌팀 | 우팀 (모바일은 세로 스택) */}
         <div style={{
-          display: 'grid', gap: 'var(--sp-4)',
+          display: 'grid', gap: 'var(--sp-2)',
           gridTemplateColumns: desktop ? 'repeat(2, minmax(0, 1fr))' : '1fr',
         }}>
-          <SideBlock side={g.left} mirror={false} showFirstPick={g.firstPickKnown} />
-          <SideBlock side={g.right} mirror showFirstPick={g.firstPickKnown} />
-        </div>
-
-        {/* 푸터: 맵 이름 · 경기 시간 */}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-3)' }}>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
-            fontSize: 'var(--fs-md)', color: '#fff' }}>{g.map ?? '맵 미기록'}</span>
-          {g.dur && (
-            <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 'var(--fs-xs)',
-              color: 'rgba(255,255,255,0.75)' }}>{g.dur}</span>
-          )}
-          {g.firstPickKnown && (
-            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-ui)', fontSize: 10,
-              color: 'rgba(255,255,255,0.55)' }}>왼쪽이 선픽</span>
-          )}
+          <SideBlock side={g.left} mirror={false} showFirstPick={g.firstPickKnown} maxDmg={g.maxDmg} maxHeal={g.maxHeal} />
+          <SideBlock side={g.right} mirror showFirstPick={g.firstPickKnown} maxDmg={g.maxDmg} maxHeal={g.maxHeal} />
         </div>
       </div>
     </article>
