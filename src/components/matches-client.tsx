@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { deleteMatch } from '@/lib/api-client';
@@ -11,6 +11,7 @@ import type { Match, Streamer } from '@/lib/types';
 import { HeroTeamStack, MatchDetail } from '@/components/match-detail';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
 import type { Bp } from '@/hooks/use-breakpoint';
+import { TOURNAMENT_NAME, TOURNAMENT_SEASON } from '@/lib/tournament';
 
 // ── 헬퍼 ─────────────────────────────────────────────────────
 function dateKey(d: Date): string {
@@ -96,11 +97,11 @@ function LevelChip({ level, won }: { level: number; won: boolean }) {
 
 // ── MatchRow ──────────────────────────────────────────────────
 function MatchRow({
-  match, open, idx, onClick, onDelete, onEdit, canEdit, bp,
+  match, open, idx, onClick, onDelete, onEdit, canEdit, bp, isTournament,
 }: {
   match: Match; open: boolean; idx: number;
   onClick: () => void; onDelete: () => void; onEdit: () => void;
-  canEdit: boolean; bp: Bp;
+  canEdit: boolean; bp: Bp; isTournament: boolean;
 }) {
   const isMobile = bp === 'mobile';
   const heroSize = isMobile ? 20 : 24;
@@ -147,6 +148,19 @@ function MatchRow({
           color: 'var(--text-high)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {match.map ?? '—'}
         </span>
+        {/* 대회 경기 표식 — 티어리스트 참가자 필터 알약과 같은 보라 계열 */}
+        {isTournament && (
+          <span title={`${TOURNAMENT_NAME} ${TOURNAMENT_SEASON}`} style={{
+            position: 'relative', marginLeft: 'var(--sp-2)', flexShrink: 0,
+            height: 20, padding: '0 9px', display: 'inline-flex', alignItems: 'center',
+            borderRadius: 'var(--r-pill)',
+            border: '1px solid var(--hots-purple)',
+            background: 'color-mix(in srgb, var(--hots-purple) 20%, var(--surface-card))',
+            color: 'var(--hots-purple)',
+            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 11, whiteSpace: 'nowrap' }}>
+            {TOURNAMENT_SEASON}
+          </span>
+        )}
       </span>
 
       {match.dur && (
@@ -231,11 +245,14 @@ export default function MatchesClient({
   matches,
   streamers,
   isStreamer,
+  tournamentMatchIds = [],
 }: {
   matches: Match[];
   streamers: Streamer[];
   isStreamer: boolean;
+  tournamentMatchIds?: string[]; // 대회 경기로 태깅된 matchId — 맵 이름 옆 시즌 배지용
 }) {
+  const tournamentIds = useMemo(() => new Set(tournamentMatchIds), [tournamentMatchIds]);
   const router = useRouter();
   const bp = useBreakpoint();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -371,6 +388,7 @@ export default function MatchesClient({
                         idx={numberById.get(m.id) ?? 0}
                         onClick={() => handleToggle(m.id)}
                         onDelete={() => handleDelete(m.id, numberById.get(m.id) ?? 0)}
+                        isTournament={tournamentIds.has(m.id)}
                         onEdit={() => router.push(`/matches/new?edit=${m.id}`)}
                         canEdit={isStreamer}
                         bp={bp}
