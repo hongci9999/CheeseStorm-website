@@ -60,8 +60,14 @@ export async function updateStreamerProfileImage(id: string, imageUrl: string): 
 }
 
 // ── Matches ──────────────────────────────────────────────────
-export async function addMatch(data: Omit<Match, 'id' | 'createdAt'>): Promise<string> {
-  const res = await apiFetch('/api/matches', 'POST', data) as { id: string };
+// tournamentTeams: 대회 경기로 태깅할 때 { blue: teamId, red: teamId }.
+// updateMatch에서 null을 넘기면 기존 대회 태그 해제, undefined면 기존 태그 유지(건드리지 않음).
+export type TournamentTeamsPayload = { blue: string; red: string } | null;
+
+export async function addMatch(
+  data: Omit<Match, 'id' | 'createdAt'>, tournamentTeams?: TournamentTeamsPayload,
+): Promise<string> {
+  const res = await apiFetch('/api/matches', 'POST', { ...data, tournamentTeams }) as { id: string };
   invalidateMatchesCache();
   invalidateStatsCache();
   return res.id;
@@ -73,8 +79,10 @@ export async function deleteMatch(id: string): Promise<void> {
   invalidateStatsCache();
 }
 
-export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdAt'>): Promise<void> {
-  await apiFetch(`/api/matches/${id}`, 'PATCH', { action: 'update', ...data });
+export async function updateMatch(
+  id: string, data: Omit<Match, 'id' | 'createdAt'>, tournamentTeams?: TournamentTeamsPayload,
+): Promise<void> {
+  await apiFetch(`/api/matches/${id}`, 'PATCH', { action: 'update', ...data, tournamentTeams });
   invalidateMatchesCache();
   invalidateStatsCache();
 }

@@ -2,11 +2,15 @@
 // 클라이언트 컴포넌트에서 이 파일을 import하면 빌드 에러 발생 (의도된 동작).
 import 'server-only';
 import { unstable_cache } from 'next/cache';
-import { getMatches, getStreamers, getScrims, getPrecomputedStats, getPrecomputedProfile } from './firestore';
+import {
+  getMatches, getStreamers, getScrims, getPrecomputedStats, getPrecomputedProfile,
+  getTournamentGameLinks,
+} from './firestore';
 import type { PrecomputedProfile } from './firestore';
 import type { Match, Streamer, PlayerStats } from './types';
 import type { HeroTierStat } from './hero-tier';
 import type { Scrim } from './scrim';
+import type { TournamentGameLink } from './tournament';
 
 // ── Matches ───────────────────────────────────────────────────
 // unstable_cache는 JSON 직렬화를 거치므로 Date → string 변환됨. 역직렬화 복원 필요.
@@ -23,6 +27,17 @@ type RawMatch = Omit<Match, 'date' | 'createdAt'> & { date: string | Date; creat
 export async function getMatchesCachedServer(): Promise<Match[]> {
   const raw = await _getMatchesRaw() as RawMatch[];
   return raw.map(({ blueStats: _b, redStats: _r, ...m }) => ({
+    ...m,
+    date: m.date instanceof Date ? m.date : new Date(m.date),
+    createdAt: m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt),
+  }));
+}
+
+// 대회 페이지용 — 개인 스탯 포함 전체 목록. _getMatchesRaw와 같은 캐시 엔트리를
+// 공유하므로 추가 Firestore 읽기 없음. 서버에서 집계 후 뷰모델만 클라이언트로 전달할 것.
+export async function getMatchesWithStatsCachedServer(): Promise<Match[]> {
+  const raw = await _getMatchesRaw() as RawMatch[];
+  return raw.map((m) => ({
     ...m,
     date: m.date instanceof Date ? m.date : new Date(m.date),
     createdAt: m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt),
@@ -91,5 +106,24 @@ export async function getScrimsCachedServer(): Promise<Scrim[]> {
     ...s,
     date: s.date instanceof Date ? s.date : new Date(s.date),
     createdAt: s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt),
+  }));
+}
+
+// ── Tournament games (대회 경기 태깅) ────────────────────────
+// 경기 입력/수정 API 라우트가 같은 요청 컨텍스트에서 revalidateTag('tournamentGames')를
+// 호출하므로 무효화가 안정적 — stats처럼 waitUntil 경유 무효화가 아니라 TTL 불필요.
+const _getTournamentGameLinksRaw = unstable_cache(
+  () => getTournamentGameLinks(),
+  ['tournament-games'],
+  { tags: ['tournamentGames'] },
+);
+
+type RawTournamentGameLink = Omit<TournamentGameLink, 'createdAt'> & { createdAt: string | Date };
+
+export async function getTournamentGameLinksCachedServer(): Promise<TournamentGameLink[]> {
+  const raw = await _getTournamentGameLinksRaw() as RawTournamentGameLink[];
+  return raw.map((l) => ({
+    ...l,
+    createdAt: l.createdAt instanceof Date ? l.createdAt : new Date(l.createdAt),
   }));
 }
