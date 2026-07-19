@@ -26,13 +26,12 @@ export const TOURNAMENT_SEASON = '2026 여름 시즌';
 // 명시적 태깅(TournamentGameLink)으로 결정된다. 상수·판정은 Edge 안전한 tournament-period로 분리.
 export { TOURNAMENT_START, TOURNAMENT_END, isTournamentActive } from './tournament-period';
 
-// 팀장: 베릴·진수·인간젤리·네클릿 확정.
-// TODO: 팀원 배분은 드래프트 확정 시 채울 것 (현재 전 팀 팀장만 확정, 팀원 미정 → 빈 슬롯 표시).
+// 팀장·팀원 전원 확정 (드래프트 완료).
 export const TOURNAMENT_TEAMS: TournamentTeamConfig[] = [
-  { id: 'team1', name: '1팀', captain: '베릴',     members: [] },
-  { id: 'team2', name: '2팀', captain: '진수',     members: [] },
-  { id: 'team3', name: '3팀', captain: '인간젤리', members: [] },
-  { id: 'team4', name: '4팀', captain: '네클릿',   members: [] },
+  { id: 'team1', name: '1팀', captain: '베릴',     members: ['룩삼', '뱅', '노페', '플레임'] },
+  { id: 'team2', name: '2팀', captain: '진수',     members: ['끠월마녀', '헤징', '침착맨', '철면수심'] },
+  { id: 'team3', name: '3팀', captain: '인간젤리', members: ['울프', '츠밍', '던', '반님'] },
+  { id: 'team4', name: '4팀', captain: '네클릿',   members: ['소우릎', '캡틴잭', '강소연', '승우아빠'] },
 ];
 
 // 이번 대회 사용 맵 6종 (맵별 통계 표시 순서)
