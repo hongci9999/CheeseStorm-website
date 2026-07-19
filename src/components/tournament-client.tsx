@@ -60,9 +60,9 @@ export default function TournamentClient({ data }: { data: TournamentData }) {
         </h1>
         <span style={{
           padding: '2px 10px', borderRadius: 'var(--r-pill)',
-          background: 'color-mix(in srgb, var(--cheese-green) 14%, transparent)',
-          border: '1px solid color-mix(in srgb, var(--cheese-green) 40%, transparent)',
-          color: 'var(--cheese-green)', fontFamily: 'var(--font-numeral)',
+          background: 'color-mix(in srgb, var(--hots-purple) 20%, transparent)',
+          border: '1px solid var(--hots-purple)',
+          color: 'var(--hots-purple)', fontFamily: 'var(--font-numeral)',
           fontWeight: 700, fontSize: 'var(--fs-xs)', letterSpacing: '0.06em',
         }}>
           {TOURNAMENT_SEASON}
@@ -579,6 +579,7 @@ const POS_METRICS: {
   { label: '영웅딜/분', val: (r) => r.heroDmgPerMin,  fmt: (r) => fmtInt(r.heroDmgPerMin) },
   { label: '공성딜/분', val: (r) => r.siegeDmgPerMin, fmt: (r) => fmtInt(r.siegeDmgPerMin) },
   { label: '힐/분',    val: (r) => r.healingPerMin,  fmt: (r) => fmtInt(r.healingPerMin) },
+  { label: '자힐/분',   val: (r) => r.selfHealPerMin, fmt: (r) => fmtInt(r.selfHealPerMin) },
   { label: 'XP/분',    val: (r) => r.xpPerMin,       fmt: (r) => fmtInt(r.xpPerMin) },
 ];
 

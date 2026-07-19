@@ -273,6 +273,7 @@ export interface PositionRow {
   heroDmgPerMin: number | null;
   siegeDmgPerMin: number | null;
   healingPerMin: number | null;
+  selfHealPerMin: number | null;
   xpPerMin: number | null;
 }
 
@@ -291,14 +292,14 @@ export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): 
   interface Acc {
     games: number; wins: number;
     k: number; a: number; d: number; teamKills: number; statGames: number;
-    heroDmg: number; siegeDmg: number; healing: number; xp: number; durMin: number;
+    heroDmg: number; siegeDmg: number; healing: number; selfHeal: number; xp: number; durMin: number;
   }
   const acc = new Map<string, Acc>(); // key = `${id}|${role}`
   const get = (key: string): Acc => {
     let v = acc.get(key);
     if (!v) {
       v = { games: 0, wins: 0, k: 0, a: 0, d: 0, teamKills: 0, statGames: 0,
-        heroDmg: 0, siegeDmg: 0, healing: 0, xp: 0, durMin: 0 };
+        heroDmg: 0, siegeDmg: 0, healing: 0, selfHeal: 0, xp: 0, durMin: 0 };
       acc.set(key, v);
     }
     return v;
@@ -327,7 +328,8 @@ export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): 
         v.teamKills += teamKills;
         if (dur) {
           v.heroDmg += st.heroDmg; v.siegeDmg += st.siegeDmg;
-          v.healing += st.healing; v.xp += st.xp; v.durMin += dur;
+          v.healing += st.healing; v.selfHeal += st.selfHeal;
+          v.xp += st.xp; v.durMin += dur;
         }
       });
     }
@@ -344,6 +346,7 @@ export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): 
       heroDmgPerMin: perMin(v.heroDmg),
       siegeDmgPerMin: perMin(v.siegeDmg),
       healingPerMin: perMin(v.healing),
+      selfHealPerMin: perMin(v.selfHeal),
       xpPerMin: perMin(v.xp),
     };
   }).sort((x, y) => y.games - x.games || y.winRate - x.winRate);
@@ -380,7 +383,7 @@ export interface PositionRowVM {
   games: number; wins: number; winRate: number;
   kda: number | null; kp: number | null;
   heroDmgPerMin: number | null; siegeDmgPerMin: number | null;
-  healingPerMin: number | null; xpPerMin: number | null;
+  healingPerMin: number | null; selfHealPerMin: number | null; xpPerMin: number | null;
 }
 export interface MapRowVM {
   map: string; img: string | null;
@@ -542,7 +545,8 @@ export function buildTournamentData(
           games: r.games, wins: r.wins, winRate: r.winRate,
           kda: r.kda, kp: r.kp,
           heroDmgPerMin: r.heroDmgPerMin, siegeDmgPerMin: r.siegeDmgPerMin,
-          healingPerMin: r.healingPerMin, xpPerMin: r.xpPerMin,
+          healingPerMin: r.healingPerMin, selfHealPerMin: r.selfHealPerMin,
+          xpPerMin: r.xpPerMin,
         };
       }),
     }))

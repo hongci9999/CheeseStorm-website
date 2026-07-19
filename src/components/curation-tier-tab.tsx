@@ -15,7 +15,7 @@ import {
   type CuratedPlayer,
 } from '@/lib/curated-tier';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
-import { TOURNAMENT_PARTICIPANT_NAMES } from '@/lib/tournament';
+import { TOURNAMENT_PARTICIPANT_NAMES, TOURNAMENT_SEASON } from '@/lib/tournament';
 import type { CuratedTierLists, FineRole, PlayerStats, Streamer, Tier } from '@/lib/types';
 
 const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
@@ -155,7 +155,7 @@ function TournamentFilterPill({ active, onToggle }: { active: boolean; onToggle:
         transition: 'all var(--dur-fast) var(--ease-out)',
       }}
     >
-      2026 여름 대회 참가자
+      {TOURNAMENT_SEASON} 참가자
     </button>
   );
 }

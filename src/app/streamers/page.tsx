@@ -14,7 +14,7 @@ import { ProSticker } from '@/components/pro-sticker';
 import { isProStreamer } from '@/lib/pro-streamers';
 import { useAuth } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { TOURNAMENT_PARTICIPANT_NAMES } from '@/lib/tournament';
+import { TOURNAMENT_PARTICIPANT_NAMES, TOURNAMENT_SEASON } from '@/lib/tournament';
 
 const INPUT: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px',
@@ -621,7 +621,7 @@ export default function StreamersPage() {
             transition: 'all var(--dur-fast) var(--ease-out)',
           }}
         >
-          2026 여름 대회 참가자
+          {TOURNAMENT_SEASON} 참가자
         </button>
       </div>
 

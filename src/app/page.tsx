@@ -14,7 +14,7 @@ import type { Streamer } from '@/lib/types';
 import type { EloDetail, EloMatchDetail } from '@/lib/elo';
 import { calcDelta } from '@/lib/elo';
 import { useBreakpoint, type Bp } from '@/hooks/use-breakpoint';
-import { TOURNAMENT_PARTICIPANT_NAMES } from '@/lib/tournament';
+import { TOURNAMENT_PARTICIPANT_NAMES, TOURNAMENT_SEASON } from '@/lib/tournament';
 
 // 상위 탭 종류
 // 자동 티어표는 숨김 (참고 지표로 오해 소지 — 큐레이션/Elo만 노출)
@@ -205,7 +205,7 @@ function TournamentFilterPill({ active, onToggle }: { active: boolean; onToggle:
         transition: 'all var(--dur-fast) var(--ease-out)',
       }}
     >
-      2026 여름 대회 참가자
+      {TOURNAMENT_SEASON} 참가자
     </button>
   );
 }
