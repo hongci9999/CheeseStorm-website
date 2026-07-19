@@ -382,11 +382,23 @@ function PlayerRow({ p, mirror, max }: {
   // 한 줄 고정 컬럼 배치 — 헥스(가운데)에서 바깥으로 닉네임 → KDA → 막대 순으로 뻗음.
   // 닉네임·KDA 컬럼 폭 고정 + 트랙을 헥스 쪽으로 밀착(justifyContent) → 남는 공간은 바깥쪽,
   // 행마다·양 팀 모두 KDA 시작지점 일치.
+  // 용병(대타)은 이름 옆에 배지 — 이 팀 로스터 밖 출전자임을 표시
+  const mercBadge = p.merc ? (
+    <span title="용병 (팀 로스터 밖 출전)" style={{ flexShrink: 0,
+      padding: '0 4px', borderRadius: 'var(--r-pill)',
+      background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.35)',
+      color: '#fff', fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 8.5,
+      lineHeight: '13px' }}>용병</span>
+  ) : null;
   const name = (
-    <span title={p.gameName} style={{ minWidth: 0,
-      fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
-      color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      textAlign: mirror ? 'left' : 'right' }}>{p.name}</span>
+    <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 3,
+      justifyContent: mirror ? 'flex-start' : 'flex-end' }}>
+      {mirror && mercBadge}
+      <span title={p.gameName} style={{ minWidth: 0,
+        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
+        color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+      {!mirror && mercBadge}
+    </span>
   );
   const kda = p.kda ? (
     <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap',
@@ -403,7 +415,8 @@ function PlayerRow({ p, mirror, max }: {
   const info = (
     <span style={{ minWidth: 0, display: 'grid', alignItems: 'center', columnGap: 7,
       justifyContent: mirror ? 'start' : 'end',
-      gridTemplateColumns: mirror ? '60px 60px auto' : 'auto 60px 60px' }}>
+      // 닉네임 컬럼은 용병 배지가 붙어도 이름이 뭉개지지 않을 만큼 확보 (양 팀 동일 폭 유지)
+      gridTemplateColumns: mirror ? '78px 60px auto' : 'auto 60px 78px' }}>
       {mirror ? <>{name}{kda}{bar}</> : <>{bar}{kda}{name}</>}
     </span>
   );

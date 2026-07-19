@@ -284,7 +284,10 @@ function durMinutes(dur?: string): number | null {
   return v > 0 ? v : null;
 }
 
-export function positionStats(games: TournamentGame[]): PositionRow[] {
+// rosters를 주면 용병(대타) 출전은 개인 통계에서 제외한다 — 그 진영의 대회팀 로스터에
+// 없는 id는 건너뜀. 외부 용병뿐 아니라 타팀 대타도 걸러져 자기 팀 경기 성적만 남는다.
+export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): PositionRow[] {
+  const idsByTeam = new Map(rosters?.map((r) => [r.id, r.ids]) ?? []);
   interface Acc {
     games: number; wins: number;
     k: number; a: number; d: number; teamKills: number; statGames: number;
@@ -309,7 +312,9 @@ export function positionStats(games: TournamentGame[]): PositionRow[] {
       const stats = bucket === 'blue' ? m.blueStats : m.redStats;
       const won = m.winner === bucket;
       const teamKills = stats?.reduce((s, x) => s + x.kills, 0) ?? 0;
+      const own = idsByTeam.get(g.teams[bucket]);
       roster.forEach(([id, hero], i) => {
+        if (own && !own.has(id)) return; // 용병 출전은 개인 통계 제외
         const role = roleOfHero(hero);
         if (!role) return;
         const v = get(`${id}|${role}`);
@@ -359,6 +364,7 @@ export interface PlayerVM {
   barKind?: 'dmg' | 'heal'; // 힐러=heal(치유량), 그 외=dmg(영웅딜)
   barValue?: number;     // 막대 원값 (딜 또는 힐)
   barLabel?: string;     // 축약 표기 (예: "42.3k")
+  merc?: boolean;        // 용병(대타) — 이 진영의 대회팀 로스터에 없는 출전자
 }
 export interface SideVM { teamName: string; won: boolean; firstPick: boolean; players: PlayerVM[]; }
 export interface GameVM {
@@ -460,8 +466,12 @@ export function buildTournamentData(
     return { wins: r.wins, losses: r.losses, games: g, winRate: g ? r.wins / g : 0 };
   }));
 
+  // 진영별 대회팀 로스터 id — 여기 없는 출전자가 용병(대타)
+  const idsByTeam = new Map(rosters.map((r) => [r.id, r.ids]));
+
   const sideVM = (g: TournamentGame, bucket: 'blue' | 'red'): SideVM => {
     const m = g.match;
+    const own = idsByTeam.get(g.teams[bucket]);
     const roster = bucket === 'blue' ? m.blueTeam : m.redTeam;
     const stats = bucket === 'blue' ? m.blueStats : m.redStats;
     const statBySlot = new Map(roster.map(([id], i) => [id, stats?.[i]]));
@@ -480,6 +490,7 @@ export function buildTournamentData(
           barKind: st ? (isHealer ? 'heal' as const : 'dmg' as const) : undefined,
           barValue,
           barLabel: barValue !== undefined ? abbrevNum(barValue) : undefined,
+          ...(own && !own.has(id) ? { merc: true } : {}),
         };
       }),
     };
@@ -507,17 +518,16 @@ export function buildTournamentData(
   // 포지션 테이블 행 — 팀 소속은 로스터 기준
   const teamOfStreamer = (id: string): string => {
     for (const r of rosters) if (r.ids.has(id)) return r.name;
-    return '용병'; // rosterIds 필터를 통과한 행만 오므로 실제로는 도달하지 않음
+    return '용병'; // positionStats가 용병을 걸러내므로 실제로는 도달하지 않음
   };
   // 팀 순서(설정 순 1→4) 정렬 인덱스
   const teamIndexOf = (id: string): number => {
     const i = rosters.findIndex((r) => r.ids.has(id));
     return i < 0 ? rosters.length : i;
   };
-  // 대회 경기에 로스터 밖 대타가 뛰어도 개인 통계는 로스터 인원만 집계한다.
-  // (팀 승패는 teamRecords가 팀 단위로 세므로 대타 출전과 무관하게 그대로 반영)
-  const rosterIds = new Set(rosters.flatMap((r) => [...r.ids]));
-  const rows = positionStats(games).filter((r) => rosterIds.has(r.streamerId));
+  // 용병 출전은 positionStats에서 제외 — 개인 통계엔 자기 팀으로 뛴 경기만 남는다.
+  // (팀 승패는 teamRecords가 팀 단위로 세므로 용병 출전과 무관하게 그대로 반영)
+  const rows = positionStats(games, rosters);
   const positions = POSITION_ORDER
     .map((role) => ({
       role,

@@ -262,6 +262,34 @@ describe('buildTournamentData', () => {
     expect(teamA.wins).toBe(1);
   });
 
+  it('타팀 대타 출전은 그 선수 개인 통계에 합산되지 않는다', () => {
+    // b4가 자기 팀(B) 대신 A팀 진영에 대타로 출전, B팀 자리는 외부 용병 x0가 채움
+    const m = mkMatch({
+      blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['a2', '제이나'], ['a3', '아바투르'], ['b4', '리 리']],
+      redTeam: [['b0', '디아블로'], ['b1', '아르타니스'], ['b2', '발라'], ['b3', '자가라'], ['x0', '우서']],
+      winner: 'blue',
+    });
+    const data = buildTournamentData([m], [mkLink(m)], streamers, config);
+
+    const rows = data.positions.flatMap((p) => p.rows);
+    expect(rows.map((r) => r.name)).not.toContain('선수b4'); // 대타로 딴 승은 개인 통계 밖
+    expect(rows.map((r) => r.name)).not.toContain('용병X');
+    expect(rows.find((r) => r.name === '선수a0')!.games).toBe(1); // 정상 출전은 그대로
+  });
+
+  it('용병 출전자만 게임 카드에 merc 표시', () => {
+    const m = mkMatch({
+      // x0 = 외부 용병, b4 = 타팀 대타 — 둘 다 A팀 로스터 밖
+      blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['x0', '제이나'], ['b4', '아바투르'], ['a4', '리 리']],
+    });
+    const data = buildTournamentData([m], [mkLink(m)], streamers, config);
+
+    const all = [...data.games[0].left.players, ...data.games[0].right.players];
+    const mercs = all.filter((p) => p.merc).map((p) => p.name);
+    expect(mercs.sort()).toEqual(['선수b4', '용병X']);
+    expect(all.find((p) => p.name === '선수a0')!.merc).toBeUndefined();
+  });
+
   it('로스터 미설정이면 configured=false', () => {
     const empty = [{ id: 'T', name: 'T팀', captain: '', members: ['', '', '', ''] }];
     const data = buildTournamentData([mkMatch({})], [], streamers, empty);
