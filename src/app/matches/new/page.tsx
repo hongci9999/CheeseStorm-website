@@ -157,10 +157,11 @@ function StatBar({
 
 // ── 슬롯 컴포넌트 ─────────────────────────────────────────────
 function Slot({
-  slot, index, side, streamers, onUpdate,
+  slot, index, side, streamers, onUpdate, swapPicked, onSwapPick,
 }: {
   slot: TeamSlot; index: number; side: 'blue' | 'red';
   streamers: Streamer[]; onUpdate: (patch: Partial<TeamSlot>) => void;
+  swapPicked: boolean; onSwapPick: () => void;
 }) {
   const isActive   = !!(slot.streamerId || slot.extractedName || slot.hero);
   const isUnmatched = !!(slot.extractedName && !slot.streamerId);
@@ -195,8 +196,8 @@ function Slot({
           </span>
         )}
 
-        {/* 스트리머 선택 + 영웅명 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+        {/* 스트리머 선택 + 영웅명 + 팀 교체 버튼 */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 26px', gap: 6 }}>
           <select
             value={slot.streamerId}
             onChange={e => onUpdate({ streamerId: e.target.value })}
@@ -217,6 +218,13 @@ function Slot({
                 : slot.streamerId && !slot.hero ? 'var(--loss-soft)' : 'var(--border-line)',
               color: slot.hero ? 'var(--text-high)' : 'var(--text-faint)' }}
           />
+          {/* 팀 교체 — 이 버튼과 상대 팀 슬롯의 버튼을 차례로 누르면 두 슬롯이 통째로 맞바뀐다 */}
+          <button type="button" onClick={onSwapPick}
+            title={swapPicked ? '교체 선택 해제' : '상대 팀 슬롯과 교체'}
+            style={{ height: 30, borderRadius: 'var(--r-xs)', cursor: 'pointer', fontSize: 13,
+              border: `1px solid ${swapPicked ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+              background: 'transparent',
+              color: swapPicked ? 'var(--cheese-green)' : 'var(--text-faint)' }}>⇄</button>
         </div>
 
         {/* 영웅 목록에 없는 이름 경고 */}
@@ -340,6 +348,8 @@ function NewMatchPageInner() {
   const [showAiVerifyNotice, setShowAiVerifyNotice] = useState(false);
   // 중복 경고: level(strong/weak) + 기존 경기 참조. null이면 경고 없음
   const [dupWarning, setDupWarning] = useState<{ level: 'strong' | 'weak'; match: Match } | null>(null);
+  // 팀 교체 대기 중인 슬롯 (⇄ 첫 클릭)
+  const [swapPick, setSwapPick] = useState<{ side: 'blue' | 'red'; i: number } | null>(null);
 
   useEffect(() => {
     getStreamers().then(setStreamers);
@@ -434,6 +444,21 @@ function NewMatchPageInner() {
         // 교정맵 저장 실패는 무시 — 경기 저장에 영향 없음
       });
     }
+  }
+
+  // AI 입력이 팀을 섞어 넣은 경우 교정 — 양 팀 슬롯을 하나씩 골라 통째로 맞바꾼다.
+  // 슬롯에 스트리머·영웅·스탯이 함께 들어 있어 스왑만으로 정합성이 유지된다.
+  function handleSwapPick(side: 'blue' | 'red', i: number) {
+    if (!swapPick) { setSwapPick({ side, i }); return; }
+    // 같은 팀 재선택 — 순서만 바뀌므로 교체 없이 선택만 옮긴다
+    if (swapPick.side === side) { setSwapPick(swapPick.i === i ? null : { side, i }); return; }
+    const bi = side === 'blue' ? i : swapPick.i;
+    const ri = side === 'red' ? i : swapPick.i;
+    const blueSlot = blueSlots[bi];
+    const redSlot = redSlots[ri];
+    setBlueSlots(prev => prev.map((s, k) => (k === bi ? redSlot : s)));
+    setRedSlots(prev => prev.map((s, k) => (k === ri ? blueSlot : s)));
+    setSwapPick(null);
   }
 
   function patchSlot(side: 'blue' | 'red', i: number, patch: Partial<TeamSlot>) {
@@ -614,6 +639,13 @@ function NewMatchPageInner() {
           </div>
         </div>
 
+        {swapPick && (
+          <p style={{ margin: '0 0 var(--sp-2)', fontFamily: 'var(--font-ui)', fontSize: 12,
+            color: 'var(--cheese-green)' }}>
+            맞바꿀 상대 팀 슬롯의 ⇄ 를 누르세요 (같은 팀을 다시 누르면 선택 이동)
+          </p>
+        )}
+
         {/* ── 팀 슬롯 패널 ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-4)' }}>
           {(['blue', 'red'] as const).map(side => {
@@ -681,6 +713,8 @@ function NewMatchPageInner() {
                       side={side}
                       streamers={streamers}
                       onUpdate={patch => patchSlot(side, i, patch)}
+                      swapPicked={swapPick?.side === side && swapPick.i === i}
+                      onSwapPick={() => handleSwapPick(side, i)}
                     />
                   ))}
                 </div>
