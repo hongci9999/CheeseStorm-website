@@ -444,7 +444,7 @@ export function buildTournamentData(
         const barValue = st ? (isHealer ? st.healing : st.heroDmg) : undefined;
         return {
           name: s?.name ?? id, gameName: s?.gameNames?.[0], hero,
-          kda: st ? `${st.kills}/${st.deaths}/${st.assists}` : undefined,
+          kda: st ? `${st.kills}/${st.assists}/${st.deaths}` : undefined, // KAD 순 (킬/어시/데스)
           barKind: st ? (isHealer ? 'heal' as const : 'dmg' as const) : undefined,
           barValue,
           barLabel: barValue !== undefined ? abbrevNum(barValue) : undefined,

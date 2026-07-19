@@ -316,19 +316,18 @@ function TeamsTab({ data, desktop }: { data: TournamentData; desktop: boolean })
 
 // ── 탭 2: 경기 기록 ──────────────────────────────────────────
 
-// 딜=블루, 힐=그린 막대. 중앙(헥스)에서 바깥으로 뻗음.
-function StatBar({ p, mirror, maxDmg, maxHeal }: { p: PlayerVM; mirror: boolean; maxDmg: number; maxHeal: number }) {
+// 딜=블루, 힐=그린 막대. 딜/힐 공통 최대값(max) 기준 정규화, 헥스 쪽에서 바깥으로 뻗음.
+function StatBar({ p, mirror, max }: { p: PlayerVM; mirror: boolean; max: number }) {
   if (p.barKind === undefined || p.barValue === undefined) {
-    return <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 9,
+    return <span style={{ flexShrink: 0, fontFamily: 'var(--font-numeral)', fontSize: 9,
       color: 'rgba(255,255,255,0.35)' }}>기록 없음</span>;
   }
-  const max = p.barKind === 'heal' ? maxHeal : maxDmg;
   const w = max > 0 ? Math.round((p.barValue / max) * 100) : 0;
   const color = p.barKind === 'heal' ? 'var(--win)' : 'var(--cheese-blue)';
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 4,
+    <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0,
       flexDirection: mirror ? 'row' : 'row-reverse' }}>
-      <span style={{ position: 'relative', flex: 1, height: 5, minWidth: 0,
+      <span style={{ position: 'relative', width: 72, height: 5,
         borderRadius: 999, background: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
         <span style={{ position: 'absolute', top: 0, bottom: 0,
           [mirror ? 'left' : 'right']: 0, width: `${w}%`, background: color,
@@ -342,23 +341,35 @@ function StatBar({ p, mirror, maxDmg, maxHeal }: { p: PlayerVM; mirror: boolean;
   );
 }
 
-function PlayerRow({ p, mirror, maxDmg, maxHeal }: {
-  p: PlayerVM; mirror: boolean; maxDmg: number; maxHeal: number;
+function PlayerRow({ p, mirror, max }: {
+  p: PlayerVM; mirror: boolean; max: number;
 }) {
-  // mirror=false(왼쪽 팀): 텍스트 | 헥스(중앙) / mirror=true(오른쪽 팀): 헥스(중앙) | 텍스트
+  // 한 줄 고정 컬럼 배치 — 헥스(가운데)에서 바깥으로 닉네임 → KDA → 막대 순으로 뻗음.
+  // 닉네임·KDA 컬럼 폭 고정 + 트랙을 헥스 쪽으로 밀착(justifyContent) → 남는 공간은 바깥쪽,
+  // 행마다·양 팀 모두 KDA 시작지점 일치.
+  const name = (
+    <span title={p.gameName} style={{ minWidth: 0,
+      fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
+      color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      textAlign: mirror ? 'left' : 'right' }}>{p.name}</span>
+  );
+  const kda = p.kda ? (
+    <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, whiteSpace: 'nowrap',
+      // 고정 84px 셀 안에서 닉네임 쪽으로 밀착 — 닉네임↔KAD 간격이 양 팀 동일해지고
+      // 남는 셀 여백은 막대 쪽으로 → KAD↔막대 거리도 좌우 일치
+      justifySelf: mirror ? 'start' : 'end' }}>
+      <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 700, fontSize: 8.5,
+        letterSpacing: '0.08em', color: 'rgba(255,255,255,0.55)' }}>KAD</span>
+      <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 800, fontSize: 12.5,
+        color: '#fff' }}>{p.kda}</span>
+    </span>
+  ) : <span />;
+  const bar = <StatBar p={p} mirror={mirror} max={max} />;
   const info = (
-    <span style={{ minWidth: 0, display: 'grid', gap: 2, textAlign: mirror ? 'left' : 'right' }}>
-      <span style={{ display: 'flex', gap: 5, alignItems: 'baseline',
-        flexDirection: mirror ? 'row' : 'row-reverse',
-        justifyContent: mirror ? 'flex-start' : 'flex-start' }}>
-        <span title={p.gameName} style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
-          color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-        {p.kda && (
-          <span style={{ flexShrink: 0, fontFamily: 'var(--font-numeral)', fontWeight: 600, fontSize: 10,
-            color: 'rgba(255,255,255,0.7)' }}>{p.kda}</span>
-        )}
-      </span>
-      <StatBar p={p} mirror={mirror} maxDmg={maxDmg} maxHeal={maxHeal} />
+    <span style={{ minWidth: 0, display: 'grid', alignItems: 'center', columnGap: 7,
+      justifyContent: mirror ? 'start' : 'end',
+      gridTemplateColumns: mirror ? '60px 60px auto' : 'auto 60px 60px' }}>
+      {mirror ? <>{name}{kda}{bar}</> : <>{bar}{kda}{name}</>}
     </span>
   );
   const hex = (
@@ -375,18 +386,15 @@ function PlayerRow({ p, mirror, maxDmg, maxHeal }: {
   );
 }
 
-function SideBlock({ side, mirror, showFirstPick, maxDmg, maxHeal }: {
-  side: SideVM; mirror: boolean; showFirstPick: boolean; maxDmg: number; maxHeal: number;
+function SideBlock({ side, mirror, showFirstPick, max }: {
+  side: SideVM; mirror: boolean; showFirstPick: boolean; max: number;
 }) {
   return (
     <div style={{
       display: 'grid', gap: 6, alignContent: 'start', minWidth: 0,
       borderRadius: 'var(--r-md)', padding: '8px 10px',
-      // 이긴 쪽 초록 그라데이션
-      background: side.won
-        ? `linear-gradient(${mirror ? '270deg' : '90deg'}, color-mix(in srgb, var(--win) 26%, transparent), transparent 85%)`
-        : 'transparent',
-      border: side.won ? '1px solid color-mix(in srgb, var(--win) 35%, transparent)' : '1px solid transparent',
+      // 이긴 쪽은 초록 테두리만 (그라데이션 없음)
+      border: side.won ? '1px solid color-mix(in srgb, var(--win) 55%, transparent)' : '1px solid transparent',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)',
         flexDirection: mirror ? 'row' : 'row-reverse' }}>
@@ -404,7 +412,7 @@ function SideBlock({ side, mirror, showFirstPick, maxDmg, maxHeal }: {
             letterSpacing: '0.08em' }}>선픽</span>
         )}
       </div>
-      {side.players.map((p, i) => <PlayerRow key={i} p={p} mirror={mirror} maxDmg={maxDmg} maxHeal={maxHeal} />)}
+      {side.players.map((p, i) => <PlayerRow key={i} p={p} mirror={mirror} max={max} />)}
     </div>
   );
 }
@@ -444,8 +452,8 @@ function GameCard({ g, desktop }: { g: GameVM; desktop: boolean }) {
           display: 'grid', gap: 'var(--sp-2)',
           gridTemplateColumns: desktop ? 'repeat(2, minmax(0, 1fr))' : '1fr',
         }}>
-          <SideBlock side={g.left} mirror={false} showFirstPick={g.firstPickKnown} maxDmg={g.maxDmg} maxHeal={g.maxHeal} />
-          <SideBlock side={g.right} mirror showFirstPick={g.firstPickKnown} maxDmg={g.maxDmg} maxHeal={g.maxHeal} />
+          <SideBlock side={g.left} mirror={false} showFirstPick={g.firstPickKnown} max={Math.max(g.maxDmg, g.maxHeal)} />
+          <SideBlock side={g.right} mirror showFirstPick={g.firstPickKnown} max={Math.max(g.maxDmg, g.maxHeal)} />
         </div>
       </div>
     </article>
