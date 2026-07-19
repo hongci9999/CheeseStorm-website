@@ -672,7 +672,7 @@ function PositionsTab({ data }: { data: TournamentData }) {
                           {captain && <span style={{ ...sectionHint, marginLeft: 6 }}>{captain}</span>}
                         </td>
                         <td style={posTd}>
-                          {r.games}전 <span style={{ color: 'var(--win)' }}>{r.wins}승</span>
+                          <span style={{ color: 'var(--win)' }}>{r.wins}승</span>/{r.games}
                         </td>
                         <td style={{ ...posTd, textAlign: 'center' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center' }}>
