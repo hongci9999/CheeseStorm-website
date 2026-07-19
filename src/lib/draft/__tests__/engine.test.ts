@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   startSet, currentStep, isComplete, applyBan, applyPick, undo, finishSet, availableHeroes,
-  canPickChogall, isChogallHero, buildDefaultAssignment, canAssign, swapAssignment,
+  canPickChogall, isChogallHero, buildDefaultAssignment, swapAssignment, heroesPickedByTeam,
 } from '../engine';
 import type { DraftState, Series, SetResult, Player } from '../types';
 import { CANONICAL_HEROES } from '../../hero-image';
@@ -154,18 +154,41 @@ describe('availableHeroes', () => {
     expect(list).toContain(H2);
   });
 
-  it('소프트: 드래프트 중엔 플레이어별 제약 없음(이전 세트 픽도 다시 고를 수 있다)', () => {
-    // 소프트 피어리스의 플레이어별 잠금은 픽 교환(canAssign)으로 이동 — 드래프트 중엔 일반과 동일.
+  it('소프트: 팀 단위 잠금 — 픽 차례 팀이 이전 세트에 픽한 영웅만 제외(상대 팀 픽은 픽 가능)', () => {
     const series = makeSeries({
       draftType: 'soft',
       sets: [priorSet({ blue: [['p1', H0]], red: [['p2', H1]] })],
     });
     let state = startSet('하늘 사원', 'blue');
+    // 밴 스텝에서는 소프트 제약 없음 — blue가 쓴 H0도 밴 가능.
+    expect(availableHeroes(series, state)).toContain(H0);
     state = applyBan(state, 'x1'); state = applyBan(state, 'x2');
     state = applyBan(state, 'x3'); state = applyBan(state, 'x4');
+    // 다음은 blue 픽 차례 — blue가 이전에 쓴 H0는 제외, red가 쓴 H1은 blue가 픽 가능.
     const list = availableHeroes(series, state);
-    expect(list).toContain(H0);
+    expect(list).not.toContain(H0);
     expect(list).toContain(H1);
+  });
+
+  it('소프트: 상대(red) 픽 차례엔 red가 쓴 영웅만 제외', () => {
+    const series = makeSeries({
+      draftType: 'soft',
+      sets: [priorSet({ blue: [['p1', H0]], red: [['p2', H1]] })],
+    });
+    // red 선픽으로 시작 → 4밴 뒤 첫 픽이 red 차례.
+    let state = startSet('하늘 사원', 'red');
+    state = applyBan(state, 'x1'); state = applyBan(state, 'x2');
+    state = applyBan(state, 'x3'); state = applyBan(state, 'x4');
+    expect(currentStep(state)).toEqual({ kind: 'pick', team: 'red' });
+    const list = availableHeroes(series, state);
+    expect(list).not.toContain(H1); // red가 이전에 씀
+    expect(list).toContain(H0);     // blue가 쓴 건 red가 픽 가능
+  });
+
+  it('heroesPickedByTeam: 해당 팀이 픽한 영웅만 모은다', () => {
+    const sets = [priorSet({ blue: [['p1', H0]], red: [['p2', H1]] })];
+    expect([...heroesPickedByTeam(sets, 'blue')]).toEqual([H0]);
+    expect([...heroesPickedByTeam(sets, 'red')]).toEqual([H1]);
   });
 });
 
@@ -177,40 +200,26 @@ describe('픽 교환 (영웅 배정)', () => {
     expect(asg.red).toEqual(state.picks.red);
   });
 
-  it('canAssign: 일반/하드는 항상 true, 소프트는 이전 세트 사용 영웅이면 false', () => {
-    const soft = makeSeries({ draftType: 'soft', sets: [priorSet({ blue: [['b0', H0]], red: [] })] });
-    expect(canAssign(soft, 'blue', H0, 'b0')).toBe(false); // b0가 이전에 H0 씀
-    expect(canAssign(soft, 'blue', H0, 'b1')).toBe(true);  // b1은 안 씀
-    const normal = makeSeries({ draftType: 'normal', sets: [priorSet({ blue: [['b0', H0]], red: [] })] });
-    expect(canAssign(normal, 'blue', H0, 'b0')).toBe(true);
-  });
-
-  it('swapAssignment: 스트리머는 고정, 두 슬롯의 영웅을 맞바꾼다(일반은 항상 성공)', () => {
-    const series = makeSeries({ blue: roster('b'), red: roster('r') });
+  it('swapAssignment: 스트리머는 고정, 두 슬롯의 영웅을 맞바꾼다(항상 성공)', () => {
     const state = playThrough(startSet('용의 둥지', 'blue'));
     const [h0, h1] = state.picks.blue;
-    const next = swapAssignment(series, state, 'blue', 0, 1);
+    const next = swapAssignment(state, 'blue', 0, 1);
     expect(next).not.toBeNull();
     expect(next!.assignment!.blue.slice(0, 2)).toEqual([h1, h0]); // 영웅만 교환
     expect(next!.assignment!.red).toEqual(state.picks.red);        // 반대 팀 불변
   });
 
-  it('swapAssignment: 소프트 위반이면 null(스왑 취소)', () => {
+  it('swapAssignment: 소프트여도 교환은 팀 내 재배치라 항상 성공', () => {
+    // 소프트 팀 잠금은 드래프트 픽 단계에서 이미 걸러지므로, 완료 후 교환엔 제약이 없다.
     const state = playThrough(startSet('용의 둥지', 'blue'));
-    const heroAt0 = state.picks.blue[0];
-    // b1이 이전 세트에서 heroAt0을 이미 씀 → 슬롯0·1 영웅 스왑 시 b1이 heroAt0을 받게 되어 위반.
-    const series = makeSeries({
-      draftType: 'soft', blue: roster('b'), red: roster('r'),
-      sets: [priorSet({ blue: [['b1', heroAt0]], red: [] })],
-    });
-    expect(swapAssignment(series, state, 'blue', 0, 1)).toBeNull();
+    expect(swapAssignment(state, 'blue', 0, 1)).not.toBeNull();
   });
 
   it('finishSet은 고정 스트리머(series[team][i]) + 배정 영웅을 zip해 Pick[] 생성', () => {
     const series = makeSeries({ blue: roster('b'), red: roster('r') });
     const state = playThrough(startSet('용의 둥지', 'blue'));
     const [h0, h1] = state.picks.blue;
-    const swapped = swapAssignment(series, state, 'blue', 0, 1)!; // 슬롯0·1 영웅 교환
+    const swapped = swapAssignment(state, 'blue', 0, 1)!; // 슬롯0·1 영웅 교환
     const result = finishSet(swapped, 'blue', series);
     // 스트리머 위치 고정: 슬롯0=b0(영웅 h1), 슬롯1=b1(영웅 h0).
     expect(result.picks.blue[0]).toEqual(['b0', h1]);

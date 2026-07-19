@@ -108,24 +108,15 @@ export function buildDefaultAssignment(state: DraftState): Record<Team, string[]
   return { blue: [...state.picks.blue], red: [...state.picks.red] };
 }
 
-// 소프트 피어리스에서만 의미 있음 — 그 플레이어가 이전 세트에서 이 영웅을 이미 썼으면 배정 불가.
-export function canAssign(series: Series, team: Team, hero: string, playerId: string): boolean {
-  if (series.draftType !== 'soft') return true;
-  return !heroesPlayedBy(series.sets, playerId).has(hero);
-}
-
-// 같은 팀 두 슬롯의 영웅 교환(스트리머 위치는 고정) — 소프트 위반 시 null(스왑 취소).
+// 같은 팀 두 슬롯의 영웅 교환(스트리머 위치는 고정). 소프트 피어리스는 팀 단위 잠금이라
+// 드래프트 중 픽 단계에서 이미 걸러지므로, 교환은 팀 내 재배치일 뿐 항상 허용된다.
 export function swapAssignment(
-  series: Series, state: DraftState, team: Team, i: number, j: number,
+  state: DraftState, team: Team, i: number, j: number,
 ): DraftState | null {
   const base = state.assignment ?? buildDefaultAssignment(state);
   const arr = [...base[team]];
   if (i < 0 || j < 0 || i >= arr.length || j >= arr.length || i === j) return null;
   [arr[i], arr[j]] = [arr[j], arr[i]];
-  // 슬롯 k의 스트리머 = series[team][k]. 스왑으로 바뀐 두 슬롯 모두 그 스트리머가 새 영웅을 쓸 수 있는지 검증.
-  const roster = team === 'blue' ? series.blue : series.red;
-  if (!canAssign(series, team, arr[i], roster[i]?.id ?? '')) return null;
-  if (!canAssign(series, team, arr[j], roster[j]?.id ?? '')) return null;
   const next = cloneState(state);
   next.assignment = { blue: [...base.blue], red: [...base.red] };
   next.assignment[team] = arr;
@@ -142,17 +133,14 @@ function usedThisSet(state: DraftState): Set<string> {
   return used;
 }
 
-// 이전 세트들에서 특정 플레이어가 픽한 영웅 집합 (소프트 피어리스용).
-export function heroesPlayedBy(sets: SetResult[], playerId: string): Set<string> {
-  const played = new Set<string>();
+// 이전 세트들에서 특정 팀(사이드)이 픽한 영웅 집합 (소프트 피어리스용 — 팀 단위 잠금).
+// 시리즈 내내 blue/red 로스터는 고정이므로 사이드 = 팀 정체성.
+export function heroesPickedByTeam(sets: SetResult[], team: Team): Set<string> {
+  const picked = new Set<string>();
   for (const set of sets) {
-    for (const team of ['blue', 'red'] as Team[]) {
-      for (const [pid, hero] of set.picks[team]) {
-        if (pid === playerId) played.add(hero);
-      }
-    }
+    for (const [, hero] of set.picks[team]) picked.add(hero);
   }
-  return played;
+  return picked;
 }
 
 // 이전 세트들에서 누구든 픽한 영웅 집합 (하드 피어리스용).
@@ -167,13 +155,19 @@ export function heroesPickedInSeries(sets: SetResult[]): Set<string> {
 }
 
 // 현재 스텝에서 선택 가능한 영웅 목록.
-// 소프트 피어리스의 플레이어별 제약은 드래프트 중엔 적용 안 함 — 픽 교환 단계(canAssign)에서 처리.
+// 소프트 피어리스: 팀 단위 잠금 — 픽 차례 팀이 이전 세트들에서 픽한 영웅은 그 팀만 다시 픽 불가.
+//   (상대 팀은 그 영웅을 픽할 수 있고, 밴은 제약 없음 — 이 점이 전역 잠금인 하드와 다르다.)
 export function availableHeroes(series: Series, state: DraftState): string[] {
   const step = currentStep(state);
   const excluded = usedThisSet(state);
 
   if (series.draftType === 'hard') {
     for (const h of heroesPickedInSeries(series.sets)) excluded.add(h);
+  }
+
+  // 소프트: 픽 스텝일 때만, 그 팀이 이전 세트에서 픽한 영웅을 제외.
+  if (series.draftType === 'soft' && step?.kind === 'pick') {
+    for (const h of heroesPickedByTeam(series.sets, step.team)) excluded.add(h);
   }
 
   // 초갈: 픽으로 초/갈 하나만 소비된 상태면 다음 픽은 무조건 파트너로 강제.

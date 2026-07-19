@@ -33,7 +33,6 @@ export function SeriesSetup({ onStart }: Props) {
   const [blue, setBlue] = useState<Player[]>([]);
   const [red, setRed] = useState<Player[]>([]);
   const [query, setQuery] = useState('');
-  const [softNoticeClosed, setSoftNoticeClosed] = useState(false);
   const [eloMap, setEloMap] = useState<Record<string, number>>({});
   const [balanced, setBalanced] = useState(false);
 
@@ -102,14 +101,11 @@ export function SeriesSetup({ onStart }: Props) {
       <h1 style={{ ...pageTitle, fontSize: 'var(--fs-2xl)' }}>모의 밴픽</h1>
 
       {/* 피어리스 + Bo 선택 — 같은 행 */}
-      <div style={{ position: 'relative', display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <Segmented value={draftType} onChange={(v) => { setDraftType(v); setSoftNoticeClosed(false); }}
+      <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <Segmented value={draftType} onChange={setDraftType}
           options={(Object.keys(DRAFT_LABELS) as DraftType[]).map((k) => [k, DRAFT_LABELS[k]])} />
         <Segmented value={String(bestOf) as '3' | '5'} onChange={(v) => setBestOf(Number(v) as 3 | 5)}
           options={[['3', 'Bo3'], ['5', 'Bo5']]} />
-        {draftType === 'soft' && !softNoticeClosed && (
-          <SoftFearlessNotice onClose={() => setSoftNoticeClosed(true)} />
-        )}
       </div>
 
       {/* 블루칸 | 검색+풀 | 레드칸 (옆 칸은 상자 없이 육각만) */}
@@ -173,30 +169,6 @@ export function SeriesSetup({ onStart }: Props) {
           </button>
           <button onClick={handleQuickStart} style={{ ...secondaryBtn, minWidth: 200 }}>스트리머 없이 바로 시작</button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// 소프트 피어리스 선택 시 나오는 말풍선 — 이 프로젝트는 "그 픽 담당 플레이어"만 잠기는 변형 규칙(팀 전체 잠금 아님).
-// 레이아웃 공간을 안 먹도록 absolute로 다른 요소 위에 띄우고, X로 닫을 수 있다.
-function SoftFearlessNotice({ onClose }: { onClose: () => void }) {
-  return (
-    <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-      marginTop: 8, zIndex: 'var(--z-popover, 50)', width: 320, maxWidth: '90vw' }}>
-      <span aria-hidden style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%) rotate(45deg)',
-        width: 12, height: 12, background: 'var(--surface-card)',
-        borderLeft: '1px solid var(--border-line)', borderTop: '1px solid var(--border-line)' }} />
-      <div style={{ position: 'relative', borderRadius: 'var(--r-md)', border: '1px solid var(--border-line)',
-        background: 'var(--surface-card)', boxShadow: 'var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.3))',
-        padding: 'var(--sp-2) var(--sp-6) var(--sp-2) var(--sp-3)', fontFamily: 'var(--font-ui)', fontSize: 'var(--fs-xs)',
-        color: 'var(--text-muted)', lineHeight: 1.5, textAlign: 'center' }}>
-        일반 소프트 피어리스와 다름 — <b style={{ color: 'var(--text-high)' }}>그 픽을 담당하는 플레이어</b>만
-        이전 세트에 픽했던 영웅을 다시 못 고름 (팀 전체 잠금 아님, 밴은 제약 없음)
-        <button onClick={onClose} aria-label="닫기" style={{ position: 'absolute', top: 4, right: 4,
-          width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'transparent',
-          color: 'var(--text-faint)', cursor: 'pointer', fontSize: 12, lineHeight: 1,
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
       </div>
     </div>
   );
