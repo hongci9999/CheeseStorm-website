@@ -146,7 +146,7 @@ function EmptySlot({ size, accent }: { size: number; accent: string }) {
 function TeamCard({ team, accent }: { team: TeamVM; accent: string }) {
   const member = (m: { name: string; img?: string; resolved: boolean }, size: number, leader = false) => (
     <div key={`${m.name}-${leader}`} style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 0,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0,
     }}>
       <HexAvatar name={m.name} imageUrl={m.img} size={size}
         ring={leader ? accent : `color-mix(in srgb, ${accent} 45%, var(--border-line))`}
@@ -173,7 +173,9 @@ function TeamCard({ team, accent }: { team: TeamVM; accent: string }) {
   );
 
   return (
-    <section style={{ ...sectionCard, justifyItems: 'center', gap: 'var(--sp-4)', position: 'relative' }}>
+    // 로스터 카드는 세로가 길어져 상하 여백·간격만 sectionCard보다 좁게
+    <section style={{ ...sectionCard, justifyItems: 'center', gap: 'var(--sp-3)',
+      padding: 'var(--sp-3) var(--sp-4)', position: 'relative' }}>
       {/* 팀 이름 + 전적 요약 */}
       <div style={{ justifySelf: 'stretch', display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)' }}>
         <h2 style={{ ...sectionTitle, color: accent }}>{team.name}</h2>
@@ -183,13 +185,13 @@ function TeamCard({ team, accent }: { team: TeamVM; accent: string }) {
           {team.games ? `${team.wins}승 ${team.losses}패` : '경기 없음'}
         </span>
       </div>
-      {member(team.captain, 72, true)}
+      {member(team.captain, 60, true)}
       <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
         {Array.from({ length: Math.max(MEMBER_SLOTS, team.members.length) }).map((_, i) => {
           const m = team.members[i];
           return (
             <span key={i} style={{ display: 'contents' }}>
-              {m ? member(m, 56) : <EmptySlot size={56} accent={accent} />}
+              {m ? member(m, 48) : <EmptySlot size={48} accent={accent} />}
             </span>
           );
         })}
