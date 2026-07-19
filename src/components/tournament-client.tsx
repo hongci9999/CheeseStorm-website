@@ -68,17 +68,6 @@ export default function TournamentClient({ data }: { data: TournamentData }) {
           {TOURNAMENT_SEASON}
         </span>
         <span style={sectionHint}>{tourDateRange}</span>
-        {data.demo && (
-          <span style={{
-            padding: '2px 10px', borderRadius: 'var(--r-pill)',
-            background: 'color-mix(in srgb, var(--loss) 12%, transparent)',
-            border: '1px solid color-mix(in srgb, var(--loss) 35%, transparent)',
-            color: 'var(--loss)', fontFamily: 'var(--font-ui)',
-            fontWeight: 700, fontSize: 'var(--fs-2xs)', letterSpacing: '0.06em',
-          }}>
-            더미 데이터 미리보기 — 실경기 입력 시 자동 교체
-          </span>
-        )}
       </div>
 
       {/* 탭 — 메인 페이지와 동일한 하단 강조선 스타일 */}

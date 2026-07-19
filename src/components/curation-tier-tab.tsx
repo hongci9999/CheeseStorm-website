@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
@@ -15,6 +15,7 @@ import {
   type CuratedPlayer,
 } from '@/lib/curated-tier';
 import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar';
+import { TOURNAMENT_PARTICIPANT_NAMES } from '@/lib/tournament';
 import type { CuratedTierLists, FineRole, PlayerStats, Streamer, Tier } from '@/lib/types';
 
 const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
@@ -56,25 +57,106 @@ function TierBadge({ tier, size = 'md' }: { tier: Tier; size?: 'sm' | 'md' | 'lg
 
 // ── 역할 필터 ─────────────────────────────────────────────────
 function FilterBar({ role, onRole }: { role: string; onRole: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const active = role !== '전체';
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      {['전체', ...ROLES].map(r => (
-        <button
-          key={r}
-          onClick={() => onRole(r)}
+    <div ref={ref} style={{ position: 'relative', display: 'inline-flex' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        style={{
+          height: 32, padding: '0 10px 0 14px', borderRadius: 'var(--r-pill)',
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+          background: active ? 'color-mix(in srgb, var(--cheese-green) 15%, transparent)' : 'transparent',
+          color: active ? 'var(--cheese-green)' : 'var(--text-muted)',
+          fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12.5,
+          cursor: 'pointer',
+        }}
+      >
+        {role}
+        <span style={{
+          fontSize: 9, transform: open ? 'rotate(180deg)' : 'none',
+          transition: 'transform var(--dur-fast) var(--ease-out)', lineHeight: 1,
+        }}>▾</span>
+      </button>
+
+      {open && (
+        <div
+          role="listbox"
           style={{
-            height: 32, padding: '0 12px', borderRadius: 'var(--r-pill)',
-            border: `1px solid ${role === r ? 'var(--cheese-green)' : 'var(--border-line)'}`,
-            background: role === r ? 'color-mix(in srgb, var(--cheese-green) 15%, transparent)' : 'transparent',
-            color: role === r ? 'var(--cheese-green)' : 'var(--text-muted)',
-            fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 12.5,
-            cursor: 'pointer',
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 'var(--z-popover, 50)',
+            minWidth: 132, padding: 4, display: 'flex', flexDirection: 'column', gap: 2,
+            borderRadius: 'var(--r-md)', border: '1px solid var(--border-line)',
+            background: 'var(--surface-card)',
+            boxShadow: 'var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.3))',
           }}
         >
-          {r}
-        </button>
-      ))}
+          {['전체', ...ROLES].map(r => {
+            const selected = r === role;
+            return (
+              <button
+                key={r}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => { onRole(r); setOpen(false); }}
+                style={{
+                  padding: '8px 10px', borderRadius: 'var(--r-sm)', border: 'none',
+                  background: selected ? 'color-mix(in srgb, var(--cheese-green) 16%, transparent)' : 'transparent',
+                  color: selected ? 'var(--cheese-green)' : 'var(--text-high)',
+                  fontFamily: 'var(--font-ui)', fontWeight: selected ? 700 : 500, fontSize: 13,
+                  textAlign: 'left', cursor: 'pointer', transition: 'background var(--dur-fast)',
+                }}
+                onMouseEnter={(e) => { if (!selected) e.currentTarget.style.background = 'var(--surface-raise)'; }}
+                onMouseLeave={(e) => { if (!selected) e.currentTarget.style.background = 'transparent'; }}
+              >
+                {r}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
+  );
+}
+
+// ── 대회 참가자만 보기 알약 (page.tsx의 EloTab과 동일 스타일) ─────
+function TournamentFilterPill({ active, onToggle }: { active: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-pressed={active}
+      style={{
+        height: 32, padding: '0 14px', borderRadius: 'var(--r-pill)',
+        border: `1px solid ${active ? 'var(--hots-purple)' : 'var(--border-line)'}`,
+        background: active ? 'color-mix(in srgb, var(--hots-purple) 20%, transparent)' : 'transparent',
+        color: active ? 'var(--hots-purple)' : 'var(--text-muted)',
+        fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 12.5,
+        cursor: 'pointer', whiteSpace: 'nowrap',
+        transition: 'all var(--dur-fast) var(--ease-out)',
+      }}
+    >
+      2026 여름 대회 참가자
+    </button>
   );
 }
 
@@ -430,11 +512,15 @@ function PlaceholderNoticeOverlay({ onClose }: { onClose: () => void }) {
 export function CurationTierTab({
   streamers: streamersProp,
   playerStats,
+  participantsOnly,
+  onToggleParticipantsOnly,
 }: {
   streamers: Streamer[];
   // 세분 역할군(fineRole) 조회용 — 사전집계된 stats/current 문서에서 옴(1 read).
   // 경기 전체를 여기서 다시 읽지 않기 위해 matches 대신 이 요약을 받는다.
   playerStats: PlayerStats[];
+  participantsOnly: boolean;
+  onToggleParticipantsOnly: () => void;
 }) {
   const { isStreamer, isAdmin, session } = useAuth();
   // 제작자(admin) 또는 개발 세션이면 수정해도 재조정 안내 유지
@@ -580,8 +666,10 @@ export function CurationTierTab({
   );
 
   const filtered = useMemo(
-    () => players.filter((p) => role === '전체' || p.fineRole === role),
-    [players, role],
+    () => players
+      .filter((p) => role === '전체' || p.fineRole === role)
+      .filter((p) => !participantsOnly || TOURNAMENT_PARTICIPANT_NAMES.includes(p.streamerName)),
+    [players, role, participantsOnly],
   );
 
   // 미배정 패널 — 티어에 배정된 스트리머는 제외 (unranked만)
@@ -641,7 +729,10 @@ export function CurationTierTab({
           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
           gap: 'var(--sp-4)', marginBottom: 'var(--sp-5)', flexWrap: 'wrap',
         }}>
-          <FilterBar role={role} onRole={setRole} />
+          <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap' }}>
+            <FilterBar role={role} onRole={setRole} />
+            <TournamentFilterPill active={participantsOnly} onToggle={onToggleParticipantsOnly} />
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
             {isStreamer && (
               <div style={{ display: 'flex', gap: 8 }}>

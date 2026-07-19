@@ -14,6 +14,7 @@ import { ProSticker } from '@/components/pro-sticker';
 import { isProStreamer } from '@/lib/pro-streamers';
 import { useAuth } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
+import { TOURNAMENT_PARTICIPANT_NAMES } from '@/lib/tournament';
 
 const INPUT: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px',
@@ -542,6 +543,7 @@ export default function StreamersPage() {
   const [streamers, setStreamers] = useState<Streamer[]>(cachedStreamers ?? []);
   const [loading,   setLoading]   = useState(cachedStreamers === null);
   const [search,    setSearch]    = useState('');
+  const [participantsOnly, setParticipantsOnly] = useState(false);
   const [showModal, setShowModal] = useState(false);
   // gameNames 편집 모달 대상 스트리머 (null이면 닫힘)
   const [editGameNamesTarget, setEditGameNamesTarget] = useState<Streamer | null>(null);
@@ -584,9 +586,11 @@ export default function StreamersPage() {
     setStreamers(prev => prev.filter(x => x.id !== s.id));
   }
 
-  // 검색 필터 후 가나다순 정렬 (복사본에서 — 원본 state 불변 유지)
+  // 검색 + 대회 참가자 필터 후 가나다순 정렬 (복사본에서 — 원본 state 불변 유지)
   const filtered = sortStreamersByName(
-    streamers.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase())),
+    streamers
+      .filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()))
+      .filter(s => !participantsOnly || TOURNAMENT_PARTICIPANT_NAMES.includes(s.name)),
   );
 
   return (
@@ -604,6 +608,21 @@ export default function StreamersPage() {
             style={{ ...INPUT, paddingLeft: 36 }}
           />
         </div>
+        <button
+          onClick={() => setParticipantsOnly(v => !v)}
+          aria-pressed={participantsOnly}
+          style={{
+            height: 40, padding: '0 14px', borderRadius: 'var(--r-pill)',
+            border: `1px solid ${participantsOnly ? 'var(--hots-purple)' : 'var(--border-line)'}`,
+            background: participantsOnly ? 'color-mix(in srgb, var(--hots-purple) 20%, transparent)' : 'transparent',
+            color: participantsOnly ? 'var(--hots-purple)' : 'var(--text-muted)',
+            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 12.5,
+            cursor: 'pointer', whiteSpace: 'nowrap',
+            transition: 'all var(--dur-fast) var(--ease-out)',
+          }}
+        >
+          2026 여름 대회 참가자
+        </button>
       </div>
 
       {/* 카드 그리드 */}

@@ -244,6 +244,24 @@ describe('buildTournamentData', () => {
     expect(data.games).toHaveLength(0); // 그러나 태그가 없어 경기는 0
   });
 
+  it('로스터 밖 대타는 포지션 통계에서 제외하되 팀 승패엔 반영', () => {
+    // a2 자리에 로스터 밖 x0가 대타로 출전한 대회 경기
+    const m = mkMatch({
+      blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['x0', '제이나'], ['a3', '아바투르'], ['a4', '리 리']],
+      winner: 'blue',
+    });
+    const data = buildTournamentData([m], [mkLink(m)], streamers, config);
+
+    const names = data.positions.flatMap((p) => p.rows.map((r) => r.name));
+    expect(names).not.toContain('용병X');           // 대타는 개인 통계에서 무시
+    expect(names).toContain('선수a0');               // 로스터 인원은 그대로 집계
+    expect(names).not.toContain('선수a2');           // 안 뛴 로스터 인원은 행 자체가 없음
+
+    const teamA = data.teams.find((t) => t.id === 'A')!;
+    expect(teamA.games).toBe(1);                    // 팀 전적은 대타 출전과 무관
+    expect(teamA.wins).toBe(1);
+  });
+
   it('로스터 미설정이면 configured=false', () => {
     const empty = [{ id: 'T', name: 'T팀', captain: '', members: ['', '', '', ''] }];
     const data = buildTournamentData([mkMatch({})], [], streamers, empty);

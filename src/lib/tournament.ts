@@ -34,6 +34,10 @@ export const TOURNAMENT_TEAMS: TournamentTeamConfig[] = [
   { id: 'team4', name: '4팀', captain: '네클릿',   members: ['소우릎', '캡틴잭', '강소연', '승우아빠'] },
 ];
 
+// 대회 참가자 전원 이름 (팀장+팀원) — 티어리스트·스트리머 페이지 "대회 참가자만 보기" 필터용
+export const TOURNAMENT_PARTICIPANT_NAMES: string[] =
+  TOURNAMENT_TEAMS.flatMap((t) => [t.captain, ...t.members]);
+
 // 이번 대회 사용 맵 6종 (맵별 통계 표시 순서)
 export const TOURNAMENT_MAPS = [
   '용의 둥지', '저주받은 골짜기', '거미 여왕의 무덤',
@@ -351,7 +355,6 @@ export interface MapRowVM {
 }
 export interface TeamMapCellVM { games: number; wins: number; winRate: number | null; }
 export interface TournamentData {
-  demo?: boolean;      // 더미 미리보기 데이터 여부 (tournament-demo.ts)
   configured: boolean; // 로스터가 하나라도 실제 스트리머와 매칭됐는지
   teams: TeamVM[];
   teamNames: Record<string, string>;
@@ -474,17 +477,20 @@ export function buildTournamentData(
     };
   });
 
-  // 포지션 테이블 행 — 팀 소속은 로스터 기준, 로스터 밖 참가자는 '용병'
+  // 포지션 테이블 행 — 팀 소속은 로스터 기준
   const teamOfStreamer = (id: string): string => {
     for (const r of rosters) if (r.ids.has(id)) return r.name;
-    return '용병';
+    return '용병'; // rosterIds 필터를 통과한 행만 오므로 실제로는 도달하지 않음
   };
-  // 팀 순서(설정 순 1→4, 용병은 맨 뒤) 정렬 인덱스
+  // 팀 순서(설정 순 1→4) 정렬 인덱스
   const teamIndexOf = (id: string): number => {
     const i = rosters.findIndex((r) => r.ids.has(id));
     return i < 0 ? rosters.length : i;
   };
-  const rows = positionStats(games);
+  // 대회 경기에 로스터 밖 대타가 뛰어도 개인 통계는 로스터 인원만 집계한다.
+  // (팀 승패는 teamRecords가 팀 단위로 세므로 대타 출전과 무관하게 그대로 반영)
+  const rosterIds = new Set(rosters.flatMap((r) => [...r.ids]));
+  const rows = positionStats(games).filter((r) => rosterIds.has(r.streamerId));
   const positions = POSITION_ORDER
     .map((role) => ({
       role,
