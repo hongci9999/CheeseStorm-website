@@ -8,7 +8,7 @@ import {
 } from '@/lib/firestore';
 import { addMatch, updateMatch, upsertOcrCorrection, type TournamentTeamsPayload } from '@/lib/api-client';
 import { validateMatchForm, parseMatchDur } from '@/lib/match';
-import { TOURNAMENT_TEAMS } from '@/lib/tournament';
+import { TOURNAMENT_TEAMS, guessTournamentTeams } from '@/lib/tournament';
 import {
   resolveStreamerId,
   resolveHeroName,
@@ -842,7 +842,13 @@ function NewMatchPageInner() {
             <input type="checkbox" checked={isTournament}
               onChange={e => {
                 setIsTournament(e.target.checked);
-                if (!e.target.checked) { setTourBlueTeam(''); setTourRedTeam(''); }
+                if (!e.target.checked) { setTourBlueTeam(''); setTourRedTeam(''); return; }
+                // 출전자 소속 다수결로 자동 선택 — 확신 못 하면 비워두고 사람이 고른다
+                const guess = guessTournamentTeams(
+                  blueSlots.map(s => s.streamerId).filter(Boolean),
+                  redSlots.map(s => s.streamerId).filter(Boolean),
+                  streamers);
+                if (guess) { setTourBlueTeam(guess.blue); setTourRedTeam(guess.red); }
               }}
               style={{ width: 14, height: 14, cursor: 'pointer' }} />
             대회 경기로 기록 (선택)
@@ -861,6 +867,9 @@ function NewMatchPageInner() {
                   <option key={t.id} value={t.id} disabled={t.id === tourBlueTeam}>{t.name} ({t.captain})</option>
                 ))}
               </select>
+              <span style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--text-faint)' }}>
+                출전자 소속으로 자동 선택됩니다. 용병이 껴서 잘못 잡히면 직접 고르세요.
+              </span>
             </div>
           )}
         </div>

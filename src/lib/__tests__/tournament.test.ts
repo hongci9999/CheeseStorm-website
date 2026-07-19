@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveTeams, linkTournamentGames, teamRecords, headToHead, positionStats,
-  sortByPosition, buildTournamentData, mapRecords, teamMapRecords,
+  sortByPosition, buildTournamentData, mapRecords, teamMapRecords, guessTournamentTeams,
   type TournamentTeamConfig, type TournamentGameLink,
 } from '../tournament';
 import type { Match, PlayerMatchStat, Streamer } from '../types';
@@ -267,5 +267,33 @@ describe('buildTournamentData', () => {
     const data = buildTournamentData([mkMatch({})], [], streamers, empty);
     expect(data.configured).toBe(false);
     expect(data.games).toHaveLength(0);
+  });
+});
+
+describe('guessTournamentTeams', () => {
+  const A = ['a0', 'a1', 'a2', 'a3', 'a4'];
+  const B = ['b0', 'b1', 'b2', 'b3', 'b4'];
+
+  it('정상 로스터면 양 진영을 맞춘다', () => {
+    expect(guessTournamentTeams(A, B, streamers, config)).toEqual({ blue: 'A', red: 'B' });
+  });
+
+  it('외부 용병이 껴도 다수결로 잡는다', () => {
+    const withMerc = ['a0', 'a1', 'a2', 'a3', 'x0'];
+    expect(guessTournamentTeams(withMerc, B, streamers, config)).toEqual({ blue: 'A', red: 'B' });
+  });
+
+  it('타팀 대타 2명이 껴도 다수결로 잡는다', () => {
+    const withSubs = ['a0', 'a1', 'a2', 'b3', 'b4'];
+    expect(guessTournamentTeams(withSubs, B, streamers, config)).toEqual({ blue: 'A', red: 'B' });
+  });
+
+  it('과반(3명) 미달이면 null', () => {
+    const mixed = ['a0', 'a1', 'b3', 'b4', 'x0'];
+    expect(guessTournamentTeams(mixed, B, streamers, config)).toBeNull();
+  });
+
+  it('양 진영이 같은 팀으로 잡히면 null', () => {
+    expect(guessTournamentTeams(A, A, streamers, config)).toBeNull();
   });
 });

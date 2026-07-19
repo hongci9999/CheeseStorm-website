@@ -72,6 +72,33 @@ export function resolveTeams(
   });
 }
 
+// 출전자 소속 다수결로 각 진영의 대회팀을 추정 — 경기 입력 시 드롭다운 자동 선택용.
+// 용병(대타)이 껴도 소속 인원이 더 많은 쪽이 그 진영의 팀. 5명 중 3명 이상이면
+// 한 진영에서 조건을 만족하는 팀은 최대 하나뿐이라 동점 자체가 불가능하다.
+// 확신 못 하면 null — 사람이 드롭다운으로 직접 고른다.
+// ponytail: 임계값 3 고정. 대타 3명 이상 경기가 생기면 그때 완화.
+export function guessTournamentTeams(
+  blueIds: string[],
+  redIds: string[],
+  streamers: Streamer[],
+  config: TournamentTeamConfig[] = TOURNAMENT_TEAMS,
+): { blue: string; red: string } | null {
+  const teamOf = new Map<string, string>();
+  for (const r of resolveTeams(streamers, config)) for (const id of r.ids) teamOf.set(id, r.id);
+  const majority = (ids: string[]): string | null => {
+    const count = new Map<string, number>();
+    for (const id of ids) {
+      const t = teamOf.get(id);
+      if (t) count.set(t, (count.get(t) ?? 0) + 1);
+    }
+    for (const [t, n] of count) if (n >= 3) return t;
+    return null;
+  };
+  const blue = majority(blueIds);
+  const red = majority(redIds);
+  return blue && red && blue !== red ? { blue, red } : null;
+}
+
 // ── 경기 연결(태깅) ──────────────────────────────────────────
 
 export interface TournamentGame {
