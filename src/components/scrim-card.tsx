@@ -157,7 +157,8 @@ export function ScrimCard({ scrim, no, S = 52, canEdit = false, onDelete, select
                 borderRadius: 'var(--r-pill)', background: 'color-mix(in srgb, var(--cheese-green) 20%, rgba(0,0,0,0.35))',
                 fontFamily: 'var(--font-numeral)', fontWeight: 800,
                 fontSize: 'var(--fs-2xs)', color: 'var(--cheese-green)', whiteSpace: 'nowrap' }}>
-                {no.dateSetNo}세트{no.gamesInSeries > 1 ? ` · ${no.gameInSetNo}경기` : ''}
+                {/* 시리즈에 속하면 시리즈 내 세트 번호, 단독 기록이면 그날의 순번 */}
+                {no.gamesInSeries > 1 ? no.gameInSetNo : no.dateSetNo}세트
               </span>
             </>
           )}

@@ -11,6 +11,18 @@ import { assignScrimNumbers, type Scrim } from '@/lib/scrim';
 
 type Tab = 'dashboard' | 'draft';
 
+// 같은 세트 경기는 목록에서 항상 붙어 있으므로 연속 구간만 묶으면 된다.
+// seriesId 없는 경기는 각자 단독 그룹.
+function groupBySeries(scrims: Scrim[]): Scrim[][] {
+  const out: Scrim[][] = [];
+  for (const s of scrims) {
+    const last = out[out.length - 1];
+    if (last && s.seriesId && last[0].seriesId === s.seriesId) last.push(s);
+    else out.push([s]);
+  }
+  return out;
+}
+
 const TABS: { key: Tab; label: string }[] = [
   { key: 'dashboard', label: '대시보드' },
   { key: 'draft', label: '밴픽' },
@@ -166,11 +178,28 @@ export default function ScrimsClient({ scrims, isStreamer }: {
             </p>
           )}
 
-          {scrims.map((s) => (
-            <ScrimCard key={s.id} scrim={s} no={numberById.get(s.id)} S={S}
-              canEdit={isStreamer} onDelete={() => handleDelete(s)}
-              selectMode={mergeMode} selected={selected.has(s.id)} onToggleSelect={() => toggleSelect(s.id)} />
-          ))}
+          {groupBySeries(scrims).map((group) => {
+            const cards = group.map((s) => (
+              <ScrimCard key={s.id} scrim={s} no={numberById.get(s.id)} S={S}
+                canEdit={isStreamer} onDelete={() => handleDelete(s)}
+                selectMode={mergeMode} selected={selected.has(s.id)} onToggleSelect={() => toggleSelect(s.id)} />
+            ));
+            if (group.length === 1) return cards[0];
+            const no = numberById.get(group[0].id);
+            return (
+              <section key={group[0].id} style={{
+                display: 'grid', gap: 'var(--sp-3)', padding: 'var(--sp-3)',
+                borderRadius: 'var(--r-lg)',
+                border: '1px solid color-mix(in srgb, var(--cheese-green) 55%, var(--border-line))',
+                background: 'color-mix(in srgb, var(--cheese-green) 8%, var(--surface-raise))' }}>
+                <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
+                  color: 'var(--text-muted)' }}>
+                  {scrimDateLabel(group[0].date)}{no ? ` · ${no.dateSetNo}번째 시리즈` : ''} · {group.length}세트
+                </span>
+                {cards}
+              </section>
+            );
+          })}
         </div>
       )}
 
