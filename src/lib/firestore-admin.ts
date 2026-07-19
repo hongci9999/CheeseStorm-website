@@ -356,7 +356,9 @@ const VISIT_BUCKET_MS = 5 * 60_000; // 5분 단위로 방문 기록 묶음
 // prefetch 잔여)은 같은 ID로 덮어써지고, 구간이 바뀌면 새 기록으로 남음
 const VISIT_LOG_EXCLUDED_NAMES = new Set(['그레도']);
 
-export async function logTierlistVisit(session: SessionPayload): Promise<void> {
+// paths: 그 5분 구간에 본 페이지 경로 누적 — arrayUnion이라 중복 없이 쌓이고
+// 기존 값을 읽을 필요가 없다(문서당 쓰기 1회). 배열 순서 = 처음 방문한 순서.
+export async function logTierlistVisit(session: SessionPayload, path = '/'): Promise<void> {
   if (session.dev) return; // 개발용 임시 로그인 방문은 기록 안 함
   if (VISIT_LOG_EXCLUDED_NAMES.has(session.name)) return;
   const bucketEpochMs = Math.floor(Date.now() / VISIT_BUCKET_MS) * VISIT_BUCKET_MS;
@@ -367,6 +369,7 @@ export async function logTierlistVisit(session: SessionPayload): Promise<void> {
       chzzkId: session.chzzkId,
       name: session.name,
       role: session.role,
+      paths: FieldValue.arrayUnion(path),
       visitedAt: FieldValue.serverTimestamp(),
     },
     { merge: true },

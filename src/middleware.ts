@@ -24,9 +24,11 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     );
   }
 
-  // 티어리스트 방문 로그 — 스트리머 이상만, Firestore에 영구 저장 (Vercel 로그는 1시간 후 소멸)
-  if (!isPrefetch && pathname === '/' && session && session.role !== 'viewer') {
+  // 방문 로그 — 스트리머 이상만, Firestore에 영구 저장 (Vercel 로그는 1시간 후 소멸)
+  // 루트뿐 아니라 모든 페이지를 기록해 5분 버킷 문서에 경로를 누적한다.
+  if (!isPrefetch && session && session.role !== 'viewer') {
     const logUrl = new URL('/api/visit-log', req.nextUrl.origin);
+    logUrl.searchParams.set('path', pathname);
     event.waitUntil(
       fetch(logUrl, {
         method: 'POST',
