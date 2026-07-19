@@ -6,7 +6,7 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 
 // 스크림은 넓은 표가 많아 모바일 미지원 — 하단 탭에서 제외 (page 본문도 안내로 대체)
 const TAB_ITEMS = [
-  { href: '/',          label: '티어리스트', icon: '★' },
+  { href: '/tierlist',  label: '티어리스트', icon: '★' },
   { href: '/matches',   label: '내전기록실', icon: '⚔' },
   { href: '/streamers', label: '스트리머',   icon: '◈' },
   { href: '/guide',     label: '사용방법',   icon: '?' },

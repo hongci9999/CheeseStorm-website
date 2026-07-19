@@ -22,17 +22,17 @@ export interface TournamentTeamConfig {
 export const TOURNAMENT_NAME = '히오스는 살아있다';
 export const TOURNAMENT_SEASON = '2026 여름 시즌';
 
-// 대회 진행 기간 — 표시용(페이지 부제). 경기 분류는 날짜가 아니라 명시적 태깅(TournamentGameLink)으로 결정된다.
-export const TOURNAMENT_START = new Date('2026-07-19');
-export const TOURNAMENT_END = new Date('2026-07-21');
+// 대회 진행 기간 — 표시용(페이지 부제) + 루트 rewrite 판정용. 경기 분류는 날짜가 아니라
+// 명시적 태깅(TournamentGameLink)으로 결정된다. 상수·판정은 Edge 안전한 tournament-period로 분리.
+export { TOURNAMENT_START, TOURNAMENT_END, isTournamentActive } from './tournament-period';
 
-// 팀장: 베릴·네클릿·진수·인간젤리 확정.
-// TODO: 팀원 배분은 임시(참가자 목록 순) — 드래프트 확정 시 수정할 것.
+// 팀장: 베릴·진수·인간젤리·네클릿 확정.
+// TODO: 팀원 배분은 드래프트 확정 시 채울 것 (현재 전 팀 팀장만 확정, 팀원 미정 → 빈 슬롯 표시).
 export const TOURNAMENT_TEAMS: TournamentTeamConfig[] = [
-  { id: 'team1', name: '1팀', captain: '베릴',     members: ['강소연', '끠월마녀', '노페', '던'] },
-  { id: 'team2', name: '2팀', captain: '네클릿',   members: ['룩삼', '반님', '뱅', '소우릎'] },
-  { id: 'team3', name: '3팀', captain: '진수',     members: ['승우아빠', '울프', '철면수심', '츠밍'] },
-  { id: 'team4', name: '4팀', captain: '인간젤리', members: ['침착맨', '캡틴잭', '플레임', '헤징'] },
+  { id: 'team1', name: '1팀', captain: '베릴',     members: [] },
+  { id: 'team2', name: '2팀', captain: '진수',     members: [] },
+  { id: 'team3', name: '3팀', captain: '인간젤리', members: [] },
+  { id: 'team4', name: '4팀', captain: '네클릿',   members: [] },
 ];
 
 // 이번 대회 사용 맵 6종 (맵별 통계 표시 순서)

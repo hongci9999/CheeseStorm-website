@@ -3,6 +3,7 @@
 
 import { type NextRequest, type NextFetchEvent, NextResponse } from 'next/server';
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/session';
+import { isTournamentActive } from '@/lib/tournament-period';
 
 export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const { pathname } = req.nextUrl;
@@ -32,6 +33,13 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
         headers: { cookie: req.headers.get('cookie') ?? '' },
       }).catch(() => {}),
     );
+  }
+
+  // 대회 기간엔 루트(/)에서 대회 페이지를 노출 — URL은 / 유지(rewrite, 리다이렉트 아님).
+  if (pathname === '/' && isTournamentActive()) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/tournament';
+    return NextResponse.rewrite(url);
   }
 
   if (pathname.startsWith('/matches/new') || pathname.startsWith('/scrims/new')) {

@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import Image from 'next/image';
-import { HexAvatar } from '@/components/hexagon-avatar';
+import { HexAvatar, HEX_CLIP } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
 import { sectionCard, sectionTitle, sectionHint, th, td, tdLeft } from '@/components/scrim-dashboard';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
@@ -14,6 +14,9 @@ import type { TournamentData, TeamVM, GameVM, SideVM, PlayerVM } from '@/lib/tou
 
 // 팀 구분 액센트 — 카드 링·표 강조 공용 (인덱스 = 설정 순서)
 const TEAM_ACCENTS = ['var(--cheese-blue)', 'var(--cheese-green)', '#E93CC8', '#FFA657'];
+
+// 팀당 팀원 슬롯 수 (팀장 제외) — 미정 인원은 빈 육각형으로 자리만 표시
+const MEMBER_SLOTS = 4;
 
 const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
 const rateColor = (r: number) => (r >= 0.5 ? 'var(--win)' : 'var(--loss)');
@@ -124,6 +127,33 @@ export default function TournamentClient({ data }: { data: TournamentData }) {
 
 // ── 탭 1: 팀 정보 ────────────────────────────────────────────
 
+// 미정 팀원 자리 — 이니셜 없는 빈 육각형 + '미정' 라벨. 팀 액센트를 옅게 머금은 점선 테두리.
+function EmptySlot({ size, accent }: { size: number; accent: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 0 }}>
+      <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size }}>
+        <span style={{
+          position: 'absolute', inset: 0, clipPath: HEX_CLIP, padding: 2, display: 'flex',
+          background: `color-mix(in srgb, ${accent} 28%, var(--border-line))`,
+        }}>
+          <span style={{
+            display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center',
+            clipPath: HEX_CLIP, background: 'var(--surface-raise)',
+          }}>
+            <span aria-hidden style={{
+              color: 'var(--text-faint)', fontFamily: 'var(--font-display)',
+              fontWeight: 700, fontSize: Math.round(size * 0.4), lineHeight: 1,
+            }}>+</span>
+          </span>
+        </span>
+      </span>
+      <span style={{
+        fontFamily: 'var(--font-ui)', fontWeight: 600, fontSize: 'var(--fs-xs)', color: 'var(--text-faint)',
+      }}>미정</span>
+    </div>
+  );
+}
+
 function TeamCard({ team, accent }: { team: TeamVM; accent: string }) {
   const member = (m: { name: string; img?: string; resolved: boolean }, size: number, leader = false) => (
     <div key={`${m.name}-${leader}`} style={{
@@ -166,9 +196,14 @@ function TeamCard({ team, accent }: { team: TeamVM; accent: string }) {
       </div>
       {member(team.captain, 72, true)}
       <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {team.members.map((m, i) => (
-          <span key={i} style={{ display: 'contents' }}>{member(m, 56)}</span>
-        ))}
+        {Array.from({ length: Math.max(MEMBER_SLOTS, team.members.length) }).map((_, i) => {
+          const m = team.members[i];
+          return (
+            <span key={i} style={{ display: 'contents' }}>
+              {m ? member(m, 56) : <EmptySlot size={56} accent={accent} />}
+            </span>
+          );
+        })}
       </div>
     </section>
   );
