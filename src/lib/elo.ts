@@ -62,7 +62,11 @@ export function calcAllElos(matches: Match[]): Map<string, number> {
   }
 
   // 시간순 정렬 (오래된 경기부터)
-  const sorted = [...matches].sort((a, b) => a.date.getTime() - b.date.getTime());
+  // date는 시각 없는 자정값이라 같은 날 경기끼리 동점 → createdAt(입력 순)으로 확정.
+  // Elo는 경로 의존적이므로 이 타이브레이커가 없으면 최종 레이팅이 문서 ID 순에 좌우된다.
+  const sorted = [...matches].sort(
+    (a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime(),
+  );
 
   for (const match of sorted) {
     const isBlueWon = winningTeam(match) === match.blueTeam;
@@ -104,7 +108,11 @@ export function calcAllElosWithDetails(matches: Match[]): EloDetail[] {
     }
   }
 
-  const sorted = [...matches].sort((a, b) => a.date.getTime() - b.date.getTime());
+  // date는 시각 없는 자정값이라 같은 날 경기끼리 동점 → createdAt(입력 순)으로 확정.
+  // Elo는 경로 의존적이므로 이 타이브레이커가 없으면 최종 레이팅이 문서 ID 순에 좌우된다.
+  const sorted = [...matches].sort(
+    (a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime(),
+  );
 
   for (const match of sorted) {
     const isBlueWon = winningTeam(match) === match.blueTeam;
