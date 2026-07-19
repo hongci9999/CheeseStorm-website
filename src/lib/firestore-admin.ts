@@ -110,8 +110,28 @@ async function refreshStats(): Promise<void> {
     // matches/streamers와 달리 stats/current는 이 백그라운드 집계가 실제 쓰기 시점이라
     // 여기서 무효화해야 함 — API 라우트 쪽 revalidateTag('matches')는 이 문서를 안 건드림.
     revalidateTag('stats', 'max');
+    // 응답 종료 후(waitUntil) 컨텍스트의 revalidateTag는 전파가 씹힐 수 있어(ADR-0018 계열)
+    // self-fetch로 요청 컨텍스트 안에서 한 번 더 확실히 무효화한다.
+    await pingRevalidate('stats');
   } catch (err) {
     console.error('[refreshStats] 집계 실패:', err);
+  }
+}
+
+// /api/revalidate self-fetch — 베이스 URL 불명(로컬 등)이면 스킵 (직접 revalidateTag로 충분).
+async function pingRevalidate(tag: string): Promise<void> {
+  const base = process.env.NEXT_PUBLIC_SITE_URL
+    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null);
+  if (!base) return;
+  try {
+    await fetch(`${base}/api/revalidate?tag=${tag}`, {
+      method: 'POST',
+      ...(process.env.REVALIDATE_SECRET
+        ? { headers: { 'x-revalidate-secret': process.env.REVALIDATE_SECRET } }
+        : {}),
+    });
+  } catch (err) {
+    console.error('[refreshStats] revalidate ping 실패:', err);
   }
 }
 

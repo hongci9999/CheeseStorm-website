@@ -99,6 +99,9 @@ export function getCachedStreamers(): Streamer[] | null {
 export function invalidateStreamersCache() { streamersCache = null; }
 export function invalidateMatchesCache() { matchesCache = null; }
 export function invalidateCuratedListsCache() { curatedListsCache = null; }
+// 경기·스트리머 쓰기 후 호출 — 사전집계(stats/current) 클라 캐시를 비워
+// SPA 내비게이션으로 메인에 돌아왔을 때 이전 Elo/티어가 남지 않게 함
+export function invalidateStatsCache() { statsCache = null; }
 export function getCachedMatches(): Match[] | null {
   return matchesCache;
 }

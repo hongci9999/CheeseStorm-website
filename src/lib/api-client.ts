@@ -8,6 +8,7 @@ import {
   invalidateMatchesCache,
   invalidateCuratedListsCache,
   invalidateOcrCorrectionsCache,
+  invalidateStatsCache,
 } from './firestore';
 
 async function apiFetch(path: string, method: string, body?: unknown): Promise<unknown> {
@@ -27,12 +28,14 @@ async function apiFetch(path: string, method: string, body?: unknown): Promise<u
 export async function addStreamer(data: Omit<Streamer, 'id' | 'createdAt'>): Promise<string> {
   const res = await apiFetch('/api/streamers', 'POST', data) as { id: string };
   invalidateStreamersCache();
+  invalidateStatsCache();
   return res.id;
 }
 
 export async function deleteStreamer(id: string): Promise<void> {
   await apiFetch(`/api/streamers/${id}`, 'DELETE');
   invalidateStreamersCache();
+  invalidateStatsCache();
   invalidateCuratedListsCache();
 }
 
@@ -41,38 +44,45 @@ export async function updateStreamerInfo(
 ): Promise<void> {
   await apiFetch(`/api/streamers/${id}`, 'PATCH', { action: 'info', name, accountLevel });
   invalidateStreamersCache();
+  invalidateStatsCache();
 }
 
 export async function updateStreamerGameNames(id: string, gameNames: string[]): Promise<void> {
   await apiFetch(`/api/streamers/${id}`, 'PATCH', { action: 'gameNames', gameNames });
   invalidateStreamersCache();
+  invalidateStatsCache();
 }
 
 export async function updateStreamerProfileImage(id: string, imageUrl: string): Promise<void> {
   await apiFetch(`/api/streamers/${id}`, 'PATCH', { action: 'profileImage', imageUrl });
   invalidateStreamersCache();
+  invalidateStatsCache();
 }
 
 // ── Matches ──────────────────────────────────────────────────
 export async function addMatch(data: Omit<Match, 'id' | 'createdAt'>): Promise<string> {
   const res = await apiFetch('/api/matches', 'POST', data) as { id: string };
   invalidateMatchesCache();
+  invalidateStatsCache();
   return res.id;
 }
 
 export async function deleteMatch(id: string): Promise<void> {
   await apiFetch(`/api/matches/${id}`, 'DELETE');
   invalidateMatchesCache();
+  invalidateStatsCache();
 }
 
 export async function updateMatch(id: string, data: Omit<Match, 'id' | 'createdAt'>): Promise<void> {
   await apiFetch(`/api/matches/${id}`, 'PATCH', { action: 'update', ...data });
   invalidateMatchesCache();
+  invalidateStatsCache();
 }
 
 export async function updateMatchDate(id: string, date: Date): Promise<void> {
   await apiFetch(`/api/matches/${id}`, 'PATCH', { action: 'date', date: date.toISOString() });
   invalidateMatchesCache();
+  invalidateStatsCache();
 }
 
 // ── Scrims (프로 스크림 밴픽 기록) ───────────────────────────
