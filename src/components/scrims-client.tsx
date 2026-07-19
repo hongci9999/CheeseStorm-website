@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { deleteScrim } from '@/lib/api-client';
+import { deleteScrim, mergeScrimsIntoSeries } from '@/lib/api-client';
 import { ScrimCard, scrimDateLabel } from '@/components/scrim-card';
 import ScrimDashboard from '@/components/scrim-dashboard';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import type { Scrim } from '@/lib/scrim';
+import { assignScrimNumbers, type Scrim } from '@/lib/scrim';
 
 type Tab = 'dashboard' | 'draft';
 
@@ -24,6 +24,42 @@ export default function ScrimsClient({ scrims, isStreamer }: {
   const bp = useBreakpoint();
   const S = bp === 'mobile' ? 42 : 52; // 초상화 크기 = 간격 단위 (겹침 없음, 좁으면 가로 스크롤)
   const [tab, setTab] = useState<Tab>('dashboard');
+
+  // 하드 피어리스 세트 단위 번호 — 세트도, 세트 내 경기도 오래된 순.
+  const numberById = assignScrimNumbers(scrims);
+
+  // 과거 기록 등 seriesId 없는 경기들을 수동으로 세트 묶는 모드.
+  const [mergeMode, setMergeMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [merging, setMerging] = useState(false);
+
+  function toggleMergeMode() {
+    setMergeMode((v) => !v);
+    setSelected(new Set());
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleMerge() {
+    if (selected.size < 2 || merging) return;
+    setMerging(true);
+    try {
+      await mergeScrimsIntoSeries([...selected]);
+      setMergeMode(false);
+      setSelected(new Set());
+      router.refresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '세트 묶기 실패');
+    } finally {
+      setMerging(false);
+    }
+  }
 
   async function handleDelete(s: Scrim) {
     if (!confirm(`${scrimDateLabel(s.date)} ${s.map} 밴픽 기록을 삭제할까요?`)) return;
@@ -129,10 +165,47 @@ export default function ScrimsClient({ scrims, isStreamer }: {
               기록된 스크림이 없습니다.
             </p>
           )}
+
           {scrims.map((s) => (
-            <ScrimCard key={s.id} scrim={s} S={S}
-              canEdit={isStreamer} onDelete={() => handleDelete(s)} />
+            <ScrimCard key={s.id} scrim={s} no={numberById.get(s.id)} S={S}
+              canEdit={isStreamer} onDelete={() => handleDelete(s)}
+              selectMode={mergeMode} selected={selected.has(s.id)} onToggleSelect={() => toggleSelect(s.id)} />
           ))}
+        </div>
+      )}
+
+      {/* 과거 기록 등 세트 수동 묶기 — 운영자·권한 스트리머만. 스크롤해도 항상 보이는 우측 하단 플로팅. */}
+      {isStreamer && tab === 'draft' && scrims.length > 1 && (
+        <div style={{
+          position: 'fixed', right: 'var(--sp-4)', bottom: 'var(--sp-4)', zIndex: 40,
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: 6, borderRadius: 'var(--r-pill)',
+          background: 'var(--surface-card)', border: '1px solid var(--border-line)',
+          boxShadow: 'var(--shadow-lg)',
+        }}>
+          {mergeMode && (
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-faint)', padding: '0 4px' }}>
+              {selected.size}개 선택
+            </span>
+          )}
+          {mergeMode && (
+            <button onClick={handleMerge} disabled={selected.size < 2 || merging} style={{
+              height: 28, padding: '0 10px', borderRadius: 'var(--r-pill)', border: 'none',
+              background: 'var(--cheese-green)', color: 'var(--text-on-green)',
+              fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 11,
+              opacity: selected.size < 2 || merging ? 0.5 : 1,
+              cursor: selected.size < 2 || merging ? 'not-allowed' : 'pointer' }}>
+              {merging ? '묶는 중…' : '묶기 확인'}
+            </button>
+          )}
+          <button onClick={toggleMergeMode} style={{
+            height: 28, padding: '0 10px', borderRadius: 'var(--r-pill)', cursor: 'pointer',
+            border: `1px solid ${mergeMode ? 'var(--loss)' : 'var(--border-line)'}`,
+            background: mergeMode ? 'transparent' : 'var(--surface-raise)',
+            color: mergeMode ? 'var(--loss)' : 'var(--text-muted)',
+            fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 11 }}>
+            {mergeMode ? '취소' : '경기 묶기'}
+          </button>
         </div>
       )}
     </main>

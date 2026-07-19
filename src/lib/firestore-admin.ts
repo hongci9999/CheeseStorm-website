@@ -315,6 +315,19 @@ export async function deleteScrim(id: string): Promise<void> {
   await getAdminDb().collection('scrims').doc(id).delete();
 }
 
+// 과거(seriesId 없는) 또는 잘못 나뉜 기록을 관리자가 수동으로 한 세트로 묶을 때 사용.
+// seriesId=null이면 묶음 해제(필드 삭제) — 다시 각자 1경기짜리 세트로 돌아감.
+export async function setScrimsSeries(ids: string[], seriesId: string | null): Promise<void> {
+  const db = getAdminDb();
+  const batch = db.batch();
+  for (const id of ids) {
+    batch.update(db.collection('scrims').doc(id), {
+      seriesId: seriesId ?? FieldValue.delete(),
+    });
+  }
+  await batch.commit();
+}
+
 // ── Curated tiers already exported above ────────────────────
 
 // ── 방문 로그 ────────────────────────────────────────────────

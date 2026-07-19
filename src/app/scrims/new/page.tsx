@@ -33,6 +33,11 @@ export default function ScrimNewPage() {
   const [state, setState] = useState<DraftState | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // 하드 피어리스 세트 식별자 — 페이지 이동 없이 "다음 경기" 버튼으로 이어지는 동안 고정.
+  // 세트 종료 후 목록으로 나가면 다음 방문 시 새로 생성됨.
+  const [seriesId] = useState(() => crypto.randomUUID());
+  const [gamesSaved, setGamesSaved] = useState(0); // 이번 세트에서 저장한 경기 수 (진행 피드백용)
+  const [justSaved, setJustSaved] = useState(false); // 저장 직후 "다음 경기 / 세트 종료" 선택 화면
 
   const step = state ? currentStep(state) : null;
   const done = state ? isComplete(state) : false;
@@ -61,19 +66,38 @@ export default function ScrimNewPage() {
         ...(patch.trim() ? { patch: patch.trim() } : {}),
         bans: state.bans,
         picks: state.picks,
+        seriesId,
       });
-      router.push('/scrims');
-      router.refresh();
+      setGamesSaved((n) => n + 1);
+      setState(null);
+      setMap('');
+      setJustSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : '저장 실패');
+    } finally {
       setSaving(false);
     }
+  }
+
+  function endSeries() {
+    router.push('/scrims');
+    router.refresh();
   }
 
   return (
     <main style={{ maxWidth: 880, margin: '0 auto', padding: 'var(--sp-5)',
       display: 'grid', gap: 'var(--sp-4)', alignContent: 'start' }}>
       <h1 style={pageTitle}>스크림 밴픽 기록</h1>
+
+      {/* 하드 피어리스 세트 진행 상황 — 이번 방문에서 저장한 경기 수 */}
+      {gamesSaved > 0 && (
+        <span style={{ justifySelf: 'start', display: 'inline-flex', alignItems: 'center', height: 24, padding: '0 10px',
+          borderRadius: 'var(--r-pill)', background: 'color-mix(in srgb, var(--cheese-green) 14%, transparent)',
+          border: '1px solid color-mix(in srgb, var(--cheese-green) 40%, transparent)',
+          fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)', color: 'var(--cheese-green)' }}>
+          이번 세트 {gamesSaved}경기 저장됨
+        </span>
+      )}
 
       {/* ── 경기 정보: 날짜·패치버전 ── */}
       <div style={{ display: 'flex', gap: 'var(--sp-3)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -85,7 +109,23 @@ export default function ScrimNewPage() {
         </label>
       </div>
 
-      {!state ? (
+      {justSaved ? (
+        /* ── 저장 직후: 같은 세트로 이어갈지, 종료할지 선택 ── */
+        <section style={{ display: 'grid', gap: 'var(--sp-3)', justifyItems: 'center', padding: 'var(--sp-6) 0' }}>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: 'var(--fs-lg)', color: 'var(--text-high)' }}>
+            {gamesSaved}경기 저장 완료
+          </span>
+          <div style={{ display: 'flex', gap: 'var(--sp-2)', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button onClick={() => setJustSaved(false)} style={{ ...primaryBtn, minWidth: 220 }}>
+              같은 세트 다음 경기 기록
+            </button>
+            <button onClick={endSeries} style={secondaryBtn}>
+              세트 종료 → 목록으로
+            </button>
+          </div>
+        </section>
+      ) : !state ? (
         /* ── 맵 선택 → 밴픽 시작 ── */
         <section style={{ display: 'grid', gap: 'var(--sp-4)' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 6 }}>

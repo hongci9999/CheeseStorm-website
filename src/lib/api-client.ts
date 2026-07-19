@@ -94,6 +94,11 @@ export async function addScrim(data: Omit<Scrim, 'id' | 'createdAt'>): Promise<s
   return res.id;
 }
 
+// 여러 스크림을 한 세트로 묶는다(seriesId 공유) — 과거 기록 등 수동 정리용.
+export async function mergeScrimsIntoSeries(ids: string[]): Promise<void> {
+  await apiFetch('/api/scrims/series', 'PATCH', { ids, seriesId: crypto.randomUUID() });
+}
+
 export async function deleteScrim(id: string): Promise<void> {
   await apiFetch(`/api/scrims/${id}`, 'DELETE');
 }

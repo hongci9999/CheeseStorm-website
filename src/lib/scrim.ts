@@ -12,6 +12,9 @@ export interface Scrim {
   winner: Team;                   // blue=선픽팀, red=후픽팀
   bans: Record<Team, string[]>;   // 팀당 3, 드래프트 진행 순서대로
   picks: Record<Team, string[]>;  // 팀당 5, 드래프트 진행 순서대로
+  // 하드 피어리스 세트 묶음 식별자 — 같은 세트의 경기들이 공유.
+  // 없으면(과거 기록 등) 자기 자신만 속한 1경기짜리 세트로 취급(assignScrimNumbers).
+  seriesId?: string;
   createdAt: Date;
 }
 
@@ -38,9 +41,66 @@ export function scrimTimeline(
   });
 }
 
+export interface ScrimNumber {
+  gameNo: number;        // 전체 경기 중 순번 — 오래된 경기부터 1 (세트 무관)
+  dateSetNo: number;     // 세트의 날짜 안에서 몇 번째 세트인지 — 오래된 세트부터 1
+  gameInSetNo: number;   // 세트 내 경기 순번 — 오래된 경기부터 1
+  gamesInSeries: number; // 이 세트에 속한 총 경기 수 (1이면 단독 기록)
+}
+
+const scrimOrder = (a: Scrim, b: Scrim) =>
+  a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime();
+
+// 경기 date는 시각 없는 자정값이라 로컬 날짜 그대로 키로 쓸 수 있다.
+const dateKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+
+// 세트(하드 피어리스 시리즈) 단위로 번호를 매긴다.
+// seriesId가 같은 경기들을 한 세트로 묶고, 없는 경기(과거 기록 등)는 자기 자신만 속한
+// 1경기짜리 세트로 취급 — 항상 모든 경기에 번호가 붙는다.
+// gameNo는 세트와 무관하게 전체 경기 중 오래된 순 전역 번호.
+// dateSetNo는 세트의 대표 날짜(세트 내 가장 오래된 경기의 날짜) 안에서만 오래된 순으로 매긴다.
+export function assignScrimNumbers(scrims: Scrim[]): Map<string, ScrimNumber> {
+  // 전역 경기 번호
+  const byGame = [...scrims].sort(scrimOrder);
+  const gameNoById = new Map(byGame.map((s, i) => [s.id, i + 1]));
+
+  // 세트 그룹핑
+  const groups = new Map<string, Scrim[]>();
+  for (const s of scrims) {
+    const key = s.seriesId ?? `__solo:${s.id}`;
+    const g = groups.get(key);
+    if (g) g.push(s); else groups.set(key, [s]);
+  }
+  const series = [...groups.values()].map((games) => [...games].sort(scrimOrder));
+
+  // 날짜별로 세트를 묶어 그 안에서만 순번 매김 (세트 대표 날짜 = 세트 내 최초 경기 날짜)
+  const byDate = new Map<string, typeof series>();
+  for (const games of series) {
+    const key = dateKey(games[0].date);
+    const g = byDate.get(key);
+    if (g) g.push(games); else byDate.set(key, [games]);
+  }
+  for (const group of byDate.values()) group.sort((a, b) => scrimOrder(a[0], b[0]));
+
+  const result = new Map<string, ScrimNumber>();
+  for (const group of byDate.values()) {
+    group.forEach((games, si) => {
+      games.forEach((s, gi) => {
+        result.set(s.id, {
+          gameNo: gameNoById.get(s.id)!,
+          dateSetNo: si + 1,
+          gameInSetNo: gi + 1,
+          gamesInSeries: games.length,
+        });
+      });
+    });
+  }
+  return result;
+}
+
 // API 경계 검증 — 문제 있으면 오류 메시지, 정상이면 null.
 export function validateScrimPayload(d: {
-  date?: unknown; map?: unknown; patch?: unknown; winner?: unknown;
+  date?: unknown; map?: unknown; patch?: unknown; winner?: unknown; seriesId?: unknown;
   bans?: Partial<Record<Team, unknown>>; picks?: Partial<Record<Team, unknown>>;
 }): string | null {
   const strArr = (v: unknown, n: number) =>
@@ -49,6 +109,7 @@ export function validateScrimPayload(d: {
   if (d.winner !== 'blue' && d.winner !== 'red') return '승리 팀이 올바르지 않습니다';
   if (typeof d.date !== 'string' || isNaN(new Date(d.date).getTime())) return '날짜가 올바르지 않습니다';
   if (d.patch !== undefined && typeof d.patch !== 'string') return '패치 버전이 올바르지 않습니다';
+  if (d.seriesId !== undefined && typeof d.seriesId !== 'string') return '세트 식별자가 올바르지 않습니다';
   for (const t of ['blue', 'red'] as const) {
     if (!strArr(d.bans?.[t], 3)) return '밴 목록이 올바르지 않습니다 (팀당 3)';
     if (!strArr(d.picks?.[t], 5)) return '픽 목록이 올바르지 않습니다 (팀당 5)';

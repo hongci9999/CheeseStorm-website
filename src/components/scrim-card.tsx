@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { HexAvatar } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
 import { mapImageUrl } from '@/lib/draft/map-image';
-import { scrimTimeline, PHASE_STARTS, type Scrim, type ScrimStep } from '@/lib/scrim';
+import { scrimTimeline, PHASE_STARTS, type Scrim, type ScrimStep, type ScrimNumber } from '@/lib/scrim';
 import type { Team } from '@/lib/draft/types';
 
 // 액션 색 — 목업 규약: 핑크=밴, 블루=픽 (팀 색 아님).
@@ -111,26 +111,56 @@ function WinBadge({ S, winner }: { S: number; winner: Team }) {
   );
 }
 
-// 스크림 1경기 기록 카드 — 맵 이미지 배경 + 날짜·패치버전·맵 이름·밴픽 스트립·승 표시.
-export function ScrimCard({ scrim, S = 52, canEdit = false, onDelete }: {
+// 스크림 1경기 기록 카드 — 맵 이미지 배경 + 세트·경기 번호·날짜·패치버전·맵 이름·밴픽 스트립·승 표시.
+// no: 세트/경기 번호 (scrims-client.tsx에서 assignScrimNumbers로 계산해 전달) — 없으면 배지 생략.
+// selectMode: 세트 묶기용 다중 선택 모드 — 헤더에 체크박스 노출, 삭제 버튼은 숨김(오조작 방지).
+export function ScrimCard({ scrim, no, S = 52, canEdit = false, onDelete, selectMode = false, selected = false, onToggleSelect }: {
   scrim: Scrim;
+  no?: ScrimNumber;
   S?: number;
   canEdit?: boolean;
   onDelete?: () => void;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const img = mapImageUrl(scrim.map);
   return (
     <article style={{ position: 'relative', overflow: 'hidden',
-      borderRadius: 'var(--r-lg)', border: '1px solid var(--border-line)' }}>
+      borderRadius: 'var(--r-lg)', border: selected ? '1px solid var(--cheese-green)' : '1px solid var(--border-line)' }}>
       {img && <Image src={img} alt={scrim.map} fill sizes="760px"
         style={{ objectFit: 'cover', filter: 'brightness(0.7) saturate(0.85)' }} />}
       {/* 텍스트 가독성 그라데이션 */}
       <span aria-hidden style={{ position: 'absolute', inset: 0,
         background: 'linear-gradient(180deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.6))' }} />
+      {selected && (
+        <span aria-hidden style={{ position: 'absolute', inset: 0,
+          background: 'color-mix(in srgb, var(--cheese-green) 12%, transparent)', pointerEvents: 'none' }} />
+      )}
 
       <div style={{ position: 'relative', display: 'grid', gap: 'var(--sp-3)', padding: 'var(--sp-4)' }}>
-        {/* 헤더: 날짜 | 패치버전 (+삭제) */}
+        {/* 헤더: (선택모드: 체크박스) | 전체 경기 번호 | 날짜의 세트 번호 | 날짜 | 패치버전 (+삭제) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)' }}>
+          {selectMode && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input type="checkbox" checked={selected} onChange={onToggleSelect}
+                style={{ width: 16, height: 16, cursor: 'pointer' }} />
+            </label>
+          )}
+          {no !== undefined && (
+            <>
+              <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 700,
+                fontSize: 'var(--fs-2xs)', color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap' }}>
+                #{no.gameNo}
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', height: 20, padding: '0 8px',
+                borderRadius: 'var(--r-pill)', background: 'color-mix(in srgb, var(--cheese-green) 20%, rgba(0,0,0,0.35))',
+                fontFamily: 'var(--font-numeral)', fontWeight: 800,
+                fontSize: 'var(--fs-2xs)', color: 'var(--cheese-green)', whiteSpace: 'nowrap' }}>
+                {no.dateSetNo}세트{no.gamesInSeries > 1 ? ` · ${no.gameInSetNo}경기` : ''}
+              </span>
+            </>
+          )}
           <span style={{ fontFamily: 'var(--font-numeral)', fontWeight: 700,
             fontSize: 'var(--fs-sm)', color: '#fff', letterSpacing: '0.04em' }}>
             {scrimDateLabel(scrim.date)}
@@ -139,7 +169,7 @@ export function ScrimCard({ scrim, S = 52, canEdit = false, onDelete }: {
             fontSize: 'var(--fs-xs)', color: 'rgba(255,255,255,0.75)' }}>
             {scrim.patch ?? ''}
           </span>
-          {canEdit && onDelete && (
+          {canEdit && onDelete && !selectMode && (
             <button onClick={onDelete} title="기록 삭제" aria-label="기록 삭제"
               style={{ width: 24, height: 24, borderRadius: 'var(--r-xs)', border: 'none',
                 background: 'rgba(0,0,0,0.4)', color: 'rgba(255,255,255,0.7)',
