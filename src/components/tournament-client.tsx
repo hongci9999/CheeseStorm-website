@@ -575,7 +575,7 @@ const POS_METRICS: {
 }[] = [
   { label: '승률',     val: (r) => r.winRate,        fmt: (r) => pct(r.winRate) },
   { label: 'KDA',      val: (r) => r.kda,            fmt: (r) => fmt1(r.kda) },
-  { label: 'KP',       val: (r) => r.kp,             fmt: (r) => (r.kp === null ? '—' : pct(r.kp)) },
+  { label: '킬관여율',  val: (r) => r.kp,             fmt: (r) => (r.kp === null ? '—' : pct(r.kp)) },
   { label: '영웅딜/분', val: (r) => r.heroDmgPerMin,  fmt: (r) => fmtInt(r.heroDmgPerMin) },
   { label: '공성딜/분', val: (r) => r.siegeDmgPerMin, fmt: (r) => fmtInt(r.siegeDmgPerMin) },
   { label: '힐/분',    val: (r) => r.healingPerMin,  fmt: (r) => fmtInt(r.healingPerMin) },
@@ -595,6 +595,11 @@ function heatBg(value: number | null, min: number, max: number): string {
   const a = Math.round((0.5 - norm) * 2 * MAX_ALPHA);
   return `color-mix(in srgb, var(--loss) ${a}%, transparent)`;
 }
+
+// 포지션 표 전용 셀 — 지표 열이 많아 공용 td/th보다 글자만 키운다 (여백은 그대로)
+const posTh: CSSProperties = { ...th, fontSize: 'var(--fs-xs)' };
+const posTd: CSSProperties = { ...td, fontSize: 'var(--fs-md)' };
+const posTdLeft: CSSProperties = { ...posTd, textAlign: 'left', fontFamily: 'var(--font-ui)' };
 
 function PositionsTab({ data }: { data: TournamentData }) {
   if (data.positions.length === 0) {
@@ -617,15 +622,15 @@ function PositionsTab({ data }: { data: TournamentData }) {
           <section key={role} style={sectionCard}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)' }}>
               <h2 style={sectionTitle}>{role}</h2>
-              <span style={sectionHint}>KP = 킬 관여율 · /분 지표는 경기시간 기록된 경기만 집계 · 색은 열 내 상대값</span>
+              <span style={sectionHint}>/분 지표는 경기시간 기록된 경기만 집계 · 색은 열 내 상대값</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%' }}>
                 <thead><tr>
-                  <th style={{ ...th, textAlign: 'left' }}>스트리머</th>
-                  <th style={{ ...th, textAlign: 'left' }}>팀</th>
-                  <th style={th}>경기</th><th style={th}>승</th>
-                  {POS_METRICS.map((m) => <th key={m.label} style={th}>{m.label}</th>)}
+                  <th style={{ ...posTh, textAlign: 'left' }}>스트리머</th>
+                  <th style={{ ...posTh, textAlign: 'left' }}>팀</th>
+                  <th style={posTh}>경기</th><th style={posTh}>승</th>
+                  {POS_METRICS.map((m) => <th key={m.label} style={posTh}>{m.label}</th>)}
                 </tr></thead>
                 <tbody>
                   {rows.map((r) => {
@@ -633,18 +638,18 @@ function PositionsTab({ data }: { data: TournamentData }) {
                     const accent = accentOf.get(r.teamName) ?? 'var(--border-strong)'; // 용병 등 미소속은 중립색
                     return (
                       <tr key={r.name} style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-line) 55%, transparent)' }}>
-                        <td style={tdLeft}>
+                        <td style={posTdLeft}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                             <HexAvatar name={r.name} imageUrl={r.img} ring={accent} ringWidth={2} size={36} />
                             <span style={{ fontWeight: 700, color: 'var(--text-high)' }}>{r.name}</span>
                           </span>
                         </td>
-                        <td style={tdLeft}>
+                        <td style={posTdLeft}>
                           <span style={{ fontWeight: 700, color: accent }}>{r.teamName}</span>
                           {captain && <span style={{ ...sectionHint, marginLeft: 6 }}>{captain}</span>}
                         </td>
-                        <td style={td}>{r.games}</td>
-                        <td style={td}>{r.wins}</td>
+                        <td style={posTd}>{r.games}</td>
+                        <td style={posTd}>{r.wins}</td>
                         {POS_METRICS.map((m, ci) => {
                           // 승률은 배경 히트맵 대신, 역할군 내 최고=그린·최하=레드 글자색만
                           const isWinRate = m.label === '승률';
@@ -655,7 +660,7 @@ function PositionsTab({ data }: { data: TournamentData }) {
                           }
                           return (
                             <td key={m.label} style={{
-                              ...td, fontWeight: isWinRate || m.label === 'KDA' ? 800 : 600,
+                              ...posTd, fontWeight: isWinRate || m.label === 'KDA' ? 800 : 600,
                               color,
                               background: isWinRate ? 'transparent' : heatBg(m.val(r), range[ci].min, range[ci].max),
                             }}>
