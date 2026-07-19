@@ -277,6 +277,19 @@ describe('buildTournamentData', () => {
     expect(rows.find((r) => r.name === '선수a0')!.games).toBe(1); // 정상 출전은 그대로
   });
 
+  it('포지션별 모스트 영웅을 경기 수 내림차순 3개까지 뽑는다', () => {
+    // a2(암살자)가 제이나 2판, 발라 1판, 케리건 1판 — 상위 3개만
+    const heroesByGame = ['제이나', '제이나', '발라', '케리건'];
+    const games = heroesByGame.map((h) =>
+      mkMatch({ blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['a2', h], ['a3', '아바투르'], ['a4', '리 리']] }));
+    const data = buildTournamentData(games, games.map(mkLink), streamers, config);
+
+    const a2 = data.positions.flatMap((p) => p.rows).find((r) => r.name === '선수a2')!;
+    expect(a2.topHeroes[0]).toBe('제이나');   // 2판으로 최다
+    expect(a2.topHeroes).toHaveLength(3);
+    expect(a2.topHeroes).not.toContain('무라딘'); // 다른 선수 영웅은 섞이지 않음
+  });
+
   it('용병 출전자만 게임 카드에 merc 표시', () => {
     const m = mkMatch({
       // x0 = 외부 용병, b4 = 타팀 대타 — 둘 다 A팀 로스터 밖

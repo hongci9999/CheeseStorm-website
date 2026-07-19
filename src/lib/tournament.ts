@@ -274,7 +274,8 @@ export interface PositionRow {
   siegeDmgPerMin: number | null;
   healingPerMin: number | null;
   selfHealPerMin: number | null;
-  xpPerMin: number | null;
+  xpShare: number | null;   // 팀 총 경험치 중 본인 지분
+  topHeroes: string[];      // 이 포지션 모스트 영웅 최대 3개 (경기 수 내림차순)
 }
 
 // "MM:SS" → 분. 파싱 불가 시 null.
@@ -292,14 +293,17 @@ export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): 
   interface Acc {
     games: number; wins: number;
     k: number; a: number; d: number; teamKills: number; statGames: number;
-    heroDmg: number; siegeDmg: number; healing: number; selfHeal: number; xp: number; durMin: number;
+    heroDmg: number; siegeDmg: number; healing: number; selfHeal: number;
+    xp: number; teamXp: number; durMin: number;
+    heroes: Map<string, number>; // 이 포지션에서 쓴 영웅별 경기 수 (모스트 산출용)
   }
   const acc = new Map<string, Acc>(); // key = `${id}|${role}`
   const get = (key: string): Acc => {
     let v = acc.get(key);
     if (!v) {
       v = { games: 0, wins: 0, k: 0, a: 0, d: 0, teamKills: 0, statGames: 0,
-        heroDmg: 0, siegeDmg: 0, healing: 0, selfHeal: 0, xp: 0, durMin: 0 };
+        heroDmg: 0, siegeDmg: 0, healing: 0, selfHeal: 0, xp: 0, teamXp: 0, durMin: 0,
+        heroes: new Map() };
       acc.set(key, v);
     }
     return v;
@@ -313,6 +317,7 @@ export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): 
       const stats = bucket === 'blue' ? m.blueStats : m.redStats;
       const won = m.winner === bucket;
       const teamKills = stats?.reduce((s, x) => s + x.kills, 0) ?? 0;
+      const teamXp = stats?.reduce((s, x) => s + x.xp, 0) ?? 0;
       const own = idsByTeam.get(g.teams[bucket]);
       roster.forEach(([id, hero], i) => {
         if (own && !own.has(id)) return; // 용병 출전은 개인 통계 제외
@@ -320,16 +325,19 @@ export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): 
         if (!role) return;
         const v = get(`${id}|${role}`);
         v.games++;
+        v.heroes.set(hero, (v.heroes.get(hero) ?? 0) + 1);
         if (won) v.wins++;
         const st = stats?.[i];
         if (!st) return;
         v.statGames++;
         v.k += st.kills; v.a += st.assists; v.d += st.deaths;
         v.teamKills += teamKills;
+        // XP는 팀 내 지분으로만 쓰므로 경기시간 없어도 누적
+        v.xp += st.xp; v.teamXp += teamXp;
         if (dur) {
           v.heroDmg += st.heroDmg; v.siegeDmg += st.siegeDmg;
           v.healing += st.healing; v.selfHeal += st.selfHeal;
-          v.xp += st.xp; v.durMin += dur;
+          v.durMin += dur;
         }
       });
     }
@@ -347,7 +355,11 @@ export function positionStats(games: TournamentGame[], rosters?: TeamRoster[]): 
       siegeDmgPerMin: perMin(v.siegeDmg),
       healingPerMin: perMin(v.healing),
       selfHealPerMin: perMin(v.selfHeal),
-      xpPerMin: perMin(v.xp),
+      xpShare: v.teamXp > 0 ? v.xp / v.teamXp : null,
+      topHeroes: [...v.heroes]
+        .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0], 'ko'))
+        .slice(0, 3)
+        .map(([hero]) => hero),
     };
   }).sort((x, y) => y.games - x.games || y.winRate - x.winRate);
 }
@@ -383,7 +395,8 @@ export interface PositionRowVM {
   games: number; wins: number; winRate: number;
   kda: number | null; kp: number | null;
   heroDmgPerMin: number | null; siegeDmgPerMin: number | null;
-  healingPerMin: number | null; selfHealPerMin: number | null; xpPerMin: number | null;
+  healingPerMin: number | null; selfHealPerMin: number | null; xpShare: number | null;
+  topHeroes: string[];
 }
 export interface MapRowVM {
   map: string; img: string | null;
@@ -546,7 +559,7 @@ export function buildTournamentData(
           kda: r.kda, kp: r.kp,
           heroDmgPerMin: r.heroDmgPerMin, siegeDmgPerMin: r.siegeDmgPerMin,
           healingPerMin: r.healingPerMin, selfHealPerMin: r.selfHealPerMin,
-          xpPerMin: r.xpPerMin,
+          xpShare: r.xpShare, topHeroes: r.topHeroes,
         };
       }),
     }))

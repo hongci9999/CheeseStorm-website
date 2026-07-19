@@ -9,7 +9,8 @@ import { HexAvatar, HEX_CLIP } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
 import { sectionCard, sectionTitle, sectionHint, th, td, tdLeft } from '@/components/scrim-dashboard';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_START, TOURNAMENT_END } from '@/lib/tournament';
+import { TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_START, TOURNAMENT_END, POSITION_ORDER } from '@/lib/tournament';
+import type { Role } from '@/lib/types';
 import type { TournamentData, TeamVM, GameVM, SideVM, PlayerVM } from '@/lib/tournament';
 
 // 팀 구분 액센트 — 카드 링·표 강조 공용 (인덱스 = 설정 순서)
@@ -570,17 +571,21 @@ function PageBtn({ label, active, disabled, onClick }: {
 
 // 지표 열 정의 — 전부 "높을수록 우수", 열 내 상대값으로 히트맵 색상.
 type PosRow = TournamentData['positions'][number]['rows'][number];
+// roles를 주면 그 포지션 표에서만 열이 보인다 (없으면 전 포지션 공통).
 const POS_METRICS: {
-  label: string; val: (r: PosRow) => number | null; fmt: (r: PosRow) => string;
+  label: string; val: (r: PosRow) => number | null; fmt: (r: PosRow) => string; roles?: Role[];
 }[] = [
   { label: '승률',     val: (r) => r.winRate,        fmt: (r) => pct(r.winRate) },
   { label: 'KDA',      val: (r) => r.kda,            fmt: (r) => fmt1(r.kda) },
   { label: '킬관여율',  val: (r) => r.kp,             fmt: (r) => (r.kp === null ? '—' : pct(r.kp)) },
   { label: '영웅딜/분', val: (r) => r.heroDmgPerMin,  fmt: (r) => fmtInt(r.heroDmgPerMin) },
   { label: '공성딜/분', val: (r) => r.siegeDmgPerMin, fmt: (r) => fmtInt(r.siegeDmgPerMin) },
-  { label: '힐/분',    val: (r) => r.healingPerMin,  fmt: (r) => fmtInt(r.healingPerMin) },
-  { label: '자힐/분',   val: (r) => r.selfHealPerMin, fmt: (r) => fmtInt(r.selfHealPerMin) },
-  { label: 'XP/분',    val: (r) => r.xpPerMin,       fmt: (r) => fmtInt(r.xpPerMin) },
+  // 힐은 지원가만, 자힐은 그 외 포지션만 — 서로 무의미한 열이라 숨긴다
+  { label: '힐/분',    val: (r) => r.healingPerMin,  fmt: (r) => fmtInt(r.healingPerMin),
+    roles: ['지원가'] },
+  { label: '자힐/분',   val: (r) => r.selfHealPerMin, fmt: (r) => fmtInt(r.selfHealPerMin),
+    roles: POSITION_ORDER.filter((r) => r !== '지원가') },
+  { label: 'XP 지분',  val: (r) => r.xpShare,        fmt: (r) => (r.xpShare === null ? '—' : pct(r.xpShare)) },
 ];
 
 // 열 내 상대값(0~1)을 배경 틴트로 — 높으면 파랑, 낮으면 빨강 (스크린샷 규약).
@@ -595,6 +600,13 @@ function heatBg(value: number | null, min: number, max: number): string {
   const a = Math.round((0.5 - norm) * 2 * MAX_ALPHA);
   return `color-mix(in srgb, var(--loss) ${a}%, transparent)`;
 }
+
+// 포지션 표 고정 열 폭 — 표마다 이름 길이가 달라도 열이 어긋나지 않게 고정.
+// 아바타 36 + 간격 10 + 가장 긴 닉네임 기준.
+const NAME_COL_W = 168;
+const TEAM_COL_W = 104;
+const RECORD_COL_W = 78;
+const MOST_COL_W = 92;
 
 // 포지션 표 전용 셀 — 지표 열이 많아 공용 td/th보다 글자만 키운다 (여백은 그대로)
 const posTh: CSSProperties = { ...th, fontSize: 'var(--fs-xs)' };
@@ -613,8 +625,9 @@ function PositionsTab({ data }: { data: TournamentData }) {
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
       {data.positions.map(({ role, rows }) => {
+        const metrics = POS_METRICS.filter((m) => !m.roles || m.roles.includes(role));
         // 열별 min/max 사전계산 — 셀 히트맵 기준
-        const range = POS_METRICS.map((m) => {
+        const range = metrics.map((m) => {
           const vals = rows.map(m.val).filter((v): v is number => v !== null);
           return vals.length ? { min: Math.min(...vals), max: Math.max(...vals) } : { min: 0, max: 0 };
         });
@@ -625,12 +638,21 @@ function PositionsTab({ data }: { data: TournamentData }) {
               <span style={sectionHint}>/분 지표는 경기시간 기록된 경기만 집계 · 색은 열 내 상대값</span>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>
+                {/* 이름·팀 열은 포지션마다 폭이 달라지지 않게 고정 — 표끼리 세로로 정렬된다 */}
+                <colgroup>
+                  <col style={{ width: NAME_COL_W }} />
+                  <col style={{ width: TEAM_COL_W }} />
+                  <col style={{ width: RECORD_COL_W }} />
+                  <col style={{ width: MOST_COL_W }} />
+                  {metrics.map((m) => <col key={m.label} />)}
+                </colgroup>
                 <thead><tr>
                   <th style={{ ...posTh, textAlign: 'left' }}>스트리머</th>
                   <th style={{ ...posTh, textAlign: 'left' }}>팀</th>
-                  <th style={posTh}>경기</th><th style={posTh}>승</th>
-                  {POS_METRICS.map((m) => <th key={m.label} style={posTh}>{m.label}</th>)}
+                  <th style={posTh}>전적</th>
+                  <th style={posTh}>모스트</th>
+                  {metrics.map((m) => <th key={m.label} style={posTh}>{m.label}</th>)}
                 </tr></thead>
                 <tbody>
                   {rows.map((r) => {
@@ -641,16 +663,28 @@ function PositionsTab({ data }: { data: TournamentData }) {
                         <td style={posTdLeft}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                             <HexAvatar name={r.name} imageUrl={r.img} ring={accent} ringWidth={2} size={36} />
-                            <span style={{ fontWeight: 700, color: 'var(--text-high)' }}>{r.name}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-high)',
+                              overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
                           </span>
                         </td>
-                        <td style={posTdLeft}>
+                        <td style={{ ...posTdLeft, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           <span style={{ fontWeight: 700, color: accent }}>{r.teamName}</span>
                           {captain && <span style={{ ...sectionHint, marginLeft: 6 }}>{captain}</span>}
                         </td>
-                        <td style={posTd}>{r.games}</td>
-                        <td style={posTd}>{r.wins}</td>
-                        {POS_METRICS.map((m, ci) => {
+                        <td style={posTd}>
+                          {r.games}전 <span style={{ color: 'var(--win)' }}>{r.wins}승</span>
+                        </td>
+                        <td style={{ ...posTd, textAlign: 'center' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            {r.topHeroes.map((h, hi) => (
+                              <span key={h} title={h} style={{ display: 'flex', marginLeft: hi === 0 ? 0 : -6 }}>
+                                <HexAvatar name={h} imageUrl={heroImageUrl(h)}
+                                  ring="var(--border-strong)" ringWidth={1.5} size={26} />
+                              </span>
+                            ))}
+                          </span>
+                        </td>
+                        {metrics.map((m, ci) => {
                           // 승률은 배경 히트맵 대신, 역할군 내 최고=그린·최하=레드 글자색만
                           const isWinRate = m.label === '승률';
                           let color = 'var(--text-high)';
