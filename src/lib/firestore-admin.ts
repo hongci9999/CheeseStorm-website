@@ -276,6 +276,22 @@ export async function updateMatchDate(id: string, date: Date): Promise<void> {
   scheduleRefresh();
 }
 
+// ── 대회 경기 태깅 (tournamentGames) ─────────────────────────
+// matches와 별개 컬렉션 — 문서 id = matchId(1:1). 경기 입력/수정 시점에 명시적으로 남긴다.
+// 티어·Elo 집계와 무관 → refreshStats 불필요.
+
+export async function linkMatchToTournament(
+  matchId: string, blueTeamId: string, redTeamId: string,
+): Promise<void> {
+  await getAdminDb().collection('tournamentGames').doc(matchId).set({
+    blueTeamId, redTeamId, createdAt: FieldValue.serverTimestamp(),
+  });
+}
+
+export async function unlinkMatchFromTournament(matchId: string): Promise<void> {
+  await getAdminDb().collection('tournamentGames').doc(matchId).delete();
+}
+
 // ── Scrims (프로 스크림 밴픽 기록) ───────────────────────────
 // 티어·Elo 집계와 무관 → refreshStats 불필요.
 

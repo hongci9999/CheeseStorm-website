@@ -1,7 +1,9 @@
-// 대회(스트리머 대회) 스크림 정리 — 팀 로스터 설정 + matches 자동 분류 + 집계.
+// 대회(스트리머 대회) 스크림 정리 — 팀 로스터 설정 + 명시적 경기 태깅 + 집계.
 // 팀 로스터는 대회마다 한 번 정해지므로 DB 대신 코드 상수로 관리한다 (수정 = 커밋).
-// 경기 데이터는 기존 matches 컬렉션을 재사용: 진영 5명 중 3명 이상이
-// 한 팀 로스터에 속하면 그 팀의 경기로 자동 분류한다 (용병 1~2명 허용).
+// 경기 자체는 내전기록실(matches)에 그대로 저장하되, 어느 경기가 대회 경기인지는
+// 별도 tournamentGames 컬렉션(TournamentGameLink)에 경기 입력 시점에 명시적으로 기록한다.
+// (과거: 날짜+로스터 겹침 휴리스틱으로 자동 분류했으나, 오탐 위험과 대회 시작 전
+// 스크림까지 섞이는 문제로 폐기 — 이제 명시적 태깅만 신뢰한다.)
 import type { Match, Role, Streamer } from './types';
 import { roleOfHero } from './heroes';
 import { mapImageUrl } from './draft/map-image';
@@ -20,15 +22,16 @@ export interface TournamentTeamConfig {
 export const TOURNAMENT_NAME = '히오스는 살아있다';
 export const TOURNAMENT_SEASON = '2026 여름 시즌';
 
-// 이 날짜 이후의 matches만 대회 스크림 후보로 취급 (과거 내전 제외)
-export const TOURNAMENT_START = new Date('2026-07-01');
+// 대회 진행 기간 — 표시용(페이지 부제). 경기 분류는 날짜가 아니라 명시적 태깅(TournamentGameLink)으로 결정된다.
+export const TOURNAMENT_START = new Date('2026-07-19');
+export const TOURNAMENT_END = new Date('2026-07-21');
 
-// 팀장: 베릴·네클릿·진수도사·인간젤리 확정.
+// 팀장: 베릴·네클릿·진수·인간젤리 확정.
 // TODO: 팀원 배분은 임시(참가자 목록 순) — 드래프트 확정 시 수정할 것.
 export const TOURNAMENT_TEAMS: TournamentTeamConfig[] = [
-  { id: 'team1', name: '1팀', captain: '베릴',     members: ['강소연', '끼월마녀', '노페', '던'] },
+  { id: 'team1', name: '1팀', captain: '베릴',     members: ['강소연', '끠월마녀', '노페', '던'] },
   { id: 'team2', name: '2팀', captain: '네클릿',   members: ['룩삼', '반님', '뱅', '소우릎'] },
-  { id: 'team3', name: '3팀', captain: '진수도사', members: ['승우아빠', '울프', '철면수심', '츠밍'] },
+  { id: 'team3', name: '3팀', captain: '진수',     members: ['승우아빠', '울프', '철면수심', '츠밍'] },
   { id: 'team4', name: '4팀', captain: '인간젤리', members: ['침착맨', '캡틴잭', '플레임', '헤징'] },
 ];
 
@@ -40,9 +43,6 @@ export const TOURNAMENT_MAPS = [
 
 // 게임 카드 영웅 배치 순서 (탱커 → 투사 → 암살자 → 전문가 → 지원가)
 export const POSITION_ORDER: Role[] = ['탱커', '투사', '암살자', '전문가', '지원가'];
-
-// 분류 기준: 진영 5명 중 로스터 일치 최소 인원
-const MIN_ROSTER_MATCH = 3;
 
 // ── 로스터 해석 ──────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ export function resolveTeams(
   });
 }
 
-// ── 경기 분류 ────────────────────────────────────────────────
+// ── 경기 연결(태깅) ──────────────────────────────────────────
 
 export interface TournamentGame {
   match: Match;
@@ -77,27 +77,30 @@ export interface TournamentGame {
   teams: Record<'blue' | 'red', string>; // 버킷 → teamId
 }
 
-export function classifyGames(
+// tournamentGames 컬렉션 문서 — 경기 입력 시점에 명시적으로 남기는 대회 소속 태그.
+// 문서 id = matchId(1:1) — 경기 하나는 최대 한 대회에만 속한다.
+export interface TournamentGameLink {
+  matchId: string;
+  blueTeamId: string;
+  redTeamId: string;
+  createdAt: Date;
+}
+
+// 명시적으로 태깅된 경기만 대회 데이터로 채택 — 날짜·로스터 겹침 추정 없음.
+export function linkTournamentGames(
   matches: Match[],
-  rosters: TeamRoster[],
-  start: Date = TOURNAMENT_START,
+  links: TournamentGameLink[],
 ): TournamentGame[] {
-  const teamOf = (side: [string, string][]): string | null => {
-    for (const r of rosters) {
-      if (r.ids.size === 0) continue;
-      const hit = side.filter(([id]) => r.ids.has(id)).length;
-      if (hit >= MIN_ROSTER_MATCH) return r.id;
-    }
-    return null;
-  };
+  const linkByMatchId = new Map(links.map((l) => [l.matchId, l]));
   return matches
-    .filter((m) => m.date >= start)
-    .map((m) => ({ m, blue: teamOf(m.blueTeam), red: teamOf(m.redTeam) }))
-    .filter((x): x is { m: Match; blue: string; red: string } =>
-      !!x.blue && !!x.red && x.blue !== x.red)
+    .map((m) => ({ m, link: linkByMatchId.get(m.id) }))
+    .filter((x): x is { m: Match; link: TournamentGameLink } => !!x.link)
     .sort((a, b) => a.m.date.getTime() - b.m.date.getTime()
       || a.m.createdAt.getTime() - b.m.createdAt.getTime())
-    .map((x, i) => ({ match: x.m, no: i + 1, teams: { blue: x.blue, red: x.red } }));
+    .map((x, i) => ({
+      match: x.m, no: i + 1,
+      teams: { blue: x.link.blueTeamId, red: x.link.redTeamId },
+    }));
 }
 
 // ── 팀별 전적 ────────────────────────────────────────────────
@@ -380,13 +383,13 @@ export function sortByPosition(roster: [string, string][]): [string, string][] {
 
 export function buildTournamentData(
   matches: Match[],
+  links: TournamentGameLink[],
   streamers: Streamer[],
   config: TournamentTeamConfig[] = TOURNAMENT_TEAMS,
-  start: Date = TOURNAMENT_START,
 ): TournamentData {
   const rosters = resolveTeams(streamers, config);
   const configured = rosters.some((r) => r.ids.size > 0);
-  const games = classifyGames(matches, rosters, start);
+  const games = linkTournamentGames(matches, links);
   const records = new Map(teamRecords(games, rosters).map((r) => [r.teamId, r]));
   const h2hMap = headToHead(games);
   const byId = new Map(streamers.map((s) => [s.id, s]));

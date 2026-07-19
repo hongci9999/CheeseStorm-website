@@ -9,7 +9,7 @@ import { HexAvatar } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
 import { sectionCard, sectionTitle, sectionHint, th, td, tdLeft } from '@/components/scrim-dashboard';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { TOURNAMENT_NAME, TOURNAMENT_SEASON } from '@/lib/tournament';
+import { TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_START, TOURNAMENT_END } from '@/lib/tournament';
 import type { TournamentData, TeamVM, GameVM, SideVM, PlayerVM } from '@/lib/tournament';
 
 // 팀 구분 액센트 — 카드 링·표 강조 공용 (인덱스 = 설정 순서)
@@ -19,6 +19,11 @@ const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
 const rateColor = (r: number) => (r >= 0.5 ? 'var(--win)' : 'var(--loss)');
 const fmt1 = (n: number | null) => (n === null ? '—' : n.toFixed(2));
 const fmtInt = (n: number | null) => (n === null ? '—' : Math.round(n).toLocaleString('ko-KR'));
+
+const tourDateRange = (() => {
+  const fmt = (d: Date) => `${d.getMonth() + 1}.${d.getDate()}`;
+  return `${fmt(TOURNAMENT_START)} ~ ${fmt(TOURNAMENT_END)}`;
+})();
 
 function streakLabel(streak: number): { text: string; color: string } {
   if (streak > 0) return { text: `${streak}연승 중`, color: 'var(--win)' };
@@ -59,6 +64,7 @@ export default function TournamentClient({ data }: { data: TournamentData }) {
         }}>
           {TOURNAMENT_SEASON}
         </span>
+        <span style={sectionHint}>{tourDateRange}</span>
         {data.demo && (
           <span style={{
             padding: '2px 10px', borderRadius: 'var(--r-pill)',
@@ -197,8 +203,11 @@ function TeamsTab({ data, desktop }: { data: TournamentData; desktop: boolean })
                 return (
                   <tr key={t.id} style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-line) 55%, transparent)' }}>
                     <td style={tdLeft}>
-                      <span style={{ fontWeight: 800, color: accent }}>{t.name}</span>
-                      <span style={{ ...sectionHint, marginLeft: 8 }}>{t.captain.name}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 800, color: accent }}>{t.name}</span>
+                        <HexAvatar name={t.captain.name} imageUrl={t.captain.img} ring={accent} size={22} />
+                        <span style={sectionHint}>{t.captain.name}</span>
+                      </span>
                     </td>
                     <td style={td}>{t.games}</td>
                     <td style={{ ...td, color: 'var(--win)', fontWeight: 700 }}>{t.wins}</td>
@@ -419,7 +428,7 @@ function SideBlock({ side, mirror, showFirstPick, max }: {
 
 function GameCard({ g, desktop }: { g: GameVM; desktop: boolean }) {
   return (
-    <article style={{ position: 'relative', overflow: 'hidden',
+    <article style={{ position: 'relative', overflow: 'hidden', maxWidth: 880, margin: '0 auto', width: '100%',
       borderRadius: 'var(--r-lg)', border: '1px solid var(--border-line)' }}>
       {/* 배경 = 맵 이미지 (예시 이미지 규약) */}
       {g.mapImg && <Image src={g.mapImg} alt={g.map ?? ''} fill sizes="1100px"
@@ -553,8 +562,9 @@ function PositionsTab({ data }: { data: TournamentData }) {
       집계할 경기가 없습니다.
     </p>;
   }
-  // 팀 이름 → 팀장 이름 (팀 열 부제)
+  // 팀 이름 → 팀장 이름 (팀 열 부제) · 팀 이름 → 액센트 색(아바타 테두리, 팀 카드·표와 동일 배정)
   const captainOf = new Map(data.teams.map((t) => [t.name, t.captain.name]));
+  const accentOf = new Map(data.teams.map((t, i) => [t.name, TEAM_ACCENTS[i % TEAM_ACCENTS.length]]));
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
       {data.positions.map(({ role, rows }) => {
@@ -580,16 +590,17 @@ function PositionsTab({ data }: { data: TournamentData }) {
                 <tbody>
                   {rows.map((r) => {
                     const captain = captainOf.get(r.teamName);
+                    const accent = accentOf.get(r.teamName) ?? 'var(--border-strong)'; // 용병 등 미소속은 중립색
                     return (
                       <tr key={r.name} style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-line) 55%, transparent)' }}>
                         <td style={tdLeft}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                            <HexAvatar name={r.name} imageUrl={r.img} ring="var(--border-strong)" size={36} />
+                            <HexAvatar name={r.name} imageUrl={r.img} ring={accent} ringWidth={2} size={36} />
                             <span style={{ fontWeight: 700, color: 'var(--text-high)' }}>{r.name}</span>
                           </span>
                         </td>
                         <td style={tdLeft}>
-                          <span style={{ fontWeight: 700, color: 'var(--text-high)' }}>{r.teamName}</span>
+                          <span style={{ fontWeight: 700, color: accent }}>{r.teamName}</span>
                           {captain && <span style={{ ...sectionHint, marginLeft: 6 }}>{captain}</span>}
                         </td>
                         <td style={td}>{r.games}</td>

@@ -2,7 +2,10 @@
 // 실제 분류된 경기가 1건이라도 생기면 page.tsx가 이 데이터를 쓰지 않으므로 자동 소멸.
 // 시드 고정 RNG(mulberry32)라 새로고침해도 수치가 흔들리지 않음.
 import type { Match, PlayerMatchStat, Streamer } from './types';
-import { buildTournamentData, TOURNAMENT_TEAMS, TOURNAMENT_MAPS, type TournamentData } from './tournament';
+import {
+  buildTournamentData, TOURNAMENT_TEAMS, TOURNAMENT_MAPS,
+  type TournamentData, type TournamentGameLink,
+} from './tournament';
 
 // ── 시드 고정 RNG ────────────────────────────────────────────
 function mulberry32(seed: number) {
@@ -28,14 +31,21 @@ const HEALERS  = ['우서', '리리', '레가르', '말퓨리온', '안두인', 
 const MAPS = [...TOURNAMENT_MAPS];
 
 // ── 더미 스트리머 (설정 로스터 이름 그대로) ──────────────────
-function demoStreamers(): Streamer[] {
+// 프사는 실제 streamers 컬렉션에서 이름으로 매칭해 그대로 가져온다 —
+// 더미 상태에서도 등록된 스트리머는 이니셜 대신 실제 사진으로 보이도록.
+function demoStreamers(realStreamers: Streamer[] = []): Streamer[] {
+  const realByName = new Map(realStreamers.map((s) => [s.name, s]));
   const names = TOURNAMENT_TEAMS.flatMap((t) => [t.captain, ...t.members]);
-  return names.map((name, i) => ({
-    id: `demo-${i}`,
-    name,
-    gameNames: [`${name}#${1101 + i * 137}`],
-    createdAt: new Date('2026-07-01'),
-  }));
+  return names.map((name, i) => {
+    const real = realByName.get(name);
+    return {
+      id: `demo-${i}`,
+      name,
+      gameNames: [`${name}#${1101 + i * 137}`],
+      ...(real?.profileImageUrl ? { profileImageUrl: real.profileImageUrl } : {}),
+      createdAt: new Date('2026-07-01'),
+    };
+  });
 }
 
 // 슬롯 포지션 규약: [탱커, 투사, 암살자, 암살자, 지원가] — 팀장이 탱커
@@ -58,7 +68,7 @@ function statFor(slot: number, durMin: number): PlayerMatchStat {
   };
 }
 
-function demoMatches(streamers: Streamer[]): Match[] {
+function demoMatches(streamers: Streamer[]): { matches: Match[]; links: TournamentGameLink[] } {
   const byName = new Map(streamers.map((s) => [s.name, s.id]));
   // 팀별 로스터 ID (팀장 먼저 = 탱커 슬롯)
   const rosters = TOURNAMENT_TEAMS.map((t) =>
@@ -70,7 +80,9 @@ function demoMatches(streamers: Streamer[]): Match[] {
   for (let a = 0; a < 4; a++) for (let b = a + 1; b < 4; b++)
     for (let k = 0; k < 4; k++) pairings.push(k % 2 ? [b, a] : [a, b]);
 
-  return pairings.map(([ta, tb], gi) => {
+  const matches: Match[] = [];
+  const links: TournamentGameLink[] = [];
+  pairings.forEach(([ta, tb], gi) => {
     const durMin = ri(15, 24);
     const dur = `${durMin}:${String(ri(0, 59)).padStart(2, '0')}`;
     // 같은 경기에서 양 팀 영웅 중복 금지 — 슬롯별로 풀에서 2개 뽑아 나눠 가짐
@@ -86,8 +98,9 @@ function demoMatches(streamers: Streamer[]): Match[] {
     const redTeam = side(rosters[tb], taken);
     const pBlue = strength[ta] / (strength[ta] + strength[tb]);
     const date = new Date(2026, 6, 5 + Math.floor(gi / 2), 19 + (gi % 2) * 2, 0, 0);
-    return {
-      id: `demo-m${gi}`,
+    const id = `demo-m${gi}`;
+    matches.push({
+      id,
       date,
       map: pick(MAPS),
       blueTeam, redTeam,
@@ -97,13 +110,21 @@ function demoMatches(streamers: Streamer[]): Match[] {
       firstPick: rnd() < 0.5 ? 'blue' as const : 'red' as const,
       dur,
       createdAt: date,
-    };
+    });
+    // 실제 운영 방식과 동일하게 명시적 태깅으로 대회 소속을 남긴다.
+    links.push({
+      matchId: id,
+      blueTeamId: TOURNAMENT_TEAMS[ta].id,
+      redTeamId: TOURNAMENT_TEAMS[tb].id,
+      createdAt: date,
+    });
   });
+  return { matches, links };
 }
 
-export function buildDemoTournamentData(): TournamentData {
+export function buildDemoTournamentData(realStreamers: Streamer[] = []): TournamentData {
   rnd = mulberry32(20260719);
-  const streamers = demoStreamers();
-  const matches = demoMatches(streamers);
-  return { ...buildTournamentData(matches, streamers), demo: true };
+  const streamers = demoStreamers(realStreamers);
+  const { matches, links } = demoMatches(streamers);
+  return { ...buildTournamentData(matches, links, streamers), demo: true };
 }

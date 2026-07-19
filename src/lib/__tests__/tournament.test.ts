@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  resolveTeams, classifyGames, teamRecords, headToHead, positionStats,
+  resolveTeams, linkTournamentGames, teamRecords, headToHead, positionStats,
   sortByPosition, buildTournamentData, mapRecords, teamMapRecords,
-  type TournamentTeamConfig,
+  type TournamentTeamConfig, type TournamentGameLink,
 } from '../tournament';
 import type { Match, PlayerMatchStat, Streamer } from '../types';
 
@@ -42,6 +42,11 @@ function mkMatch(over: Partial<Match>): Match {
   };
 }
 
+// 경기 입력 시점에 남기는 명시적 태그 — 기본 A(blue)/B(red).
+function mkLink(m: Match, blueTeamId = 'A', redTeamId = 'B'): TournamentGameLink {
+  return { matchId: m.id, blueTeamId, redTeamId, createdAt: m.createdAt };
+}
+
 const rosters = resolveTeams(streamers, config);
 
 // ── 로스터 해석 ──────────────────────────────────────────────
@@ -57,34 +62,30 @@ describe('resolveTeams', () => {
   });
 });
 
-// ── 경기 분류 ────────────────────────────────────────────────
+// ── 경기 연결(태깅) ──────────────────────────────────────────
 
-describe('classifyGames', () => {
-  it('진영 5명 중 3명 이상 로스터 일치 시 그 팀으로 분류 (용병 2명 허용)', () => {
+describe('linkTournamentGames', () => {
+  it('명시적으로 태깅된 경기만 채택한다 — 로스터 겹침과 무관', () => {
+    // 참가자가 로스터와 전혀 안 겹쳐도(용병만 뛴 경기) 태그만 있으면 채택된다.
     const m = mkMatch({
-      blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['a2', '제이나'], ['x0', '아바투르'], ['b4', '리 리']],
+      blueTeam: [['x0', '무라딘'], ['x0', '소냐'], ['x0', '제이나'], ['x0', '아바투르'], ['x0', '리 리']],
     });
-    const games = classifyGames([m], rosters);
+    const games = linkTournamentGames([m], [mkLink(m)]);
     expect(games).toHaveLength(1);
     expect(games[0].teams).toEqual({ blue: 'A', red: 'B' });
   });
 
-  it('로스터 일치 2명 이하면 분류 제외', () => {
-    const m = mkMatch({
-      blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['x0', '제이나'], ['x0', '아바투르'], ['x0', '리 리']],
-    });
-    expect(classifyGames([m], rosters)).toHaveLength(0);
-  });
-
-  it('TOURNAMENT_START 이전 경기는 제외', () => {
-    const m = mkMatch({ date: new Date('2026-06-01') });
-    expect(classifyGames([m], rosters, new Date('2026-07-01'))).toHaveLength(0);
+  it('태그 없는 경기는 제외된다', () => {
+    const tagged = mkMatch({});
+    const untagged = mkMatch({});
+    const games = linkTournamentGames([tagged, untagged], [mkLink(tagged)]);
+    expect(games.map((g) => g.match.id)).toEqual([tagged.id]);
   });
 
   it('스크림 번호는 날짜·입력 순 오름차순 1부터', () => {
     const m1 = mkMatch({ date: new Date('2026-07-12') });
     const m2 = mkMatch({ date: new Date('2026-07-11') });
-    const games = classifyGames([m1, m2], rosters);
+    const games = linkTournamentGames([m1, m2], [mkLink(m1), mkLink(m2)]);
     expect(games.map((g) => [g.no, g.match.id])).toEqual([[1, m2.id], [2, m1.id]]);
   });
 });
@@ -94,11 +95,12 @@ describe('classifyGames', () => {
 describe('teamRecords', () => {
   it('승패·승률·연속(연승/연패)을 계산한다', () => {
     // A 기준: 승, 승, 패 → 1연패 중
-    const games = classifyGames([
+    const matches = [
       mkMatch({ date: new Date('2026-07-10'), winner: 'blue' }),
       mkMatch({ date: new Date('2026-07-11'), winner: 'blue' }),
       mkMatch({ date: new Date('2026-07-12'), winner: 'red' }),
-    ], rosters);
+    ];
+    const games = linkTournamentGames(matches, matches.map((m) => mkLink(m)));
     const rec = new Map(teamRecords(games, rosters).map((r) => [r.teamId, r]));
     expect(rec.get('A')).toMatchObject({ games: 3, wins: 2, losses: 1, streak: -1 });
     expect(rec.get('B')).toMatchObject({ games: 3, wins: 1, losses: 2, streak: 1 });
@@ -110,9 +112,10 @@ describe('teamRecords', () => {
 
 describe('headToHead', () => {
   it('양방향 대칭 기록', () => {
-    const games = classifyGames([
+    const matches = [
       mkMatch({ winner: 'blue' }), mkMatch({ winner: 'blue' }), mkMatch({ winner: 'red' }),
-    ], rosters);
+    ];
+    const games = linkTournamentGames(matches, matches.map((m) => mkLink(m)));
     const h = headToHead(games);
     expect(h.get('A|B')).toEqual({ wins: 2, losses: 1 });
     expect(h.get('B|A')).toEqual({ wins: 1, losses: 2 });
@@ -130,7 +133,7 @@ describe('positionStats', () => {
         stat(2, 1, 3), stat(6, 0, 4), stat(0, 1, 2), stat(0, 2, 8),
       ],
     });
-    const games = classifyGames([m], rosters);
+    const games = linkTournamentGames([m], [mkLink(m)]);
     const rows = positionStats(games);
     const a0 = rows.find((r) => r.streamerId === 'a0');
     expect(a0).toBeDefined();
@@ -144,7 +147,8 @@ describe('positionStats', () => {
   });
 
   it('스탯 없는 경기는 승패만 집계하고 KDA는 null', () => {
-    const games = classifyGames([mkMatch({})], rosters);
+    const m = mkMatch({});
+    const games = linkTournamentGames([m], [mkLink(m)]);
     const a0 = positionStats(games).find((r) => r.streamerId === 'a0');
     expect(a0!.games).toBe(1);
     expect(a0!.kda).toBeNull();
@@ -156,11 +160,12 @@ describe('positionStats', () => {
 
 describe('mapRecords', () => {
   it('선픽 팀 승률을 맵별로 집계하고 미기록 선픽은 분모에서 제외', () => {
-    const games = classifyGames([
+    const matches = [
       mkMatch({ map: '용의 둥지', firstPick: 'blue', winner: 'blue' }), // 선픽 승
       mkMatch({ map: '용의 둥지', firstPick: 'red', winner: 'blue' }),  // 선픽 패
       mkMatch({ map: '용의 둥지', winner: 'blue' }),                     // 선픽 미기록
-    ], rosters);
+    ];
+    const games = linkTournamentGames(matches, matches.map((m) => mkLink(m)));
     const rec = mapRecords(games).find((m) => m.map === '용의 둥지')!;
     expect(rec.games).toBe(3);
     expect(rec.firstPickKnown).toBe(2);
@@ -169,8 +174,9 @@ describe('mapRecords', () => {
   });
 
   it('선픽이 전부 미기록이면 winRate=null', () => {
-    const games = classifyGames([mkMatch({ map: '파멸의 탑' })], rosters);
-    const rec = mapRecords(games).find((m) => m.map === '파멸의 탑')!;
+    const m = mkMatch({ map: '파멸의 탑' });
+    const games = linkTournamentGames([m], [mkLink(m)]);
+    const rec = mapRecords(games).find((x) => x.map === '파멸의 탑')!;
     expect(rec.firstPickWinRate).toBeNull();
   });
 
@@ -184,11 +190,12 @@ describe('mapRecords', () => {
 
 describe('teamMapRecords', () => {
   it('팀별 맵 승률을 집계한다', () => {
-    const games = classifyGames([
+    const matches = [
       mkMatch({ map: '용의 둥지', winner: 'blue' }), // A 승
       mkMatch({ map: '용의 둥지', winner: 'red' }),  // A 패
       mkMatch({ map: '파멸의 탑', winner: 'blue' }), // A 승
-    ], rosters);
+    ];
+    const games = linkTournamentGames(matches, matches.map((m) => mkLink(m)));
     const tm = teamMapRecords(games);
     expect(tm.get('A|용의 둥지')).toEqual({ games: 2, wins: 1, winRate: 0.5 });
     expect(tm.get('B|용의 둥지')).toEqual({ games: 2, wins: 1, winRate: 0.5 });
@@ -218,7 +225,8 @@ describe('buildTournamentData', () => {
   it('선픽팀을 왼쪽에 배치하고 최신순으로 반환', () => {
     const m1 = mkMatch({ date: new Date('2026-07-10'), firstPick: 'red' });
     const m2 = mkMatch({ date: new Date('2026-07-11') });
-    const data = buildTournamentData([m1, m2], streamers, config);
+    const links = [mkLink(m1), mkLink(m2)];
+    const data = buildTournamentData([m1, m2], links, streamers, config);
     expect(data.configured).toBe(true);
     expect(data.games.map((g) => g.no)).toEqual([2, 1]); // 최신순
     const g1 = data.games.find((g) => g.no === 1)!;
@@ -230,9 +238,15 @@ describe('buildTournamentData', () => {
     expect(g2.left.teamName).toBe('A팀'); // 미지정 → blue 왼쪽
   });
 
-  it('로스터 미설정이면 configured=false, 경기 0', () => {
+  it('태그된 경기가 없으면 로스터 설정과 무관하게 경기 0', () => {
+    const data = buildTournamentData([mkMatch({})], [], streamers, config);
+    expect(data.configured).toBe(true); // 로스터 자체는 정상 매칭됨
+    expect(data.games).toHaveLength(0); // 그러나 태그가 없어 경기는 0
+  });
+
+  it('로스터 미설정이면 configured=false', () => {
     const empty = [{ id: 'T', name: 'T팀', captain: '', members: ['', '', '', ''] }];
-    const data = buildTournamentData([mkMatch({})], streamers, empty);
+    const data = buildTournamentData([mkMatch({})], [], streamers, empty);
     expect(data.configured).toBe(false);
     expect(data.games).toHaveLength(0);
   });

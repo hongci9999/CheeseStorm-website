@@ -26,6 +26,7 @@ import { emptyTierLists, listsFromPlacements, sanitizeLists, CURATED_TIER_ORDER 
 import { EMPTY_OCR_CORRECTIONS } from './ocr-corrections';
 import { normalizeMatchDur } from './match';
 import type { Scrim } from './scrim';
+import type { TournamentGameLink } from './tournament';
 import { fineRoleAffinity } from './heroes';
 import { aggregateHeroStats } from './hero-stats';
 import type { HeroAggregate } from './hero-stats';
@@ -473,3 +474,32 @@ export async function getScrims(): Promise<Scrim[]> {
 
 // React 서버 렌더링 내 중복 Firestore 호출 제거 (Suspense 스트리밍 시 사이드바·탭이 동시에 호출해도 1회만 실행)
 export const getMatchesCached = cache(getMatches);
+
+// --- Tournament games (대회 경기 태깅) ---
+// matches와 별개 컬렉션 — 경기 입력 시점에 명시적으로 남긴 대회 소속 태그만 신뢰한다.
+
+// 경기 입력 폼 편집 모드 프리필용 — 이 경기가 대회 경기로 태깅돼 있으면 반환, 아니면 null.
+export async function getTournamentGameLink(matchId: string): Promise<TournamentGameLink | null> {
+  const d = await getDoc(doc(db, 'tournamentGames', matchId));
+  if (!d.exists()) return null;
+  const data = d.data();
+  return {
+    matchId: d.id,
+    blueTeamId: data.blueTeamId as string,
+    redTeamId: data.redTeamId as string,
+    createdAt: (data.createdAt as Timestamp).toDate(),
+  };
+}
+
+export async function getTournamentGameLinks(): Promise<TournamentGameLink[]> {
+  const snapshot = await getDocs(collection(db, 'tournamentGames'));
+  return snapshot.docs.map((d) => {
+    const data = d.data();
+    return {
+      matchId: d.id,
+      blueTeamId: data.blueTeamId as string,
+      redTeamId: data.redTeamId as string,
+      createdAt: (data.createdAt as Timestamp).toDate(),
+    };
+  });
+}

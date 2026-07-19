@@ -3,9 +3,12 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getStreamers, getMatches, getMatch, getOcrCorrections, isFirebaseConfigured } from '@/lib/firestore';
-import { addMatch, updateMatch, upsertOcrCorrection } from '@/lib/api-client';
+import {
+  getStreamers, getMatches, getMatch, getOcrCorrections, getTournamentGameLink, isFirebaseConfigured,
+} from '@/lib/firestore';
+import { addMatch, updateMatch, upsertOcrCorrection, type TournamentTeamsPayload } from '@/lib/api-client';
 import { validateMatchForm, parseMatchDur } from '@/lib/match';
+import { TOURNAMENT_TEAMS } from '@/lib/tournament';
 import {
   resolveStreamerId,
   resolveHeroName,
@@ -325,6 +328,10 @@ function NewMatchPageInner() {
   const [leftTeam, setLeftTeam] = useState<'blue' | 'red' | ''>('');
   // 밴픽 선픽 팀 버킷 (대회 스크림용) — 미지정 시 undefined로 저장 생략
   const [firstPick, setFirstPick] = useState<'blue' | 'red' | ''>('');
+  // 대회 경기 태깅 — 켜면 blueTeamId/redTeamId 선택, 별도 tournamentGames 컬렉션에 기록
+  const [isTournament, setIsTournament] = useState(false);
+  const [tourBlueTeam, setTourBlueTeam] = useState('');
+  const [tourRedTeam, setTourRedTeam] = useState('');
   const [map,      setMap]      = useState('');
   const [dur,      setDur]      = useState('');
   // 팀별 최종 레벨 (선택) — HotS 공유 레벨
@@ -375,6 +382,12 @@ function NewMatchPageInner() {
       }
       setBlueSlots(toSlots(m.blueTeam, m.blueStats));
       setRedSlots(toSlots(m.redTeam, m.redStats));
+    });
+    getTournamentGameLink(editId).then((link) => {
+      if (!link) return;
+      setIsTournament(true);
+      setTourBlueTeam(link.blueTeamId);
+      setTourRedTeam(link.redTeamId);
     });
   }, [editId]);
 
@@ -508,10 +521,15 @@ function NewMatchPageInner() {
         blueLevel: parseLevel(blueLevel), redLevel: parseLevel(redLevel),
         map: map || undefined, dur: normalizedDur, note: note || undefined,
       };
+      // 대회 경기 태깅 — 편집 모드에서 토글을 껐으면 null(해제), 새 경기인데 토글 꺼짐이면 undefined(전송 안 함)
+      const tournamentTeams: TournamentTeamsPayload | undefined =
+        isTournament && tourBlueTeam && tourRedTeam
+          ? { blue: tourBlueTeam, red: tourRedTeam }
+          : editId ? null : undefined;
       if (editId) {
-        await updateMatch(editId, data);
+        await updateMatch(editId, data, tournamentTeams);
       } else {
-        await addMatch(data);
+        await addMatch(data, tournamentTeams);
       }
       router.push('/matches');
     } catch (err) {
@@ -782,6 +800,35 @@ function NewMatchPageInner() {
               );
             })}
           </div>
+        </div>
+
+        {/* ── 대회 경기 태깅 (선택) — 별도 tournamentGames 컬렉션에 기록, 대회 탭 지표 소스 ── */}
+        <div>
+          <label style={{ ...LABEL, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input type="checkbox" checked={isTournament}
+              onChange={e => {
+                setIsTournament(e.target.checked);
+                if (!e.target.checked) { setTourBlueTeam(''); setTourRedTeam(''); }
+              }}
+              style={{ width: 14, height: 14, cursor: 'pointer' }} />
+            대회 경기로 기록 (선택)
+          </label>
+          {isTournament && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-2)', marginTop: 6 }}>
+              <select value={tourBlueTeam} onChange={e => setTourBlueTeam(e.target.value)} style={INPUT}>
+                <option value="">팀 1 소속 대회팀</option>
+                {TOURNAMENT_TEAMS.map(t => (
+                  <option key={t.id} value={t.id} disabled={t.id === tourRedTeam}>{t.name} ({t.captain})</option>
+                ))}
+              </select>
+              <select value={tourRedTeam} onChange={e => setTourRedTeam(e.target.value)} style={INPUT}>
+                <option value="">팀 2 소속 대회팀</option>
+                {TOURNAMENT_TEAMS.map(t => (
+                  <option key={t.id} value={t.id} disabled={t.id === tourBlueTeam}>{t.name} ({t.captain})</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* ── 메모 ── */}
