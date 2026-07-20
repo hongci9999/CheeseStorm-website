@@ -9,7 +9,7 @@ import { HexAvatar, HEX_CLIP } from '@/components/hexagon-avatar';
 import { heroImageUrl } from '@/lib/hero-image';
 import { sectionCard, sectionTitle, sectionHint, th, td, tdLeft } from '@/components/scrim-dashboard';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_START, TOURNAMENT_END, POSITION_ORDER } from '@/lib/tournament';
+import { TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_START, TOURNAMENT_END, POSITION_ORDER, MIN_POSITION_GAMES } from '@/lib/tournament';
 import type { Role } from '@/lib/types';
 import type { TournamentData, TeamVM, GameVM, SideVM, PlayerVM } from '@/lib/tournament';
 
@@ -672,6 +672,9 @@ const posTd: CSSProperties = { ...td, fontSize: 'var(--fs-md)' };
 const posTdLeft: CSSProperties = { ...posTd, textAlign: 'left', fontFamily: 'var(--font-ui)' };
 
 function PositionsTab({ data }: { data: TournamentData }) {
+  // 팀 필터 — null이면 전체. (훅이라 early return보다 위에 있어야 한다)
+  const [team, setTeam] = useState<string | null>(null);
+
   if (data.positions.length === 0) {
     return <p style={{ ...sectionCard, ...sectionHint, display: 'block' }}>
       집계할 경기가 없습니다.
@@ -682,18 +685,34 @@ function PositionsTab({ data }: { data: TournamentData }) {
   const accentOf = new Map(data.teams.map((t, i) => [t.name, TEAM_ACCENTS[i % TEAM_ACCENTS.length]]));
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
-      {data.positions.map(({ role, rows }) => {
+      {/* 팀 필터 — 행만 걸러내고 히트맵 기준(range)은 전체 선수 기준을 유지한다.
+          팀만 봐도 칸 색이 대회 전체에서의 상대 위치를 계속 가리키게 하려는 것. */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <Chip label="전체" active={team === null} onClick={() => setTeam(null)} />
+        {data.teams.map((t, i) => (
+          <Chip key={t.id} label={t.name} active={team === t.name}
+            accent={TEAM_ACCENTS[i % TEAM_ACCENTS.length]} title={t.captain.name}
+            onClick={() => setTeam(t.name)} />
+        ))}
+      </div>
+
+      {data.positions.map(({ role, rows: allRows }) => {
         const metrics = POS_METRICS.filter((m) => !m.roles || m.roles.includes(role));
-        // 열별 min/max 사전계산 — 셀 히트맵 기준
+        // 열별 min/max 사전계산 — 셀 히트맵 기준. 필터 전 전체 행 기준으로 잡는다.
         const range = metrics.map((m) => {
-          const vals = rows.map(m.val).filter((v): v is number => v !== null);
+          const vals = allRows.map(m.val).filter((v): v is number => v !== null);
           return vals.length ? { min: Math.min(...vals), max: Math.max(...vals) } : { min: 0, max: 0 };
         });
+        const rows = team ? allRows.filter((r) => r.teamName === team) : allRows;
+        if (rows.length === 0) return null;
         return (
           <section key={role} style={sectionCard}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--sp-2)' }}>
               <h2 style={sectionTitle}>{role}</h2>
-              <span style={sectionHint}>/분 지표는 경기시간 기록된 경기만 집계 · 색은 열 내 상대값</span>
+              <span style={sectionHint}>
+                {MIN_POSITION_GAMES}경기 이상만 표시 · /분 지표는 경기시간 기록된 경기만 집계
+                {' · '}색은 팀 필터와 무관하게 전체 선수 기준 상대값
+              </span>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed' }}>

@@ -245,12 +245,12 @@ describe('buildTournamentData', () => {
   });
 
   it('로스터 밖 대타는 포지션 통계에서 제외하되 팀 승패엔 반영', () => {
-    // a2 자리에 로스터 밖 x0가 대타로 출전한 대회 경기
-    const m = mkMatch({
+    // a2 자리에 로스터 밖 x0가 대타로 출전한 대회 경기 (표본 하한을 넘도록 동일 구성 3판)
+    const ms = [1, 2, 3].map(() => mkMatch({
       blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['x0', '제이나'], ['a3', '아바투르'], ['a4', '리 리']],
       winner: 'blue',
-    });
-    const data = buildTournamentData([m], [mkLink(m)], streamers, config);
+    }));
+    const data = buildTournamentData(ms, ms.map((m) => mkLink(m)), streamers, config);
 
     const names = data.positions.flatMap((p) => p.rows.map((r) => r.name));
     expect(names).not.toContain('용병X');           // 대타는 개인 통계에서 무시
@@ -258,23 +258,23 @@ describe('buildTournamentData', () => {
     expect(names).not.toContain('선수a2');           // 안 뛴 로스터 인원은 행 자체가 없음
 
     const teamA = data.teams.find((t) => t.id === 'A')!;
-    expect(teamA.games).toBe(1);                    // 팀 전적은 대타 출전과 무관
-    expect(teamA.wins).toBe(1);
+    expect(teamA.games).toBe(3);                    // 팀 전적은 대타 출전과 무관
+    expect(teamA.wins).toBe(3);
   });
 
   it('타팀 대타 출전은 그 선수 개인 통계에 합산되지 않는다', () => {
     // b4가 자기 팀(B) 대신 A팀 진영에 대타로 출전, B팀 자리는 외부 용병 x0가 채움
-    const m = mkMatch({
+    const ms = [1, 2, 3].map(() => mkMatch({
       blueTeam: [['a0', '무라딘'], ['a1', '소냐'], ['a2', '제이나'], ['a3', '아바투르'], ['b4', '리 리']],
       redTeam: [['b0', '디아블로'], ['b1', '아르타니스'], ['b2', '발라'], ['b3', '자가라'], ['x0', '우서']],
       winner: 'blue',
-    });
-    const data = buildTournamentData([m], [mkLink(m)], streamers, config);
+    }));
+    const data = buildTournamentData(ms, ms.map((m) => mkLink(m)), streamers, config);
 
     const rows = data.positions.flatMap((p) => p.rows);
     expect(rows.map((r) => r.name)).not.toContain('선수b4'); // 대타로 딴 승은 개인 통계 밖
     expect(rows.map((r) => r.name)).not.toContain('용병X');
-    expect(rows.find((r) => r.name === '선수a0')!.games).toBe(1); // 정상 출전은 그대로
+    expect(rows.find((r) => r.name === '선수a0')!.games).toBe(3); // 정상 출전은 그대로
   });
 
   it('포지션별 모스트 영웅을 경기 수 내림차순 3개까지 뽑는다', () => {
@@ -318,6 +318,19 @@ describe('buildTournamentData', () => {
 
     const all = buildTournamentData([d1, d2], links, streamers, config);
     expect(all.games).toHaveLength(2);
+  });
+
+  it('포지션 통계는 MIN_POSITION_GAMES 미만 표본을 뺀다', () => {
+    // a1이 3경기는 소냐(투사), 2경기는 발라(암살자) — 암살자 행은 표본 미달로 빠진다.
+    const warrior = [1, 2, 3].map(() => mkMatch({}));
+    const assassin = [1, 2].map(() => mkMatch({
+      blueTeam: [['a0', '무라딘'], ['a1', '발라'], ['a2', '제이나'], ['a3', '아바투르'], ['a4', '리 리']],
+    }));
+    const all = [...warrior, ...assassin];
+    const data = buildTournamentData(all, all.map((m) => mkLink(m)), streamers, config);
+    const rowsOf = (role: string) => data.positions.find((p) => p.role === role)?.rows ?? [];
+    expect(rowsOf('투사').map((r) => r.name)).toContain('선수a1');
+    expect(rowsOf('암살자').map((r) => r.name)).not.toContain('선수a1');
   });
 
   it('로스터 미설정이면 configured=false', () => {

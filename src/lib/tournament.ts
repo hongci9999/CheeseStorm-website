@@ -47,6 +47,10 @@ export const TOURNAMENT_MAPS = [
 // 게임 카드 영웅 배치 순서 (탱커 → 투사 → 암살자 → 전문가 → 지원가)
 export const POSITION_ORDER: Role[] = ['탱커', '투사', '암살자', '전문가', '지원가'];
 
+// 포지션 통계 최소 표본 — 이 미만 경기는 그 포지션 행을 아예 뺀다.
+// 1~2판짜리 임시 포지션이 KDA·딜 히트맵 상하단을 차지하는 걸 막는 목적.
+export const MIN_POSITION_GAMES = 3;
+
 // ── 로스터 해석 ──────────────────────────────────────────────
 
 export interface TeamRoster {
@@ -552,7 +556,8 @@ export function buildTournamentData(
   };
   // 용병 출전은 positionStats에서 제외 — 개인 통계엔 자기 팀으로 뛴 경기만 남는다.
   // (팀 승패는 teamRecords가 팀 단위로 세므로 용병 출전과 무관하게 그대로 반영)
-  const rows = positionStats(games, rosters);
+  // 표본 미달(MIN_POSITION_GAMES 미만) 포지션은 제외 — 히트맵 min/max에도 안 잡힌다.
+  const rows = positionStats(games, rosters).filter((r) => r.games >= MIN_POSITION_GAMES);
   const positions = POSITION_ORDER
     .map((role) => ({
       role,
