@@ -300,16 +300,31 @@ export async function updateMatchDate(id: string, date: Date): Promise<void> {
 // matches와 별개 컬렉션 — 문서 id = matchId(1:1). 경기 입력/수정 시점에 명시적으로 남긴다.
 // 티어·Elo 집계와 무관 → refreshStats 불필요.
 
+// 태그 컬렉션과 경기 문서의 tournament 플래그를 항상 함께 쓴다 —
+// 플래그는 Elo 제외 판정용 비정규화 값이라 두 곳이 어긋나면 Elo가 조용히 틀어진다 (ADR-0022).
 export async function linkMatchToTournament(
   matchId: string, blueTeamId: string, redTeamId: string,
 ): Promise<void> {
-  await getAdminDb().collection('tournamentGames').doc(matchId).set({
+  const db = getAdminDb();
+  await db.collection('tournamentGames').doc(matchId).set({
     blueTeamId, redTeamId, createdAt: FieldValue.serverTimestamp(),
   });
+  await db.collection('matches').doc(matchId).update({ tournament: true });
+  // addMatch/updateMatch가 이미 예약한 refresh는 플래그가 쓰이기 전에 경기를 읽을 수 있다.
+  // 플래그 확정 후 한 번 더 예약해 Elo 집계가 대회 경기를 확실히 제외하도록 한다.
+  scheduleRefresh();
 }
 
+// 경기 삭제 시의 고아 태그 정리에도 쓰이므로, 호출 전에 경기 문서를 지우면 안 된다
+// (지운 뒤 호출하면 플래그 해제가 NOT_FOUND로 실패한다 — DELETE 라우트는 unlink를 먼저 부른다).
 export async function unlinkMatchFromTournament(matchId: string): Promise<void> {
-  await getAdminDb().collection('tournamentGames').doc(matchId).delete();
+  const db = getAdminDb();
+  const ref = db.collection('tournamentGames').doc(matchId);
+  // 태그가 없던 경기면 지울 것도 재집계할 것도 없다 — 경기 삭제마다 불리므로 여기서 끊는다.
+  if (!(await ref.get()).exists) return;
+  await ref.delete();
+  await db.collection('matches').doc(matchId).update({ tournament: FieldValue.delete() });
+  scheduleRefresh();
 }
 
 // ── Scrims (프로 스크림 밴픽 기록) ───────────────────────────

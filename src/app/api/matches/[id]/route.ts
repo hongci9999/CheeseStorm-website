@@ -52,8 +52,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!auth.ok) return auth.res;
 
   const { id } = await params;
+  // 경기 문서보다 먼저 태그를 지운다 — unlink가 경기 문서의 tournament 플래그도 해제하므로
+  // 순서가 바뀌면 이미 없는 문서를 update해 실패한다.
+  await unlinkMatchFromTournament(id);
   await deleteMatch(id);
-  await unlinkMatchFromTournament(id); // 고아 태그 정리 — 없어도 조회 시 무해하지만 청소
   revalidateTag('matches', 'max');
   revalidateTag('tournamentGames', 'max');
   return NextResponse.json({ ok: true });

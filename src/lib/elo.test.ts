@@ -245,3 +245,43 @@ describe('Elo 계산', () => {
     expect(Math.abs(totalAfter - totalBefore)).toBeLessThan(0.1);
   });
 });
+
+// ADR-0022: 대회는 로스터가 고정이라 팀원 5명이 항상 같은 델타를 받아
+// 팀 내 개인 차이 정보가 0인데 레이팅만 움직인다 → Elo 집계에서 제외.
+describe('대회 경기 제외', () => {
+  const mk = (id: string, over: Partial<Match> = {}): Match => ({
+    id,
+    date: new Date('2026-01-01'),
+    blueTeam: [['p1', 'h'], ['p2', 'h'], ['p3', 'h'], ['p4', 'h'], ['p5', 'h']],
+    redTeam: [['p6', 'h'], ['p7', 'h'], ['p8', 'h'], ['p9', 'h'], ['p10', 'h']],
+    winner: 'blue',
+    createdAt: new Date(),
+    ...over,
+  });
+
+  it('tournament 경기는 레이팅을 움직이지 않는다', () => {
+    const elos = calcAllElos([mk('t1', { tournament: true })]);
+    // 대회 경기만 있으면 집계 대상이 0건 — 아무도 등록되지 않는다
+    expect(elos.size).toBe(0);
+  });
+
+  it('내전 결과는 대회 경기가 섞여도 동일하다', () => {
+    const normal = mk('n1');
+    const withTournament = calcAllElos([
+      normal,
+      mk('t1', { tournament: true, date: new Date('2026-01-02') }),
+      mk('t2', { tournament: true, date: new Date('2026-01-03') }),
+    ]);
+    const onlyNormal = calcAllElos([normal]);
+
+    expect(withTournament.get('p1')).toBe(onlyNormal.get('p1'));
+    expect(withTournament.get('p6')).toBe(onlyNormal.get('p6'));
+    expect(onlyNormal.get('p1')).toBeGreaterThan(1500); // 내전은 정상 반영
+  });
+
+  it('플래그 없는 경기는 기존대로 반영된다', () => {
+    const elos = calcAllElos([mk('n1'), mk('n2', { date: new Date('2026-01-02') })]);
+    expect(elos.get('p1')).toBeGreaterThan(1500);
+    expect(elos.get('p6')).toBeLessThan(1500);
+  });
+});

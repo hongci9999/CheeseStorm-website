@@ -118,7 +118,10 @@ src/
 ## Firestore 컬렉션 구조
 
 - `streamers`: `{ name, chzzkId?, accountLevel?, gameNames?, profileImageUrl?, role?(레거시), createdAt }` — 롤은 저장 안 하고 내전 기록에서 파생
-- `matches`: `{ date, blueTeam: [string,string][], redTeam: [string,string][], winner: 'blue'|'red', blueStats?: PlayerMatchStat[], redStats?: PlayerMatchStat[], map?, dur?, note?, createdAt }`
+- `matches`: `{ date, blueTeam: [string,string][], redTeam: [string,string][], winner: 'blue'|'red', blueStats?: PlayerMatchStat[], redStats?: PlayerMatchStat[], map?, dur?, note?, tournament?, createdAt }`
+  - `tournament?: true` — 대회 경기 플래그. `tournamentGames` 태그의 비정규화 값이며
+    Elo 제외 판정에 쓴다. 쓰기는 `linkMatchToTournament`/`unlinkMatchFromTournament` 전담 (ADR-0022)
+- `tournamentGames`: 문서 id = matchId. `{ blueTeamId, redTeamId, createdAt }` — 대회 팀 매핑
 
 ## 개발 환경 설정
 
@@ -223,13 +226,23 @@ npm run build
 ## Elo 레이팅
 
 티어와 **별개 지표**. 승패 + 상대 팀 강도만 반영 (개인 스탯 미반영).
-전원 1500 시작, 양 팀 평균 Elo로 기대승률 산출, K=32, **팀원 5명 동일 델타**.
+전원 1500 시작, 양 팀 평균 Elo로 기대승률 산출, **팀원 5명 동일 델타**.
+
+증가폭은 고정 K가 아니라 기대승률의 로지스틱 곡선 `winnerGain(p)`이다
+(`EQUAL_DELTA=20`, `MAX_DELTA=40`). 대등(50%) 승 +20, 언더독(30%) 승 +35,
+강팀(70%) 승 +5 — 밸런싱된 내전의 기대승률이 30~70%에 몰리는 걸 전제로 튜닝돼 있다.
+승자 `+g(E승)` / 패자 `−g(E승)`로 제로섬.
+
+**대회 경기(`match.tournament`)는 집계에서 제외한다.** 대회는 로스터가 고정이라
+팀원 5명이 항상 같은 델타를 받아 팀 내 개인 정보량이 0인데 레이팅만 크게 움직인다.
+근거·구현(플래그 비정규화 이유 포함): [`docs/adr/0022-exclude-tournament-games-from-elo.md`](docs/adr/0022-exclude-tournament-games-from-elo.md)
 
 개인 성과 보정(에이스/버스 배수, 팀 내 재분배, 개인 기대승률)은 실데이터 검증 결과
 자기 참조 피드백으로 순위가 붕괴해 **전부 기각**. 근거·수치: [`docs/adr/0020-elo-rating-standard-only.md`](docs/adr/0020-elo-rating-standard-only.md)
 
 > Elo에 개인 활약도·스탯을 넣자는 제안이 나오면 먼저 ADR-0020을 읽을 것.
 > 세 가지 방식이 이미 시도되고 기각됐다.
+> 대회 경기를 Elo에 넣자는 제안이 나오면 ADR-0022를 읽을 것.
 
 ## 코딩 컨벤션
 

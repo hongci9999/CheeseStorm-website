@@ -26,6 +26,15 @@ export interface EloDetail {
 
 const INITIAL_ELO = 1500;
 
+// 대회 경기는 Elo에서 제외한다 (ADR-0022).
+// 대회는 로스터가 대회 내내 고정이라 팀원 5명이 매 경기 똑같은 델타를 받는다 —
+// 팀 내 개인 차이에 대한 정보량이 0인데 레이팅은 크게 움직인다. 게다가 고정 로스터끼리의
+// 반복 경기는 서로 독립이 아니라 "어느 팀이 센가"라는 관측 하나를 여러 번 세는 셈이 된다.
+// 개인 Elo가 의미를 갖는 건 매 경기 팀이 새로 짜이는 내전뿐이다.
+export function excludeTournament(matches: Match[]): Match[] {
+  return matches.filter((m) => !m.tournament);
+}
+
 // 승리 팀 증가폭을 기대승률의 감소 로지스틱(S자 곡선)으로 매핑한다.
 // 내전은 밸런싱돼 기대승률이 30~70%에 몰리므로 그 구간을 가파르게,
 // 바깥은 완만하게(포화) 만들어 이변에 크게·강팀 압승에 작게 반응시킨다.
@@ -54,8 +63,9 @@ export function calcDelta(actual: 0 | 1, expected: number): number {
 // 부풀려 기대보다 자주 지므로 자연히 하락한다.
 export function calcAllElos(matches: Match[]): Map<string, number> {
   const playerElos = new Map<string, number>();
+  const eloMatches = excludeTournament(matches);
 
-  for (const m of matches) {
+  for (const m of eloMatches) {
     for (const [id] of [...m.blueTeam, ...m.redTeam]) {
       if (!playerElos.has(id)) playerElos.set(id, INITIAL_ELO);
     }
@@ -64,7 +74,7 @@ export function calcAllElos(matches: Match[]): Map<string, number> {
   // 시간순 정렬 (오래된 경기부터)
   // date는 시각 없는 자정값이라 같은 날 경기끼리 동점 → createdAt(입력 순)으로 확정.
   // Elo는 경로 의존적이므로 이 타이브레이커가 없으면 최종 레이팅이 문서 ID 순에 좌우된다.
-  const sorted = [...matches].sort(
+  const sorted = [...eloMatches].sort(
     (a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime(),
   );
 
@@ -98,8 +108,9 @@ export function calcAllElos(matches: Match[]): Map<string, number> {
 export function calcAllElosWithDetails(matches: Match[]): EloDetail[] {
   const playerElos = new Map<string, number>();
   const playerDetails = new Map<string, EloMatchDetail[]>();
+  const eloMatches = excludeTournament(matches);
 
-  for (const m of matches) {
+  for (const m of eloMatches) {
     for (const [id] of [...m.blueTeam, ...m.redTeam]) {
       if (!playerElos.has(id)) {
         playerElos.set(id, INITIAL_ELO);
@@ -110,7 +121,7 @@ export function calcAllElosWithDetails(matches: Match[]): EloDetail[] {
 
   // date는 시각 없는 자정값이라 같은 날 경기끼리 동점 → createdAt(입력 순)으로 확정.
   // Elo는 경로 의존적이므로 이 타이브레이커가 없으면 최종 레이팅이 문서 ID 순에 좌우된다.
-  const sorted = [...matches].sort(
+  const sorted = [...eloMatches].sort(
     (a, b) => a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime(),
   );
 

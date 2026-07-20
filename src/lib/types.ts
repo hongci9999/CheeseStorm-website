@@ -44,6 +44,10 @@ export interface Match {
   redLevel?: number;                 // 경기 종료 시 redTeam 버킷의 팀 최종 레벨
   dur?: string;
   note?: string;
+  // 대회 경기 여부 — tournamentGames 태그를 비정규화한 값(쓰기는 linkMatchToTournament가 전담).
+  // Elo 제외 판정에 쓴다. 홈은 클라이언트에서 matches만 읽어 Elo를 계산하므로
+  // 별도 컬렉션을 더 읽지 않고 걸러내려면 경기 문서에 플래그가 있어야 한다 (ADR-0022).
+  tournament?: boolean;
   createdAt: Date;
 }
 
