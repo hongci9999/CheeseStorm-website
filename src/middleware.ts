@@ -5,6 +5,11 @@ import { type NextRequest, type NextFetchEvent, NextResponse } from 'next/server
 import { verifySessionToken, SESSION_COOKIE } from '@/lib/session';
 import { isTournamentActive } from '@/lib/tournament-period';
 
+// 방문 로그 쿨다운 — 한 번 기록하면 이 초 동안 같은 브라우저의 로그를 전부 막는다.
+// prefetch 헤더 판정만으론 새는 요청이 있어 쿠키 만료로 확실히 잘라낸다.
+const VISIT_COOLDOWN_COOKIE = 'vlog';
+const VISIT_COOLDOWN_SEC = 3;
+
 export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const { pathname } = req.nextUrl;
 
@@ -18,8 +23,11 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     req.headers.has('next-router-prefetch') ||
     req.headers.has('next-router-segment-prefetch');
 
+  // 쿨다운 쿠키가 살아 있으면 이번 요청은 통째로 로그 스킵 (prefetch 폭주 차단)
+  const shouldLog = !isPrefetch && !req.cookies.has(VISIT_COOLDOWN_COOKIE);
+
   // 실시간 접속 확인용 로그 — Vercel Runtime Logs에서 확인 (누가 어떤 페이지 보는지)
-  if (!isPrefetch) {
+  if (shouldLog) {
     console.log(
       `[visit] ${pathname} | ${session ? `${session.name}(${session.chzzkId})` : 'anonymous'}`
     );
@@ -27,7 +35,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
 
   // 방문 로그 — 스트리머 이상만, Firestore에 영구 저장 (Vercel 로그는 1시간 후 소멸)
   // 루트뿐 아니라 모든 페이지를 기록해 5분 버킷 문서에 경로를 누적한다.
-  if (!isPrefetch && session && session.role !== 'viewer') {
+  if (shouldLog && session && session.role !== 'viewer') {
     const logUrl = new URL('/api/visit-log', req.nextUrl.origin);
     logUrl.searchParams.set('path', pathname);
     event.waitUntil(
@@ -38,6 +46,26 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     );
   }
 
+  const res = buildResponse(req, pathname, session);
+
+  // 이번 요청을 기록했으면 쿨다운 시작 — 뒤따르는 prefetch·연쇄 요청은 위에서 걸러진다
+  if (shouldLog) {
+    res.cookies.set(VISIT_COOLDOWN_COOKIE, '1', {
+      maxAge: VISIT_COOLDOWN_SEC,
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+  }
+
+  return res;
+}
+
+function buildResponse(
+  req: NextRequest,
+  pathname: string,
+  session: Awaited<ReturnType<typeof verifySessionToken>>,
+): NextResponse {
   // 대회 기간엔 루트(/)에서 대회 페이지를 노출 — URL은 / 유지(rewrite, 리다이렉트 아님).
   if (pathname === '/' && isTournamentActive()) {
     const url = req.nextUrl.clone();
