@@ -42,10 +42,15 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'positions', label: '포지션 통계' },
 ];
 
-export default function TournamentClient({ data }: { data: TournamentData }) {
+// 일차별 데이터셋 — [0]은 항상 '전체', 이후 1일차·2일차… (서버에서 집계 완료)
+export interface TournamentDaySet { key: string; label: string; data: TournamentData }
+
+export default function TournamentClient({ days }: { days: TournamentDaySet[] }) {
   const [tab, setTab] = useState<TabKey>('teams');
+  const [dayKey, setDayKey] = useState('all');
   const bp = useBreakpoint();
   const desktop = bp === 'desktop';
+  const data = (days.find((d) => d.key === dayKey) ?? days[0]).data;
 
   return (
     <main style={{
@@ -70,6 +75,29 @@ export default function TournamentClient({ data }: { data: TournamentData }) {
         </span>
         <span style={sectionHint}>{tourDateRange}</span>
       </div>
+
+      {/* 일차 필터 — 전체 / 1일차 / 2일차… 전 탭 공통 적용 (일차 1개뿐이면 숨김) */}
+      {days.length > 2 && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {days.map((d) => {
+            const active = d.key === dayKey;
+            return (
+              <button key={d.key} onClick={() => setDayKey(d.key)} aria-pressed={active}
+                title={d.key === 'all' ? undefined : d.key}
+                style={{
+                  height: 30, padding: '0 12px', borderRadius: 'var(--r-pill)',
+                  border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
+                  background: active ? 'color-mix(in srgb, var(--cheese-green) 14%, transparent)' : 'transparent',
+                  color: active ? 'var(--text-high)' : 'var(--text-muted)',
+                  fontFamily: 'var(--font-ui)', fontWeight: active ? 800 : 600, fontSize: 'var(--fs-xs)',
+                  cursor: 'pointer', transition: 'all var(--dur-fast) var(--ease-out)',
+                }}>
+                {d.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 탭 — 메인 페이지와 동일한 하단 강조선 스타일 */}
       <div role="tablist" style={{
@@ -109,7 +137,8 @@ export default function TournamentClient({ data }: { data: TournamentData }) {
       )}
 
       {tab === 'teams' && <TeamsTab data={data} desktop={desktop} />}
-      {tab === 'games' && <GamesTab games={data.games} desktop={desktop} />}
+      {/* key=일차 — 일차 바꾸면 페이지네이션 1페이지로 리셋 */}
+      {tab === 'games' && <GamesTab key={dayKey} games={data.games} desktop={desktop} />}
       {tab === 'positions' && <PositionsTab data={data} />}
     </main>
   );

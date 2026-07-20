@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveTeams, linkTournamentGames, teamRecords, headToHead, positionStats,
-  sortByPosition, buildTournamentData, mapRecords, teamMapRecords, guessTournamentTeams,
+  sortByPosition, buildTournamentData, tournamentDayKeys, mapRecords, teamMapRecords, guessTournamentTeams,
   type TournamentTeamConfig, type TournamentGameLink,
 } from '../tournament';
 import type { Match, PlayerMatchStat, Streamer } from '../types';
@@ -301,6 +301,23 @@ describe('buildTournamentData', () => {
     const mercs = all.filter((p) => p.merc).map((p) => p.name);
     expect(mercs.sort()).toEqual(['선수b4', '용병X']);
     expect(all.find((p) => p.name === '선수a0')!.merc).toBeUndefined();
+  });
+
+  it('dayKey를 주면 그 날짜 경기만 집계하고 스크림 번호는 전체 기준을 유지한다', () => {
+    const d1 = mkMatch({ date: new Date('2026-07-19') });
+    const d2 = mkMatch({ date: new Date('2026-07-20'), winner: 'red' });
+    const links = [mkLink(d1), mkLink(d2)];
+    const keys = tournamentDayKeys([d1, d2], links);
+    expect(keys).toHaveLength(2);
+
+    const day2 = buildTournamentData([d1, d2], links, streamers, config, keys[1]);
+    expect(day2.games).toHaveLength(1);
+    expect(day2.games[0].no).toBe(2); // 전체 기준 번호 유지
+    expect(day2.teams.find((t) => t.id === 'B')!.wins).toBe(1);
+    expect(day2.teams.find((t) => t.id === 'A')!.wins).toBe(0);
+
+    const all = buildTournamentData([d1, d2], links, streamers, config);
+    expect(all.games).toHaveLength(2);
   });
 
   it('로스터 미설정이면 configured=false', () => {

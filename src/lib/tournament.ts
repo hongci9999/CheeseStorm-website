@@ -432,15 +432,24 @@ export function sortByPosition(roster: [string, string][]): [string, string][] {
   return [...roster].sort((a, b) => idx(a[1]) - idx(b[1]));
 }
 
+// 태깅된 대회 경기가 열린 날짜(dateLabel) 목록 — 시간 오름차순, 1일차·2일차 구분용.
+export function tournamentDayKeys(matches: Match[], links: TournamentGameLink[]): string[] {
+  return [...new Set(linkTournamentGames(matches, links).map((g) => dateLabel(g.match.date)))];
+}
+
+// dayKey를 주면 그 날짜 경기만 집계한다. 스크림 번호(no)는 전체 기준으로 매긴 뒤
+// 필터하므로 일차별로 봐도 번호가 다시 1부터 시작하지 않는다.
 export function buildTournamentData(
   matches: Match[],
   links: TournamentGameLink[],
   streamers: Streamer[],
   config: TournamentTeamConfig[] = TOURNAMENT_TEAMS,
+  dayKey?: string,
 ): TournamentData {
   const rosters = resolveTeams(streamers, config);
   const configured = rosters.some((r) => r.ids.size > 0);
-  const games = linkTournamentGames(matches, links);
+  const all = linkTournamentGames(matches, links);
+  const games = dayKey ? all.filter((g) => dateLabel(g.match.date) === dayKey) : all;
   const records = new Map(teamRecords(games, rosters).map((r) => [r.teamId, r]));
   const h2hMap = headToHead(games);
   const byId = new Map(streamers.map((s) => [s.id, s]));
