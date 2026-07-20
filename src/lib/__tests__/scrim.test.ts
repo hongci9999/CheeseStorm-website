@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { scrimTimeline, validateScrimPayload, assignScrimNumbers, PHASE_STARTS, type Scrim } from '../scrim';
+import {
+  scrimTimeline, validateScrimPayload, assignScrimNumbers, groupBySeries, paginateSeriesGroups,
+  checkFearlessConflict, PHASE_STARTS, type Scrim,
+} from '../scrim';
 
 // 선픽=blue 고정 시퀀스 기준 슬롯 위치 (미드밴은 후픽 팀 먼저):
 // blue 밴 = 0,2,10 / red 밴 = 1,3,9 / blue 픽 = 4,7,8,13,14 / red 픽 = 5,6,11,12,15
@@ -64,6 +67,74 @@ describe('validateScrimPayload', () => {
   it('seriesId 타입만 검증하고 값은 자유', () => {
     expect(validateScrimPayload({ ...good, seriesId: 'abc-123' })).toBeNull();
     expect(validateScrimPayload({ ...good, seriesId: 42 })).toBeTruthy();
+  });
+});
+
+const mkScrim = (id: string, seriesId?: string): Scrim => ({
+  id, date: new Date('2026-07-18'), createdAt: new Date('2026-07-18T00:00:00Z'),
+  map: '용의 둥지', winner: 'blue', bans, picks, seriesId,
+});
+
+describe('groupBySeries', () => {
+  it('연속한 같은 seriesId만 묶고, seriesId 없는 경기는 각자 단독 그룹', () => {
+    const list = [
+      mkScrim('a', 'S1'), mkScrim('b', 'S1'), mkScrim('c'), mkScrim('d', 'S2'), mkScrim('e'),
+    ];
+    expect(groupBySeries(list).map((g) => g.map((s) => s.id)))
+      .toEqual([['a', 'b'], ['c'], ['d'], ['e']]);
+  });
+
+  it('같은 seriesId라도 떨어져 있으면 합치지 않는다 — 목록은 항상 정렬된 상태 전제', () => {
+    const list = [mkScrim('a', 'S1'), mkScrim('b', 'S2'), mkScrim('c', 'S1')];
+    expect(groupBySeries(list)).toHaveLength(3);
+  });
+});
+
+describe('paginateSeriesGroups', () => {
+  const groups = (...sizes: number[]) =>
+    sizes.map((n, gi) => Array.from({ length: n }, (_, i) => mkScrim(`g${gi}-${i}`, `S${gi}`)));
+
+  it('목표 경기 수까지 채워 나눈다', () => {
+    const pages = paginateSeriesGroups(groups(1, 1, 1, 1, 1), 2);
+    expect(pages.map((p) => p.flat().length)).toEqual([2, 2, 1]);
+  });
+
+  it('한 세트가 두 페이지에 걸치지 않는다 — 목표를 넘겨도 통째로 넣는다', () => {
+    // 목표 3, 세트 크기 [2,3,1]: 2 담은 뒤 3을 더하면 5라 초과 → 끊고 3만 담고,
+    // 다시 1을 더하면 4라 초과 → 또 끊는다. 목표에 못 미치는 페이지가 생겨도 세트는 안 쪼갠다.
+    const pages = paginateSeriesGroups(groups(2, 3, 1), 3);
+    expect(pages.map((p) => p.flat().length)).toEqual([2, 3, 1]);
+    for (const page of pages) {
+      for (const g of page) {
+        expect(new Set(g.map((s) => s.seriesId)).size).toBe(1); // 세트가 쪼개지지 않음
+      }
+    }
+  });
+
+  it('세트 하나가 목표보다 커도 쪼개지 않고 자기 페이지를 차지한다', () => {
+    const pages = paginateSeriesGroups(groups(5), 2);
+    expect(pages).toHaveLength(1);
+    expect(pages[0].flat()).toHaveLength(5);
+  });
+
+  it('빈 목록은 빈 페이지 배열', () => {
+    expect(paginateSeriesGroups([], 3)).toEqual([]);
+  });
+
+  it('모든 경기가 정확히 한 번씩 나온다', () => {
+    const gs = groups(2, 3, 1, 4, 1);
+    const ids = paginateSeriesGroups(gs, 3).flat(2).map((s) => s.id);
+    expect(ids).toEqual(gs.flat().map((s) => s.id));
+  });
+});
+
+describe('checkFearlessConflict', () => {
+  it('이전 경기 픽과 겹치면 오류, 안 겹치면 null', () => {
+    expect(checkFearlessConflict(picks, [])).toBeNull();
+    expect(checkFearlessConflict(picks, ['다른영웅'])).toBeNull();
+    expect(checkFearlessConflict(picks, ['b픽1'])).toContain('b픽1');
+    // 밴은 잠금 대상이 아니므로 이전 밴과 겹쳐도 통과
+    expect(checkFearlessConflict(picks, ['b밴1', 'r밴1'])).toBeNull();
   });
 });
 

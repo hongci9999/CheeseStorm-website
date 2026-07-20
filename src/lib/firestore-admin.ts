@@ -327,6 +327,15 @@ export async function addScrim(data: Omit<Scrim, 'id' | 'createdAt'>): Promise<s
   return ref.id;
 }
 
+// 같은 세트(seriesId)에 이미 저장된 경기들의 픽 전체 — 하드 피어리스 서버측 검증용.
+export async function getSeriesPickedHeroes(seriesId: string): Promise<string[]> {
+  const snap = await getAdminDb().collection('scrims').where('seriesId', '==', seriesId).get();
+  return snap.docs.flatMap((d) => {
+    const picks = d.data().picks as Partial<Record<'blue' | 'red', string[]>> | undefined;
+    return [...(picks?.blue ?? []), ...(picks?.red ?? [])];
+  });
+}
+
 export async function deleteScrim(id: string): Promise<void> {
   await getAdminDb().collection('scrims').doc(id).delete();
 }

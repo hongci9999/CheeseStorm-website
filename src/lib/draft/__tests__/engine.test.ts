@@ -185,6 +185,31 @@ describe('availableHeroes', () => {
     expect(list).toContain(H0);     // blue가 쓴 건 red가 픽 가능
   });
 
+  // 스크림 기록 페이지(app/scrims/new)가 쓰는 조합 그대로 —
+  // 저장한 경기를 finishSet으로 SetResult에 담아 하드 시리즈에 누적하고,
+  // 다음 경기 입력에서 그 잠금이 실제로 걸리는지.
+  it('스크림 입력 흐름: 이전 경기 픽만 잠기고 밴은 다시 쓸 수 있다', () => {
+    const series1 = makeSeries({ draftType: 'hard' });
+    let g1 = startSet('용의 둥지', 'blue');
+    for (let i = 0; i < 16; i++) {
+      const step = currentStep(g1)!;
+      const hero = availableHeroes(series1, g1)[0];
+      g1 = step.kind === 'ban' ? applyBan(g1, hero) : applyPick(g1, hero);
+    }
+    expect(isComplete(g1)).toBe(true);
+
+    // 페이지가 하는 일: setSets((prev) => [...prev, finishSet(state, winner)])
+    const series2 = makeSeries({ draftType: 'hard', sets: [finishSet(g1, 'blue')] });
+    const g2 = startSet('하늘 사원', 'blue');
+    const list = availableHeroes(series2, g2);
+
+    const picked = [...g1.picks.blue, ...g1.picks.red];
+    const banned = [...g1.bans.blue, ...g1.bans.red];
+    expect(picked).toHaveLength(10);
+    for (const h of picked) expect(list).not.toContain(h); // 픽 = 하드 피어리스 잠금
+    for (const h of banned) expect(list).toContain(h);     // 밴 = 다음 경기엔 다시 열림
+  });
+
   it('heroesPickedByTeam: 해당 팀이 픽한 영웅만 모은다', () => {
     const sets = [priorSet({ blue: [['p1', H0]], red: [['p2', H1]] })];
     expect([...heroesPickedByTeam(sets, 'blue')]).toEqual([H0]);

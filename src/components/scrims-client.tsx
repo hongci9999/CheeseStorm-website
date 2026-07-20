@@ -1,27 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { deleteScrim, mergeScrimsIntoSeries } from '@/lib/api-client';
 import { ScrimCard, scrimDateLabel } from '@/components/scrim-card';
 import ScrimDashboard from '@/components/scrim-dashboard';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { assignScrimNumbers, type Scrim } from '@/lib/scrim';
+import { assignScrimNumbers, groupBySeries, paginateSeriesGroups, type Scrim } from '@/lib/scrim';
 
 type Tab = 'dashboard' | 'draft';
 
-// 같은 세트 경기는 목록에서 항상 붙어 있으므로 연속 구간만 묶으면 된다.
-// seriesId 없는 경기는 각자 단독 그룹.
-function groupBySeries(scrims: Scrim[]): Scrim[][] {
-  const out: Scrim[][] = [];
-  for (const s of scrims) {
-    const last = out[out.length - 1];
-    if (last && s.seriesId && last[0].seriesId === s.seriesId) last.push(s);
-    else out.push([s]);
-  }
-  return out;
-}
+const pagerBtn = (disabled: boolean) => ({
+  height: 'var(--control-sm)', padding: '0 var(--sp-3)', borderRadius: 'var(--r-pill)',
+  border: '1px solid var(--border-line)', background: 'var(--surface-raise)',
+  color: disabled ? 'var(--text-faint)' : 'var(--text-body)',
+  fontFamily: 'var(--font-ui)', fontWeight: 700, fontSize: 'var(--fs-xs)',
+  opacity: disabled ? 0.45 : 1, cursor: disabled ? 'not-allowed' : 'pointer',
+} as const);
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'dashboard', label: '대시보드' },
@@ -39,6 +35,12 @@ export default function ScrimsClient({ scrims, isStreamer }: {
 
   // 하드 피어리스 세트 단위 번호 — 세트도, 세트 내 경기도 오래된 순.
   const numberById = assignScrimNumbers(scrims);
+
+  // 밴픽 목록 페이지네이션 — 카드 하나가 초상화 16개라 전부 그리면 DOM이 무겁다.
+  // 세트가 두 페이지에 걸치지 않도록 세트 묶음 단위로 자른다.
+  const pages = useMemo(() => paginateSeriesGroups(groupBySeries(scrims)), [scrims]);
+  const [page, setPage] = useState(0);
+  const current = pages[Math.min(page, pages.length - 1)] ?? [];
 
   // 과거 기록 등 seriesId 없는 경기들을 수동으로 세트 묶는 모드.
   const [mergeMode, setMergeMode] = useState(false);
@@ -178,7 +180,7 @@ export default function ScrimsClient({ scrims, isStreamer }: {
             </p>
           )}
 
-          {groupBySeries(scrims).map((group) => {
+          {current.map((group) => {
             const cards = group.map((s) => (
               <ScrimCard key={s.id} scrim={s} no={numberById.get(s.id)} S={S}
                 canEdit={isStreamer} onDelete={() => handleDelete(s)}
@@ -200,6 +202,22 @@ export default function ScrimsClient({ scrims, isStreamer }: {
               </section>
             );
           })}
+
+          {pages.length > 1 && (
+            <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'center',
+              gap: 'var(--sp-3)', padding: 'var(--sp-2) 0' }}>
+              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+                style={pagerBtn(page === 0)}>← 최신</button>
+              <span style={{ fontFamily: 'var(--font-numeral)', fontSize: 'var(--fs-xs)',
+                color: 'var(--text-muted)' }}>
+                {page + 1} / {pages.length}
+              </span>
+              <button onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))}
+                disabled={page >= pages.length - 1} style={pagerBtn(page >= pages.length - 1)}>
+                이전 →
+              </button>
+            </nav>
+          )}
         </div>
       )}
 

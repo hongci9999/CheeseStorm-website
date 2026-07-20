@@ -13,9 +13,9 @@ import { useBreakpoint } from '@/hooks/use-breakpoint';
 import {
   heroScrimStats, mapScrimStats, firstPickSummary,
   synergyPairs, counterPairs, distinctPatches, MIN_PAIR_GAMES,
-  firstPickHeroStats, openBanHeroStats,
+  firstPickHeroStats, openBanHeroStats, seriesHeroStats, MIN_SERIES_GAMES,
 } from '@/lib/scrim-stats';
-import type { Scrim } from '@/lib/scrim';
+import { assignScrimNumbers, seriesLockedHeroes, type Scrim, type ScrimNumber } from '@/lib/scrim';
 
 export const pct = (v: number) => `${Math.round(v * 100)}%`;
 export const rateColor = (v: number) => (v >= 0.5 ? 'var(--win)' : 'var(--loss)');
@@ -66,12 +66,59 @@ const chipStyle = (active: boolean): CSSProperties => ({
   cursor: 'pointer',
 });
 
-// 패치(셀렉트) + 맵(이미지 드롭다운) 필터 — 대시보드·영웅 상세 공용.
+// 세트 내 경기 순번 필터 — 하드 피어리스에선 1경기와 3경기의 밴픽 의미가 전혀 다르다.
+// 1경기 = 순수 메타 우선순위, 2경기 이후 = 남은 풀 안에서의 차선책.
+export const GAME_FILTERS = [
+  { value: '', label: '전체' },
+  { value: '1', label: '1경기' },
+  { value: '2', label: '2경기' },
+  { value: '3+', label: '3경기+' },
+] as const;
+
+// '전체'가 아닌 순번을 고르면 세트로 묶이지 않은 기록(단독 1경기)은 통째로 제외한다 —
+// 단독 기록은 세트 내 순번이라는 개념 자체가 없어 1경기로 세면 1경기 통계가 오염된다.
+function matchesGameFilter(no: ScrimNumber | undefined, f: string): boolean {
+  if (!f) return true;
+  if (!no || no.gamesInSeries < MIN_SERIES_GAMES) return false;
+  return f === '3+' ? no.gameInSetNo >= 3 : no.gameInSetNo === Number(f);
+}
+
+// 대시보드·영웅 상세가 공유하는 필터 상태 + 파생값.
+// 잠금 맵·세트 순번은 반드시 필터 이전의 전체 목록에서 계산해야 한다 —
+// 걸러진 부분집합으로 다시 계산하면 이전 경기가 빠져 세트 순번과 잠금이 어긋난다.
+export function useScrimFilters(scrims: Scrim[]) {
+  const [patch, setPatch] = useState('');
+  const [map, setMap] = useState('');
+  const [game, setGame] = useState('');
+
+  const patches = useMemo(() => distinctPatches(scrims), [scrims]);
+  const allMaps = useMemo(() => mapScrimStats(scrims).map((m) => m.map), [scrims]);
+  const locks = useMemo(() => seriesLockedHeroes(scrims), [scrims]);
+  const numbers = useMemo(() => assignScrimNumbers(scrims), [scrims]);
+
+  // 세트 단위 지표는 세트가 통째로 남아 있어야 의미가 있어 패치까지만 걸러 쓴다.
+  const byPatch = useMemo(
+    () => scrims.filter((s) => !patch || s.patch === patch),
+    [scrims, patch],
+  );
+  const filtered = useMemo(
+    () => byPatch.filter((s) =>
+      (!map || s.map === map) && matchesGameFilter(numbers.get(s.id), game)),
+    [byPatch, map, game, numbers],
+  );
+
+  return {
+    patch, map, game, setPatch, setMap, setGame,
+    patches, allMaps, locks, numbers, byPatch, filtered,
+  };
+}
+
+// 패치(셀렉트) + 맵(이미지 드롭다운) + 세트 내 경기 순번 필터 — 대시보드·영웅 상세 공용.
 // 맵 패널은 경기기록의 맵 선택 그리드와 같은 이미지 타일, 5열 × 3행 고정.
-export function ScrimFilters({ patches, recordedMaps, patch, map, onPatchChange, onMapChange }: {
+export function ScrimFilters({ patches, recordedMaps, patch, map, game, onPatchChange, onMapChange, onGameChange }: {
   patches: string[]; recordedMaps: string[];
-  patch: string; map: string;
-  onPatchChange: (v: string) => void; onMapChange: (v: string) => void;
+  patch: string; map: string; game: string;
+  onPatchChange: (v: string) => void; onMapChange: (v: string) => void; onGameChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const recorded = new Set(recordedMaps);
@@ -138,6 +185,16 @@ export function ScrimFilters({ patches, recordedMaps, patch, map, onPatchChange,
           </>
         )}
       </div>
+
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span style={sectionHint}>세트 내 경기</span>
+        {GAME_FILTERS.map((g) => (
+          <button key={g.value} onClick={() => onGameChange(g.value)} style={chipStyle(game === g.value)}>
+            {g.label}
+          </button>
+        ))}
+        {game && <span style={sectionHint}>세트로 묶이지 않은 단독 기록 제외</span>}
+      </div>
     </div>
   );
 }
@@ -149,17 +206,13 @@ function EmptyHint({ children }: { children: ReactNode }) {
 // ── 대시보드 ─────────────────────────────────────────────────
 export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
   const bp = useBreakpoint();
-  const [patch, setPatch] = useState<string>(''); // '' = 전체
-  const [map, setMap] = useState<string>('');     // '' = 전체
-  const patches = useMemo(() => distinctPatches(scrims), [scrims]);
-  const allMaps = useMemo(() => mapScrimStats(scrims).map((m) => m.map), [scrims]);
-  const filtered = useMemo(
-    () => scrims.filter((s) => (!patch || s.patch === patch) && (!map || s.map === map)),
-    [scrims, patch, map],
-  );
+  const f = useScrimFilters(scrims);
+  const { filtered, byPatch, locks } = f;
 
-  const heroes = useMemo(() => heroScrimStats(filtered), [filtered]);
+  const heroes = useMemo(() => heroScrimStats(filtered, locks), [filtered, locks]);
   const fp = useMemo(() => firstPickSummary(filtered), [filtered]);
+  const seriesStats = useMemo(() => seriesHeroStats(byPatch), [byPatch]);
+  const depthPicks = useMemo(() => seriesStats.filter((s) => s.isDepth), [seriesStats]);
   // 승률 50% 초과 조합만 노출 — 50% 이하는 시너지/카운터라 부르기 애매
   const synergy = useMemo(() => synergyPairs(filtered).filter((p) => p.winRate > 0.5), [filtered]);
   const counters = useMemo(() => counterPairs(filtered).filter((p) => p.winRate > 0.5), [filtered]);
@@ -195,9 +248,10 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
 
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
-      {/* 필터: 패치 · 맵 */}
-      <ScrimFilters patches={patches} recordedMaps={allMaps}
-        patch={patch} map={map} onPatchChange={setPatch} onMapChange={setMap} />
+      {/* 필터: 패치 · 맵 · 세트 내 경기 순번 */}
+      <ScrimFilters patches={f.patches} recordedMaps={f.allMaps}
+        patch={f.patch} map={f.map} game={f.game}
+        onPatchChange={f.setPatch} onMapChange={f.setMap} onGameChange={f.setGame} />
 
       {/* 핵심 수치 — 박스 없이 인라인 강조 */}
       <div style={{ display: 'flex', gap: 'var(--sp-5)', alignItems: 'baseline', flexWrap: 'wrap' }}>
@@ -215,7 +269,7 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
         <section style={{ ...sectionCard, ...area('hero') }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--sp-2)' }}>
             <h2 style={sectionTitle}>영웅 메타 TOP {HERO_TOP_N}</h2>
-            <span style={sectionHint}>관여율 = (밴+픽)/경기</span>
+            <span style={sectionHint}>관여율 = (밴+픽)/가용 경기</span>
           </div>
           <div style={{ ...fixedBox, overflowX: 'auto' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -359,6 +413,72 @@ export default function ScrimDashboard({ scrims }: { scrims: Scrim[] }) {
           )}
         </section>
       </div>
+
+      {/* 피어리스 지표 — 세트가 통째로 남아야 의미 있어 맵·경기 순번 필터는 적용하지 않는다 */}
+      {seriesStats.length > 0 && (
+        <div style={pairRow}>
+          <section style={sectionCard}>
+            <h2 style={sectionTitle}>세트 우선순위</h2>
+            <span style={sectionHint}>
+              {MIN_SERIES_GAMES}경기 이상 세트 {seriesStats[0].totalSeries}개 · 패치 필터만 적용 ·
+              소모 시점 = 세트 내 처음 밴/픽된 경기 순번 평균
+            </span>
+            <div style={scrollBox}>
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <thead><tr>
+                  <th style={{ ...th, textAlign: 'left' }}>영웅</th>
+                  <th style={th}>세트 관여율</th>
+                  <th style={th}>소모 시점</th>
+                  <th style={th}>반복 밴</th>
+                </tr></thead>
+                <tbody>
+                  {seriesStats.map((s) => (
+                    <tr key={s.hero} style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-line) 55%, transparent)' }}>
+                      <td style={tdLeft}><HeroCell hero={s.hero} /></td>
+                      <td style={{ ...td, fontWeight: 700, color: 'var(--text-high)' }}>
+                        {pct(s.seriesRate)} ({s.seriesCount}/{s.totalSeries})
+                      </td>
+                      <td style={td}>{s.avgConsumeGame.toFixed(1)}</td>
+                      <td style={{ ...td, color: s.repeatBanSeries ? 'var(--text-high)' : 'var(--text-faint)' }}>
+                        {s.repeatBanSeries ? `${s.repeatBanSeries}세트 (최대 ${s.maxBansInSeries}회)` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section style={sectionCard}>
+            <h2 style={sectionTitle}>뎁스 픽</h2>
+            <span style={sectionHint}>1경기째엔 한 번도 안 뽑히고 2경기 이후에만 나온 영웅 — 풀 고갈 시 대체재</span>
+            {depthPicks.length === 0 ? (
+              <EmptyHint>아직 없습니다. 모든 픽 영웅이 1경기째에도 등장했습니다.</EmptyHint>
+            ) : (
+              <div style={scrollBox}>
+                <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                  <thead><tr>
+                    <th style={{ ...th, textAlign: 'left' }}>영웅</th>
+                    <th style={{ ...th, textAlign: 'left' }}>역할</th>
+                    <th style={th}>픽</th>
+                    <th style={th}>소모 시점</th>
+                  </tr></thead>
+                  <tbody>
+                    {depthPicks.map((s) => (
+                      <tr key={s.hero} style={{ borderBottom: '1px solid color-mix(in srgb, var(--border-line) 55%, transparent)' }}>
+                        <td style={tdLeft}><HeroCell hero={s.hero} /></td>
+                        <td style={{ ...tdLeft, color: 'var(--text-muted)' }}>{s.role ?? '—'}</td>
+                        <td style={td}>{s.latePicks}</td>
+                        <td style={td}>{s.avgConsumeGame.toFixed(1)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

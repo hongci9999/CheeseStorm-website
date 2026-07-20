@@ -1,6 +1,6 @@
 // 스크림 밴픽 기록 집계 — 대시보드 탭 전용 순수 함수.
 // 팀 익명(선픽/후픽만 구분) 전제: "픽 승률" = 그 영웅을 픽한 팀이 이긴 비율.
-import { scrimTimeline, type Scrim } from './scrim';
+import { scrimTimeline, seriesLockedHeroes, type Scrim } from './scrim';
 import { roleOfHero } from './heroes';
 import type { Role } from './types';
 
@@ -9,6 +9,11 @@ export const MIN_PAIR_GAMES = 3;
 
 // 전역 타임라인 기준 밴 페이즈 경계: 0~3 = 오프닝 밴, 9~10 = 미드밴
 const OPEN_BAN_LAST = 3;
+
+// 경기별 잠금 영웅 맵. 통계 함수들이 공통으로 받는다 —
+// 맵·패치로 걸러진 부분집합에서 다시 계산하면 이전 경기가 빠져 잠금이 어긋나므로,
+// 항상 필터 이전의 전체 목록으로 만든 맵을 넘겨야 한다.
+export type LockMap = Map<string, Set<string>>;
 
 // ── 영웅별 메타 테이블 ────────────────────────────────────────
 
@@ -19,15 +24,19 @@ export interface HeroScrimStat {
   midBans: number;       // 미드(대응) 밴
   picks: number;
   pickWins: number;
-  banRate: number;       // 밴 경기 / 전체 경기
-  pickRate: number;      // 픽 경기 / 전체 경기
-  presenceRate: number;  // (밴+픽) 경기 / 전체 경기 — 관여율
+  availableGames: number; // 하드 피어리스 잠금이 아니었던 경기 수 — 모든 비율의 분모
+  banRate: number;       // 밴 경기 / 가용 경기
+  pickRate: number;      // 픽 경기 / 가용 경기
+  presenceRate: number;  // (밴+픽) 경기 / 가용 경기 — 관여율
   pickWinRate: number;   // 픽 시 승률 (픽 0이면 0)
   avgPickOrder: number | null; // 전역 픽 순번(1~10) 평균 — 낮을수록 선픽 소모
-  openPickRate: number;  // 밴 안 된 경기 중 픽된 비율 — "열리면 가져가는" 지표
+  openPickRate: number;  // 가용 경기 중 밴도 안 된 경기에서 픽된 비율 — "열리면 가져가는" 지표
 }
 
-export function heroScrimStats(scrims: Scrim[]): HeroScrimStat[] {
+export function heroScrimStats(
+  scrims: Scrim[],
+  locked: LockMap = seriesLockedHeroes(scrims),
+): HeroScrimStat[] {
   interface Acc { bans: number; openBans: number; midBans: number; picks: number; pickWins: number; pickOrderSum: number; }
   const acc = new Map<string, Acc>();
   const get = (h: string): Acc => {
@@ -35,8 +44,13 @@ export function heroScrimStats(scrims: Scrim[]): HeroScrimStat[] {
     if (!a) { a = { bans: 0, openBans: 0, midBans: 0, picks: 0, pickWins: 0, pickOrderSum: 0 }; acc.set(h, a); }
     return a;
   };
+  // 영웅별 잠긴 경기 수 — 가용 경기 = 전체 - 잠김
+  const lockedGames = new Map<string, number>();
 
   for (const s of scrims) {
+    for (const h of locked.get(s.id) ?? []) {
+      lockedGames.set(h, (lockedGames.get(h) ?? 0) + 1);
+    }
     let pickNo = 0;
     scrimTimeline(s.bans, s.picks).forEach((st, i) => {
       if (st.kind === 'pick') pickNo++;
@@ -55,18 +69,22 @@ export function heroScrimStats(scrims: Scrim[]): HeroScrimStat[] {
 
   const n = scrims.length;
   return [...acc.entries()]
-    .map(([hero, a]) => ({
-      hero,
-      bans: a.bans, openBans: a.openBans, midBans: a.midBans,
-      picks: a.picks, pickWins: a.pickWins,
-      banRate: n ? a.bans / n : 0,
-      pickRate: n ? a.picks / n : 0,
-      presenceRate: n ? (a.bans + a.picks) / n : 0,
-      pickWinRate: a.picks ? a.pickWins / a.picks : 0,
-      avgPickOrder: a.picks ? a.pickOrderSum / a.picks : null,
-      // 같은 경기에서 밴+픽 동시 발생 불가(엔진이 소비된 영웅 제외) → 열린 경기 = n - 밴
-      openPickRate: n - a.bans > 0 ? a.picks / (n - a.bans) : 0,
-    }))
+    .map(([hero, a]) => {
+      const avail = n - (lockedGames.get(hero) ?? 0);
+      return {
+        hero,
+        bans: a.bans, openBans: a.openBans, midBans: a.midBans,
+        picks: a.picks, pickWins: a.pickWins,
+        availableGames: avail,
+        banRate: avail > 0 ? a.bans / avail : 0,
+        pickRate: avail > 0 ? a.picks / avail : 0,
+        presenceRate: avail > 0 ? (a.bans + a.picks) / avail : 0,
+        pickWinRate: a.picks ? a.pickWins / a.picks : 0,
+        avgPickOrder: a.picks ? a.pickOrderSum / a.picks : null,
+        // 같은 경기에서 밴+픽 동시 발생 불가(엔진이 소비된 영웅 제외) → 열린 경기 = 가용 - 밴
+        openPickRate: avail - a.bans > 0 ? a.picks / (avail - a.bans) : 0,
+      };
+    })
     .sort((a, b) => b.presenceRate - a.presenceRate || b.picks - a.picks || a.hero.localeCompare(b.hero, 'ko'));
 }
 
@@ -246,6 +264,103 @@ export function openBanHeroStats(scrims: Scrim[]): OpenBanHeroStat[] {
   return [...acc.entries()]
     .map(([hero, a]) => ({ hero, bans: a.bans, byFirstPick: a.byFirstPick, avgBanOrder: a.orderSum / a.bans }))
     .sort((x, y) => y.bans - x.bans || x.avgBanOrder - y.avgBanOrder || x.hero.localeCompare(y.hero, 'ko'));
+}
+
+// ── 시리즈(세트) 단위 지표 ───────────────────────────────────
+// 경기 단위 통계로는 안 보이는 하드 피어리스 고유 신호를 잡는다.
+// 다중 경기 세트만 대상 — 단독 기록은 "세트 내 순번" 개념이 없어 지표를 왜곡한다.
+
+export const MIN_SERIES_GAMES = 2;
+
+export interface SeriesHeroStat {
+  hero: string;
+  seriesCount: number;     // 등장(밴 or 픽)한 세트 수
+  totalSeries: number;     // 집계 대상 전체 세트 수
+  seriesRate: number;      // 세트 관여율 — 경기 관여율보다 우선순위를 잘 반영
+  avgConsumeGame: number;  // 세트 내 최초 소모(밴|픽) 경기 순번 평균 — 낮을수록 최우선 자원
+  repeatBanSeries: number; // 한 세트에서 2회 이상 밴된 세트 수 — "절대 안 준다" 신호
+  maxBansInSeries: number;
+  earlyPicks: number;      // 세트 1경기째 픽 수
+  latePicks: number;       // 2경기 이후 픽 수
+  isDepth: boolean;        // 1경기째엔 한 번도 안 뽑히고 2경기 이후에만 등장 — 뎁스 픽
+  role: Role | null;
+}
+
+export function seriesHeroStats(
+  scrims: Scrim[],
+  minGamesInSeries = MIN_SERIES_GAMES,
+): SeriesHeroStat[] {
+  // 세트 그룹핑 — seriesId 없는 기록은 단독이라 어차피 minGamesInSeries에서 걸러진다.
+  const groups = new Map<string, Scrim[]>();
+  for (const s of scrims) {
+    const key = s.seriesId ?? `__solo:${s.id}`;
+    const g = groups.get(key);
+    if (g) g.push(s); else groups.set(key, [s]);
+  }
+  const series = [...groups.values()]
+    .filter((g) => g.length >= minGamesInSeries)
+    .map((g) => [...g].sort((a, b) =>
+      a.date.getTime() - b.date.getTime() || a.createdAt.getTime() - b.createdAt.getTime()));
+
+  interface Acc {
+    seriesCount: number; consumeGameSum: number; repeatBanSeries: number;
+    maxBansInSeries: number; earlyPicks: number; latePicks: number;
+  }
+  const acc = new Map<string, Acc>();
+  const get = (h: string): Acc => {
+    let a = acc.get(h);
+    if (!a) {
+      a = { seriesCount: 0, consumeGameSum: 0, repeatBanSeries: 0, maxBansInSeries: 0, earlyPicks: 0, latePicks: 0 };
+      acc.set(h, a);
+    }
+    return a;
+  };
+
+  for (const games of series) {
+    // 이 세트 안에서 영웅별 집계
+    const inSeries = new Map<string, { firstGame: number; bans: number; early: number; late: number }>();
+    games.forEach((s, i) => {
+      const gameNo = i + 1;
+      const touch = (h: string) => {
+        let r = inSeries.get(h);
+        if (!r) { r = { firstGame: gameNo, bans: 0, early: 0, late: 0 }; inSeries.set(h, r); }
+        return r;
+      };
+      for (const h of [...s.bans.blue, ...s.bans.red]) touch(h).bans++;
+      for (const h of [...s.picks.blue, ...s.picks.red]) {
+        const r = touch(h);
+        if (gameNo === 1) r.early++; else r.late++;
+      }
+    });
+
+    for (const [hero, r] of inSeries) {
+      const a = get(hero);
+      a.seriesCount++;
+      a.consumeGameSum += r.firstGame;
+      if (r.bans >= 2) a.repeatBanSeries++;
+      a.maxBansInSeries = Math.max(a.maxBansInSeries, r.bans);
+      a.earlyPicks += r.early;
+      a.latePicks += r.late;
+    }
+  }
+
+  const total = series.length;
+  return [...acc.entries()]
+    .map(([hero, a]) => ({
+      hero,
+      seriesCount: a.seriesCount,
+      totalSeries: total,
+      seriesRate: total ? a.seriesCount / total : 0,
+      avgConsumeGame: a.consumeGameSum / a.seriesCount,
+      repeatBanSeries: a.repeatBanSeries,
+      maxBansInSeries: a.maxBansInSeries,
+      earlyPicks: a.earlyPicks,
+      latePicks: a.latePicks,
+      isDepth: a.earlyPicks === 0 && a.latePicks > 0,
+      role: roleOfHero(hero),
+    }))
+    .sort((x, y) =>
+      y.seriesRate - x.seriesRate || x.avgConsumeGame - y.avgConsumeGame || x.hero.localeCompare(y.hero, 'ko'));
 }
 
 // ── 패치 필터 ────────────────────────────────────────────────

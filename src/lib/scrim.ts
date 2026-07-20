@@ -98,6 +98,67 @@ export function assignScrimNumbers(scrims: Scrim[]): Map<string, ScrimNumber> {
   return result;
 }
 
+// 목록에 뿌릴 세트 묶음. 같은 세트 경기는 목록에서 항상 붙어 있으므로 연속 구간만 묶으면 된다.
+// seriesId 없는 경기는 각자 단독 그룹.
+export function groupBySeries(scrims: Scrim[]): Scrim[][] {
+  const out: Scrim[][] = [];
+  for (const s of scrims) {
+    const last = out[out.length - 1];
+    if (last && s.seriesId && last[0].seriesId === s.seriesId) last.push(s);
+    else out.push([s]);
+  }
+  return out;
+}
+
+// 페이지당 목표 경기 수 — 세트는 절대 쪼개지 않으므로 실제 개수는 이 값을 넘길 수 있다.
+export const SCRIMS_PER_PAGE = 20;
+
+// 세트 묶음을 페이지로 나눈다. 한 세트가 두 페이지에 걸치지 않는 게 유일한 불변식 —
+// 목표치를 넘기더라도 세트는 통째로 한 페이지에 넣는다(세트 하나가 목표치보다 커도 마찬가지).
+export function paginateSeriesGroups(groups: Scrim[][], pageSize = SCRIMS_PER_PAGE): Scrim[][][] {
+  const pages: Scrim[][][] = [];
+  let page: Scrim[][] = [];
+  let count = 0;
+  for (const g of groups) {
+    // 이미 뭔가 담긴 페이지에 이 세트를 더하면 목표를 넘길 때만 페이지를 끊는다.
+    if (count > 0 && count + g.length > pageSize) {
+      pages.push(page);
+      page = [];
+      count = 0;
+    }
+    page.push(g);
+    count += g.length;
+  }
+  if (page.length) pages.push(page);
+  return pages;
+}
+
+// 하드 피어리스: 같은 세트의 이전 경기에서 픽된 영웅은 이후 경기에서 픽도 밴도 불가
+// (풀에서 아예 빠진다). 경기별로 "그 경기 시작 시점에 이미 잠긴 영웅" 집합을 돌려준다.
+// 세트 첫 경기와 단독 기록은 빈 집합.
+//
+// 통계 분모를 "전체 경기"가 아니라 "가용 경기(= 전체 - 잠긴 경기)"로 잡는 데 쓴다.
+// 경기 단위 분모를 그대로 쓰면 1티어 영웅일수록 세트당 최대 1픽이라 픽률이 과소평가된다.
+export function seriesLockedHeroes(scrims: Scrim[]): Map<string, Set<string>> {
+  const groups = new Map<string, Scrim[]>();
+  for (const s of scrims) {
+    const key = s.seriesId ?? `__solo:${s.id}`;
+    const g = groups.get(key);
+    if (g) g.push(s); else groups.set(key, [s]);
+  }
+
+  const result = new Map<string, Set<string>>();
+  for (const games of groups.values()) {
+    const locked = new Set<string>();
+    for (const s of [...games].sort(scrimOrder)) {
+      result.set(s.id, new Set(locked)); // 이 경기 시작 시점의 스냅샷
+      for (const h of s.picks.blue) locked.add(h);
+      for (const h of s.picks.red) locked.add(h);
+    }
+  }
+  return result;
+}
+
 // API 경계 검증 — 문제 있으면 오류 메시지, 정상이면 null.
 export function validateScrimPayload(d: {
   date?: unknown; map?: unknown; patch?: unknown; winner?: unknown; seriesId?: unknown;
@@ -114,5 +175,24 @@ export function validateScrimPayload(d: {
     if (!strArr(d.bans?.[t], 3)) return '밴 목록이 올바르지 않습니다 (팀당 3)';
     if (!strArr(d.picks?.[t], 5)) return '픽 목록이 올바르지 않습니다 (팀당 5)';
   }
+  // 한 경기 안에서 16개 슬롯은 모두 다른 영웅이어야 한다 (엔진이 소비된 영웅을 제외하므로
+  // 중복은 입력 실수 또는 손상된 페이로드).
+  const slots = [
+    ...(d.bans!.blue as string[]), ...(d.bans!.red as string[]),
+    ...(d.picks!.blue as string[]), ...(d.picks!.red as string[]),
+  ];
+  if (new Set(slots).size !== slots.length) return '한 경기에 같은 영웅이 중복 등장합니다';
   return null;
+}
+
+// 페이로드의 픽이 같은 세트의 이전 경기에서 이미 픽된 영웅과 겹치는지 검사(하드 피어리스).
+// priorPicks = 같은 seriesId 문서들의 픽 전체. 겹치면 오류 메시지, 정상이면 null.
+export function checkFearlessConflict(
+  picks: Record<Team, string[]>, priorPicks: Iterable<string>,
+): string | null {
+  const prior = new Set(priorPicks);
+  const dup = [...picks.blue, ...picks.red].filter((h) => prior.has(h));
+  return dup.length
+    ? `하드 피어리스 위반 — 같은 세트에서 이미 픽된 영웅: ${[...new Set(dup)].join(', ')}`
+    : null;
 }
