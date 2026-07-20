@@ -29,6 +29,25 @@ const tourDateRange = (() => {
   return `${fmt(TOURNAMENT_START)} ~ ${fmt(TOURNAMENT_END)}`;
 })();
 
+// 필터용 알약 버튼 — 일차 필터·팀 필터 공용. accent를 주면 활성 색을 팀 색으로.
+function Chip({ label, active, onClick, title, accent = 'var(--cheese-green)' }: {
+  label: string; active: boolean; onClick: () => void; title?: string; accent?: string;
+}) {
+  return (
+    <button onClick={onClick} aria-pressed={active} title={title}
+      style={{
+        height: 30, padding: '0 12px', borderRadius: 'var(--r-pill)',
+        border: `1px solid ${active ? accent : 'var(--border-line)'}`,
+        background: active ? `color-mix(in srgb, ${accent} 14%, transparent)` : 'transparent',
+        color: active ? 'var(--text-high)' : 'var(--text-muted)',
+        fontFamily: 'var(--font-ui)', fontWeight: active ? 800 : 600, fontSize: 'var(--fs-xs)',
+        cursor: 'pointer', transition: 'all var(--dur-fast) var(--ease-out)',
+      }}>
+      {label}
+    </button>
+  );
+}
+
 function streakLabel(streak: number): { text: string; color: string } {
   if (streak > 0) return { text: `${streak}연승 중`, color: 'var(--win)' };
   if (streak < 0) return { text: `${-streak}연패 중`, color: 'var(--loss)' };
@@ -79,23 +98,10 @@ export default function TournamentClient({ days }: { days: TournamentDaySet[] })
       {/* 일차 필터 — 전체 / 1일차 / 2일차… 전 탭 공통 적용 (일차 1개뿐이면 숨김) */}
       {days.length > 2 && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {days.map((d) => {
-            const active = d.key === dayKey;
-            return (
-              <button key={d.key} onClick={() => setDayKey(d.key)} aria-pressed={active}
-                title={d.key === 'all' ? undefined : d.key}
-                style={{
-                  height: 30, padding: '0 12px', borderRadius: 'var(--r-pill)',
-                  border: `1px solid ${active ? 'var(--cheese-green)' : 'var(--border-line)'}`,
-                  background: active ? 'color-mix(in srgb, var(--cheese-green) 14%, transparent)' : 'transparent',
-                  color: active ? 'var(--text-high)' : 'var(--text-muted)',
-                  fontFamily: 'var(--font-ui)', fontWeight: active ? 800 : 600, fontSize: 'var(--fs-xs)',
-                  cursor: 'pointer', transition: 'all var(--dur-fast) var(--ease-out)',
-                }}>
-                {d.label}
-              </button>
-            );
-          })}
+          {days.map((d) => (
+            <Chip key={d.key} label={d.label} active={d.key === dayKey}
+              title={d.key === 'all' ? undefined : d.key} onClick={() => setDayKey(d.key)} />
+          ))}
         </div>
       )}
 
@@ -138,7 +144,7 @@ export default function TournamentClient({ days }: { days: TournamentDaySet[] })
 
       {tab === 'teams' && <TeamsTab data={data} desktop={desktop} />}
       {/* key=일차 — 일차 바꾸면 페이지네이션 1페이지로 리셋 */}
-      {tab === 'games' && <GamesTab key={dayKey} games={data.games} desktop={desktop} />}
+      {tab === 'games' && <GamesTab key={dayKey} games={data.games} teams={data.teams} desktop={desktop} />}
       {tab === 'positions' && <PositionsTab data={data} />}
     </main>
   );
@@ -540,16 +546,23 @@ function GameCard({ g, desktop }: { g: GameVM; desktop: boolean }) {
 
 const GAMES_PER_PAGE = 8;
 
-function GamesTab({ games, desktop }: { games: GameVM[]; desktop: boolean }) {
+function GamesTab({ games: allGames, teams, desktop }: {
+  games: GameVM[]; teams: TeamVM[]; desktop: boolean;
+}) {
   const [page, setPage] = useState(1);
+  // 팀 필터 — 그 팀이 어느 진영으로든 출전한 경기만. 팀 이름이 곧 SideVM.teamName.
+  const [team, setTeam] = useState<string | null>(null);
 
-  if (games.length === 0) {
+  if (allGames.length === 0) {
     return <p style={{ ...sectionCard, ...sectionHint, display: 'block' }}>
       분류된 대회 스크림이 없습니다. 내전기록실에 경기를 입력하면 팀 로스터 기준으로 자동 분류됩니다.
     </p>;
   }
 
-  const pages = Math.ceil(games.length / GAMES_PER_PAGE);
+  const games = team
+    ? allGames.filter((g) => g.left.teamName === team || g.right.teamName === team)
+    : allGames;
+  const pages = Math.max(1, Math.ceil(games.length / GAMES_PER_PAGE));
   const cur = Math.min(page, pages); // 데이터 축소 시 범위 보정
   const start = (cur - 1) * GAMES_PER_PAGE;
   const shown = games.slice(start, start + GAMES_PER_PAGE);
@@ -557,11 +570,27 @@ function GamesTab({ games, desktop }: { games: GameVM[]; desktop: boolean }) {
 
   return (
     <div style={{ display: 'grid', gap: 'var(--sp-4)' }}>
+      {/* 팀 필터 — 전체 / 각 팀. 선택 팀이 참여한 경기만 남는다. */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <Chip label="전체" active={team === null} onClick={() => { setTeam(null); setPage(1); }} />
+        {teams.map((t, i) => (
+          <Chip key={t.id} label={t.name} active={team === t.name}
+            accent={TEAM_ACCENTS[i % TEAM_ACCENTS.length]}
+            title={t.captain.name}
+            onClick={() => { setTeam(t.name); setPage(1); }} />
+        ))}
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 'var(--sp-2)' }}>
         <span style={sectionHint}>총 {games.length}경기 · 최신순</span>
         {pages > 1 && <span style={sectionHint}>{cur} / {pages} 페이지</span>}
       </div>
 
+      {games.length === 0 && (
+        <p style={{ ...sectionCard, ...sectionHint, display: 'block' }}>
+          {team} 경기가 없습니다.
+        </p>
+      )}
       {shown.map((g) => <GameCard key={g.id} g={g} desktop={desktop} />)}
 
       {pages > 1 && (
