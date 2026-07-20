@@ -12,9 +12,10 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const session = token ? await verifySessionToken(token) : null;
 
   // Next.js Link 뷰포트 prefetch 요청 제외 — 실제 방문(클릭·주소창 진입)만 로그
-  // next-router-prefetch: 풀 페이지 prefetch, next-router-segment-prefetch: 세그먼트 단위 prefetch (Next 15)
+  // next-router-prefetch: 풀 페이지 prefetch, next-router-segment-prefetch: 세그먼트 단위 prefetch
+  // 값 비교 금지 — Next 16은 '1'(auto) / '2'(full) 두 값을 쓴다. 존재 여부만 본다.
   const isPrefetch =
-    req.headers.get('next-router-prefetch') === '1' ||
+    req.headers.has('next-router-prefetch') ||
     req.headers.has('next-router-segment-prefetch');
 
   // 실시간 접속 확인용 로그 — Vercel Runtime Logs에서 확인 (누가 어떤 페이지 보는지)
