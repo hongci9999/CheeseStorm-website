@@ -49,20 +49,9 @@ export function roleOfHero(hero: string): Role | null {
   return HERO_ROLES[hero.trim()] ?? null;
 }
 
-// 근접(밀리) 암살자 집합. 나머지 암살자는 원거리로 분류. (출처: HotS 공식 역할군)
-const MELEE_ASSASSINS = new Set([
-  '도살자', '부처', '더 부처', '마이에브', '머키', '발리라', '사무로',
-  '알라라크', '일리단', '제라툴', '케리건', '키히라',
-]);
-
-// 영웅명 → 세분 역할군. 암살자는 원거리/근접으로 구별, 나머지는 Role 그대로. 모르면 null.
+// FineRole = Role 통합 후 fineRoleOfHero는 roleOfHero와 동일. 시그니처만 유지(호출부 무손상).
 export function fineRoleOfHero(hero: string): FineRole | null {
-  const role = roleOfHero(hero);
-  if (role === null) return null;
-  if (role === '암살자') {
-    return MELEE_ASSASSINS.has(hero.trim()) ? '근접 암살자' : '원거리 암살자';
-  }
-  return role;
+  return roleOfHero(hero);
 }
 
 // 영웅명이 알려진 영웅인지 (역할군 매핑 존재 여부). OCR 오타·신규 영웅 검출용.

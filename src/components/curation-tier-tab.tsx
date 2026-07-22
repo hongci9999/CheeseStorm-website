@@ -18,7 +18,7 @@ import { HexAvatar, HEX_CLIP, TIER_COLOR_VAR } from '@/components/hexagon-avatar
 import { TOURNAMENT_PARTICIPANT_NAMES, TOURNAMENT_SEASON } from '@/lib/tournament';
 import type { CuratedTierLists, FineRole, PlayerStats, Streamer, Tier } from '@/lib/types';
 
-const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
+const ROLES: FineRole[] = ['탱커', '투사', '암살자', '지원가', '전문가'];
 const DRAG_TYPE = 'text/streamer-id';
 const POOL_WIDTH = 260;
 

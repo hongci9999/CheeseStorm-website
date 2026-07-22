@@ -1,8 +1,8 @@
 export type Role = '탱커' | '투사' | '암살자' | '지원가' | '전문가';
 
-// 세분 역할군 — 암살자를 원거리/근접으로 구별 (역할 필터·선호 포지션 표시용).
-// 내부 집계(Role)는 5분류 유지, UI 레이어에서만 이 6분류를 사용.
-export type FineRole = '탱커' | '투사' | '원거리 암살자' | '근접 암살자' | '지원가' | '전문가';
+// FineRole은 과거 암살자를 원거리/근접으로 쪼갠 6분류였으나 Role 5분류로 통합.
+// 별칭만 남겨 fineRole 필드·집계 함수 시그니처를 그대로 유지(스토어 스키마·테스트 무손상).
+export type FineRole = Role;
 
 export interface Streamer {
   id: string;

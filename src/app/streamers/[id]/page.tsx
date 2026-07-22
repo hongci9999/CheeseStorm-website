@@ -194,8 +194,9 @@ async function SidebarStatsSection({ streamerId, streamers, precomputed }: {
 
   if (precomputed) {
     ({ profile, kda, affinity } = precomputed);
-    // wins 추가 전에 만들어진 옛 통계 캐시면 matches로 즉석 재집계 (재집계 전까지 self-heal)
-    if (affinity.some((r) => r.wins === undefined)) {
+    // 옛 통계 캐시면 matches로 즉석 재집계 (refreshStats 재실행 전까지 self-heal):
+    // (1) wins 추가 전 캐시, (2) 암살자 원거리/근접 분리 시절의 레거시 롤(현재 '암살자'로 통합)
+    if (affinity.some((r) => r.wins === undefined || r.role.endsWith(' 암살자'))) {
       affinity = fineRoleAffinity(await getMatchesCached(), streamerId);
     }
   } else {

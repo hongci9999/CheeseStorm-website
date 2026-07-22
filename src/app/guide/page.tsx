@@ -373,7 +373,7 @@ export default function GuidePage() {
                 승률과 스탯을 종합해 <strong style={{ color: 'var(--text-high)' }}>자동으로 계산</strong>된 티어입니다.
                 내전은 팀이 의도적으로 밸런싱되므로 실력 지표보다는 <strong style={{ color: 'var(--text-high)' }}>전적 요약</strong>으로만
                 참고하세요. <br />
-                역할군 필터(탱커·투사·원거리 암살자 등)로 포지션별로 볼 수 있습니다.
+                역할군 필터(탱커·투사·암살자 등)로 포지션별로 볼 수 있습니다.
               </p>
               
             </div>

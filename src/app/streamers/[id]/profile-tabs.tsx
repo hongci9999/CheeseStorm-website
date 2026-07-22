@@ -207,7 +207,7 @@ function MatchRow({ m, streamerId, isMobile }: { m: SerializedMatch; streamerId:
 }
 
 // ── 영웅 스탯 (역할군별 그룹, 승률·전적만 표시) ──────────────────
-const ROLE_ORDER = ['탱커', '투사', '지원가', '근접 암살자', '원거리 암살자', '전문가', '기타'] as const;
+const ROLE_ORDER = ['탱커', '투사', '지원가', '암살자', '전문가', '기타'] as const;
 
 function groupHeroesByRole(rows: HeroAggregate[]): { role: string; rows: HeroAggregate[] }[] {
   const groups = new Map<string, HeroAggregate[]>();

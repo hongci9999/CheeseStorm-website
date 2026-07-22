@@ -20,7 +20,7 @@ import { TOURNAMENT_PARTICIPANT_NAMES, TOURNAMENT_SEASON } from '@/lib/tournamen
 // 자동 티어표는 숨김 (참고 지표로 오해 소지 — 큐레이션/Elo만 노출)
 type MainTab = 'elo' | 'curation' | 'hero';
 
-const ROLES: FineRole[] = ['탱커', '투사', '원거리 암살자', '근접 암살자', '지원가', '전문가'];
+const ROLES: FineRole[] = ['탱커', '투사', '암살자', '지원가', '전문가'];
 
 // ── 초기 로딩 스켈레톤 — stats/matches 첫 fetch 동안 표시 ──────────
 const SKEL: React.CSSProperties = {
