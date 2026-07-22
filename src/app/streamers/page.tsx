@@ -12,9 +12,10 @@ import { HexAvatar } from '@/components/hexagon-avatar';
 import { LevelBadge } from '@/components/level-badge';
 import { ProSticker } from '@/components/pro-sticker';
 import { isProStreamer } from '@/lib/pro-streamers';
+import { CrownSticker } from '@/components/crown-sticker';
 import { useAuth } from '@/hooks/use-auth';
 import { useBreakpoint } from '@/hooks/use-breakpoint';
-import { TOURNAMENT_PARTICIPANT_NAMES, TOURNAMENT_SEASON } from '@/lib/tournament';
+import { TOURNAMENT_PARTICIPANT_NAMES, TOURNAMENT_SEASON, isTournamentChampion } from '@/lib/tournament';
 
 const INPUT: React.CSSProperties = {
   width: '100%', height: 40, padding: '0 12px',
@@ -190,6 +191,7 @@ function StreamerCard({
           </span>
         </HexAvatar>
         {isProStreamer(streamer) && <ProSticker avatarSize={cardHex} />}
+        {isTournamentChampion(streamer) && <CrownSticker avatarSize={cardHex} />}
       </div>
     </div>
   );

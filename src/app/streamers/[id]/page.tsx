@@ -13,6 +13,8 @@ import { HexAvatar } from '@/components/hexagon-avatar';
 import { LevelBadge } from '@/components/level-badge';
 import { ProSticker } from '@/components/pro-sticker';
 import { isProStreamer } from '@/lib/pro-streamers';
+import { CrownSticker } from '@/components/crown-sticker';
+import { isTournamentChampion } from '@/lib/tournament';
 import type { SynergyStat, NemesisStat } from '@/lib/relations';
 import type { Match, Streamer, PlayerStats } from '@/lib/types';
 import { ProfileTabs } from './profile-tabs';
@@ -154,6 +156,7 @@ function StaticProfileCard({ streamer }: { streamer: Streamer }) {
             size={124}
           />
           {isProStreamer(streamer) && <ProSticker />}
+          {isTournamentChampion(streamer) && <CrownSticker />}
         </div>
       </div>
       <div style={{ marginTop: 'var(--sp-4)' }}>

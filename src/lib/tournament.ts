@@ -38,6 +38,18 @@ export const TOURNAMENT_TEAMS: TournamentTeamConfig[] = [
 export const TOURNAMENT_PARTICIPANT_NAMES: string[] =
   TOURNAMENT_TEAMS.flatMap((t) => [t.captain, ...t.members]);
 
+// 우승팀 — 스트리머 프로필 왕관 스티커용. 다음 대회 시작하면 갱신.
+export const CHAMPION_TEAM_ID = 'team4';
+const CHAMPION_NAMES = new Set(
+  TOURNAMENT_TEAMS.find((t) => t.id === CHAMPION_TEAM_ID)?.members.concat(
+    TOURNAMENT_TEAMS.find((t) => t.id === CHAMPION_TEAM_ID)!.captain,
+  ) ?? [],
+);
+
+export function isTournamentChampion(streamer: { name: string }): boolean {
+  return CHAMPION_NAMES.has(streamer.name.trim());
+}
+
 // 이번 대회 사용 맵 6종 (맵별 통계 표시 순서)
 export const TOURNAMENT_MAPS = [
   '용의 둥지', '저주받은 골짜기', '거미 여왕의 무덤',
