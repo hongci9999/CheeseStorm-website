@@ -17,8 +17,8 @@ function stickerStyle(avatarSize: number): CSSProperties {
     height: 26 * s,
     borderRadius: '50%',
     background:
-      'linear-gradient(145deg, #ffd76a 0%, #b8860b 100%)',
-    border: `${Math.max(1, 1.5 * s)}px solid color-mix(in srgb, #b8860b 80%, white)`,
+      'linear-gradient(145deg, color-mix(in srgb, var(--cheese-green) 70%, white) 0%, var(--cheese-green) 100%)',
+    border: `${Math.max(1, 1.5 * s)}px solid color-mix(in srgb, var(--cheese-green) 80%, white)`,
     boxShadow: '0 1px 5px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)',
     fontSize: 13 * s,
     lineHeight: 1,
