@@ -8,7 +8,7 @@ import {
 } from '@/lib/firestore';
 import { addMatch, updateMatch, upsertOcrCorrection, type TournamentTeamsPayload } from '@/lib/api-client';
 import { validateMatchForm, parseMatchDur } from '@/lib/match';
-import { TOURNAMENT_TEAMS, guessTournamentTeams } from '@/lib/tournament';
+import { TOURNAMENT_TEAMS, guessTournamentTeams, isTournamentActive } from '@/lib/tournament';
 import {
   resolveStreamerId,
   resolveHeroName,
@@ -836,43 +836,47 @@ function NewMatchPageInner() {
           </div>
         </div>
 
-        {/* ── 대회 경기 태깅 (선택) — 별도 tournamentGames 컬렉션에 기록, 대회 탭 지표 소스 ── */}
-        <div>
-          <label style={{ ...LABEL, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input type="checkbox" checked={isTournament}
-              onChange={e => {
-                setIsTournament(e.target.checked);
-                if (!e.target.checked) { setTourBlueTeam(''); setTourRedTeam(''); return; }
-                // 출전자 소속 다수결로 자동 선택 — 확신 못 하면 비워두고 사람이 고른다
-                const guess = guessTournamentTeams(
-                  blueSlots.map(s => s.streamerId).filter(Boolean),
-                  redSlots.map(s => s.streamerId).filter(Boolean),
-                  streamers);
-                if (guess) { setTourBlueTeam(guess.blue); setTourRedTeam(guess.red); }
-              }}
-              style={{ width: 14, height: 14, cursor: 'pointer' }} />
-            대회 경기로 기록 (선택)
-          </label>
-          {isTournament && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-2)', marginTop: 6 }}>
-              <select value={tourBlueTeam} onChange={e => setTourBlueTeam(e.target.value)} style={INPUT}>
-                <option value="">팀 1 소속 대회팀</option>
-                {TOURNAMENT_TEAMS.map(t => (
-                  <option key={t.id} value={t.id} disabled={t.id === tourRedTeam}>{t.name} ({t.captain})</option>
-                ))}
-              </select>
-              <select value={tourRedTeam} onChange={e => setTourRedTeam(e.target.value)} style={INPUT}>
-                <option value="">팀 2 소속 대회팀</option>
-                {TOURNAMENT_TEAMS.map(t => (
-                  <option key={t.id} value={t.id} disabled={t.id === tourBlueTeam}>{t.name} ({t.captain})</option>
-                ))}
-              </select>
-              <span style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--text-faint)' }}>
-                출전자 소속으로 자동 선택됩니다. 용병이 껴서 잘못 잡히면 직접 고르세요.
-              </span>
-            </div>
-          )}
-        </div>
+        {/* ── 대회 경기 태깅 (선택) — 별도 tournamentGames 컬렉션에 기록, 대회 탭 지표 소스 ──
+            대회 진행 기간에만 노출, 다음 대회 전까지 숨김. 이미 태깅된 경기를 편집 중이면
+            (isTournament=true, getTournamentGameLink 프리필) 기간이 지나도 계속 보여준다. */}
+        {(isTournamentActive() || isTournament) && (
+          <div>
+            <label style={{ ...LABEL, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={isTournament}
+                onChange={e => {
+                  setIsTournament(e.target.checked);
+                  if (!e.target.checked) { setTourBlueTeam(''); setTourRedTeam(''); return; }
+                  // 출전자 소속 다수결로 자동 선택 — 확신 못 하면 비워두고 사람이 고른다
+                  const guess = guessTournamentTeams(
+                    blueSlots.map(s => s.streamerId).filter(Boolean),
+                    redSlots.map(s => s.streamerId).filter(Boolean),
+                    streamers);
+                  if (guess) { setTourBlueTeam(guess.blue); setTourRedTeam(guess.red); }
+                }}
+                style={{ width: 14, height: 14, cursor: 'pointer' }} />
+              대회 경기로 기록 (선택)
+            </label>
+            {isTournament && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--sp-2)', marginTop: 6 }}>
+                <select value={tourBlueTeam} onChange={e => setTourBlueTeam(e.target.value)} style={INPUT}>
+                  <option value="">팀 1 소속 대회팀</option>
+                  {TOURNAMENT_TEAMS.map(t => (
+                    <option key={t.id} value={t.id} disabled={t.id === tourRedTeam}>{t.name} ({t.captain})</option>
+                  ))}
+                </select>
+                <select value={tourRedTeam} onChange={e => setTourRedTeam(e.target.value)} style={INPUT}>
+                  <option value="">팀 2 소속 대회팀</option>
+                  {TOURNAMENT_TEAMS.map(t => (
+                    <option key={t.id} value={t.id} disabled={t.id === tourBlueTeam}>{t.name} ({t.captain})</option>
+                  ))}
+                </select>
+                <span style={{ gridColumn: '1 / -1', fontSize: 11, color: 'var(--text-faint)' }}>
+                  출전자 소속으로 자동 선택됩니다. 용병이 껴서 잘못 잡히면 직접 고르세요.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── 메모 ── */}
         <div>

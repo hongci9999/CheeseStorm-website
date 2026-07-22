@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import {
   getMatchesWithStatsCachedServer, getStreamersCachedServer, getTournamentGameLinksCachedServer,
+  getTournamentResultsCachedServer,
 } from '@/lib/firestore.server';
 import {
-  buildTournamentData, tournamentDayKeys, TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_TEAMS,
+  buildTournamentData, tournamentDayKeys, isTournamentActive,
+  TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_TEAMS,
 } from '@/lib/tournament';
 import TournamentClient from '@/components/tournament-client';
 
@@ -13,6 +15,12 @@ export const metadata: Metadata = {
 };
 
 export default async function TournamentPage() {
+  // 대회 종료 후엔 finalizeTournamentResults()가 저장한 스냅샷만 읽는다 — 재집계 없음.
+  // 진행 중(isTournamentActive)엔 항상 라이브 집계 — 다음 대회가 시작되면 지난 대회의 낡은
+  // 스냅샷 문서가 여전히 남아있어도 그걸 안 쓰고 실시간 데이터를 보여준다.
+  const results = isTournamentActive() ? null : await getTournamentResultsCachedServer();
+  if (results) return <TournamentClient days={results.days} />;
+
   const [matches, streamers, links] = await Promise.all([
     getMatchesWithStatsCachedServer(),
     getStreamersCachedServer(),

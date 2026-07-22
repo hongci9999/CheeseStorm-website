@@ -18,6 +18,11 @@ import { mapWinRates } from './map-stats';
 import type { SessionPayload } from './session';
 import type { Match, Streamer, CuratedTierLists } from './types';
 import type { Scrim } from './scrim';
+import {
+  buildTournamentData, tournamentDayKeys, wrapMatrix,
+  TOURNAMENT_NAME, TOURNAMENT_SEASON, TOURNAMENT_TEAMS,
+  type TournamentGameLink,
+} from './tournament';
 
 type StoredPick = { id: string; hero: string };
 function packTeam(team: [string, string][]): StoredPick[] {
@@ -325,6 +330,46 @@ export async function unlinkMatchFromTournament(matchId: string): Promise<void> 
   await ref.delete();
   await db.collection('matches').doc(matchId).update({ tournament: FieldValue.delete() });
   scheduleRefresh();
+}
+
+// ── 대회 결과 스냅샷 (대회 종료 후 고정) ─────────────────────
+// 대회가 끝나면 로스터·경기가 더 바뀌지 않으므로, 매 요청마다 재집계하는 대신
+// 관리자가 한 번 호출해 계산 결과를 통째로 저장한다. 이후 /tournament는 이 문서만 읽고,
+// 문서가 없을 때만(다음 대회 진행 중 등) buildTournamentData로 라이브 집계 폴백한다.
+export async function finalizeTournamentResults(): Promise<void> {
+  const db = getAdminDb();
+  const [streamers, matches, linksSnap] = await Promise.all([
+    getStreamersAdmin(), getMatchesAdmin(), db.collection('tournamentGames').get(),
+  ]);
+  const links: TournamentGameLink[] = linksSnap.docs.map((d) => {
+    const data = d.data();
+    return {
+      matchId: d.id,
+      blueTeamId: data.blueTeamId,
+      redTeamId: data.redTeamId,
+      createdAt: data.createdAt?.toDate?.() ?? new Date(),
+    };
+  });
+
+  // h2h·teamMaps는 2차원 배열이라 Firestore가 그대로 못 받는다(중첩 배열 금지) — wrapMatrix로 감싼다.
+  const wrapDay = (d: ReturnType<typeof buildTournamentData>) =>
+    ({ ...d, h2h: wrapMatrix(d.h2h), teamMaps: wrapMatrix(d.teamMaps) });
+  const days = [
+    { key: 'all', label: '전체', data: wrapDay(buildTournamentData(matches, links, streamers)) },
+    ...tournamentDayKeys(matches, links).map((key, i) => ({
+      key, label: `${i + 1}일차`,
+      data: wrapDay(buildTournamentData(matches, links, streamers, TOURNAMENT_TEAMS, key)),
+    })),
+  ];
+
+  await db.collection('tournamentResults').doc('current').set({
+    name: TOURNAMENT_NAME,
+    season: TOURNAMENT_SEASON,
+    // Firestore는 undefined 필드를 거부 — 직렬화 왕복으로 정리(refreshStats의 clean()과 동일 패턴).
+    days: JSON.parse(JSON.stringify(days)),
+    finalizedAt: FieldValue.serverTimestamp(),
+  });
+  revalidateTag('tournamentResults', 'max');
 }
 
 // ── Scrims (프로 스크림 밴픽 기록) ───────────────────────────

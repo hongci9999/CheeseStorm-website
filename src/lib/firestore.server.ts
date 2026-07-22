@@ -4,9 +4,9 @@ import 'server-only';
 import { unstable_cache } from 'next/cache';
 import {
   getMatches, getStreamers, getScrims, getPrecomputedStats, getPrecomputedProfile,
-  getTournamentGameLinks,
+  getTournamentGameLinks, getTournamentResults,
 } from './firestore';
-import type { PrecomputedProfile } from './firestore';
+import type { PrecomputedProfile, TournamentResultsDoc } from './firestore';
 import type { Match, Streamer, PlayerStats } from './types';
 import type { HeroTierStat } from './hero-tier';
 import type { Scrim } from './scrim';
@@ -127,3 +127,14 @@ export async function getTournamentGameLinksCachedServer(): Promise<TournamentGa
     createdAt: l.createdAt instanceof Date ? l.createdAt : new Date(l.createdAt),
   }));
 }
+
+// ── 대회 결과 스냅샷 ──────────────────────────────────────────
+// finalizeTournamentResults()(firestore-admin.ts)가 저장한 뒤에만 채워진다.
+// 무효화는 그쪽에서 revalidateTag('tournamentResults')로 처리(admin write이므로 TTL 불필요).
+const _getTournamentResultsRaw = unstable_cache(
+  () => getTournamentResults(),
+  ['tournament-results'],
+  { tags: ['tournamentResults'] },
+);
+export const getTournamentResultsCachedServer =
+  _getTournamentResultsRaw as () => Promise<TournamentResultsDoc | null>;

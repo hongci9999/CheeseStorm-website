@@ -581,3 +581,14 @@ export function buildTournamentData(
 
   return { configured, teams, teamNames, maps, teamMaps, h2h, games: gameVMs, positions };
 }
+
+// ── Firestore 저장용 2차원 배열 래핑 ────────────────────────────
+// Firestore는 배열 안에 배열을 직접 못 넣는다("nested entity" 에러) — h2h·teamMaps는
+// 2차원 배열이라 저장 전 행마다 객체로 감싸고, 읽을 때 다시 풀어 TournamentData 모양을 되돌린다.
+// (finalizeTournamentResults가 저장, getTournamentResults가 읽음 — 둘 다 여기서 공유)
+export function wrapMatrix<T>(rows: T[][]): { cells: T[] }[] {
+  return rows.map((cells) => ({ cells }));
+}
+export function unwrapMatrix<T>(rows: { cells: T[] }[]): T[][] {
+  return rows.map((r) => r.cells);
+}

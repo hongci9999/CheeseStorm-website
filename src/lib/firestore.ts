@@ -26,7 +26,8 @@ import { emptyTierLists, listsFromPlacements, sanitizeLists, CURATED_TIER_ORDER 
 import { EMPTY_OCR_CORRECTIONS } from './ocr-corrections';
 import { normalizeMatchDur } from './match';
 import type { Scrim } from './scrim';
-import type { TournamentGameLink } from './tournament';
+import { unwrapMatrix } from './tournament';
+import type { TournamentGameLink, TournamentData } from './tournament';
 import { fineRoleAffinity } from './heroes';
 import { aggregateHeroStats } from './hero-stats';
 import type { HeroAggregate } from './hero-stats';
@@ -505,4 +506,28 @@ export async function getTournamentGameLinks(): Promise<TournamentGameLink[]> {
       createdAt: (data.createdAt as Timestamp).toDate(),
     };
   });
+}
+
+// --- 대회 결과 스냅샷 (대회 종료 후 고정) ---
+// 관리자가 finalizeTournamentResults()로 한 번 저장한 뒤로는 라이브 집계 없이 이 문서만 읽는다.
+export interface TournamentResultsDoc {
+  name: string;
+  season: string;
+  days: { key: string; label: string; data: TournamentData }[];
+}
+
+export async function getTournamentResults(): Promise<TournamentResultsDoc | null> {
+  const d = await getDoc(doc(db, 'tournamentResults', 'current'));
+  if (!d.exists()) return null;
+  const data = d.data();
+  // 저장 시 h2h·teamMaps를 wrapMatrix로 감쌌으므로(2차원 배열은 Firestore 미지원) 읽을 때 되돌린다.
+  const days = (data.days as { key: string; label: string; data: Record<string, unknown> }[]).map((dd) => ({
+    ...dd,
+    data: {
+      ...dd.data,
+      h2h: unwrapMatrix(dd.data.h2h as { cells: unknown[] }[]),
+      teamMaps: unwrapMatrix(dd.data.teamMaps as { cells: unknown[] }[]),
+    },
+  }));
+  return { name: data.name, season: data.season, days } as TournamentResultsDoc;
 }
