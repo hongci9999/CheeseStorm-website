@@ -27,7 +27,7 @@ function today(): string {
 export default function ScrimNewClient({ presence }: { presence: Record<string, number> }) {
   const router = useRouter();
   const [date, setDate] = useState(today());
-  const [patch, setPatch] = useState('2.55.16'); // 현행 라이브 패치 — 바뀌면 수정
+  const [patch, setPatch] = useState('2.55.17'); // 현행 라이브 패치 — 바뀌면 수정
   const [map, setMap] = useState('');
   const [state, setState] = useState<DraftState | null>(null);
   const [saving, setSaving] = useState(false);
